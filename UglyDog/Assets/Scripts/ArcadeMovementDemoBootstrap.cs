@@ -12,6 +12,7 @@ public static class ArcadeMovementDemoBootstrap
 
         CreateGround();
         var player = CreatePlayer();
+        CreateWoodGatherZone();
         CreateCamera(player.transform);
     }
 
@@ -44,11 +45,56 @@ public static class ArcadeMovementDemoBootstrap
         movement.rotationSpeed = 12f;
         movement.gravity = -20f;
 
+        player.AddComponent<PlayerResourceInventory>();
+        player.AddComponent<DemoHud>();
+
         var material = new Material(Shader.Find("Standard"));
         material.color = new Color(0.91f, 0.56f, 0.36f);
         player.GetComponent<Renderer>().material = material;
 
         return player;
+    }
+
+    private static void CreateWoodGatherZone()
+    {
+        var zoneRoot = new GameObject("WoodGatherZone");
+        zoneRoot.transform.position = new Vector3(8f, 0f, 8f);
+
+        var zoneVisual = GameObject.CreatePrimitive(PrimitiveType.Cube);
+        zoneVisual.name = "ZoneVisual";
+        zoneVisual.transform.SetParent(zoneRoot.transform, false);
+        zoneVisual.transform.localPosition = new Vector3(0f, 0.2f, 0f);
+        zoneVisual.transform.localScale = new Vector3(4f, 0.4f, 4f);
+
+        var zoneMaterial = new Material(Shader.Find("Standard"));
+        zoneMaterial.color = new Color(0.42f, 0.63f, 0.87f, 1f);
+        zoneVisual.GetComponent<Renderer>().material = zoneMaterial;
+
+        var triggerCollider = zoneRoot.AddComponent<BoxCollider>();
+        triggerCollider.isTrigger = true;
+        triggerCollider.center = new Vector3(0f, 1f, 0f);
+        triggerCollider.size = new Vector3(4f, 2f, 4f);
+
+        var gatherZone = zoneRoot.AddComponent<ResourceGatherZone>();
+        gatherZone.resourceType = "Wood";
+        gatherZone.gatherAmount = 5;
+        gatherZone.gatherInterval = 1f;
+
+        var tree = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+        tree.name = "TreeVisual";
+        tree.transform.SetParent(zoneRoot.transform, false);
+        tree.transform.localPosition = new Vector3(0f, 1f, 0f);
+        tree.transform.localScale = new Vector3(0.7f, 1f, 0.7f);
+
+        var treeMaterial = new Material(Shader.Find("Standard"));
+        treeMaterial.color = new Color(0.29f, 0.56f, 0.3f, 1f);
+        tree.GetComponent<Renderer>().material = treeMaterial;
+
+        var treeCollider = tree.GetComponent<Collider>();
+        if (treeCollider != null)
+        {
+            treeCollider.enabled = false;
+        }
     }
 
     private static void CreateCamera(Transform target)
@@ -112,6 +158,68 @@ public class PlayerMovementDemo : MonoBehaviour
         _velocity.y += gravity * Time.deltaTime;
 
         _characterController.Move((movement + _velocity) * Time.deltaTime);
+    }
+}
+
+public class PlayerResourceInventory : MonoBehaviour
+{
+    public int wood;
+
+    public void AddWood(int amount)
+    {
+        wood += amount;
+    }
+}
+
+public class ResourceGatherZone : MonoBehaviour
+{
+    public string resourceType = "Wood";
+    public int gatherAmount = 5;
+    public float gatherInterval = 1f;
+
+    private float _nextGatherTime;
+
+    private void OnTriggerStay(Collider other)
+    {
+        if (Time.time < _nextGatherTime)
+        {
+            return;
+        }
+
+        var inventory = other.GetComponent<PlayerResourceInventory>();
+        if (inventory == null)
+        {
+            return;
+        }
+
+        if (resourceType == "Wood")
+        {
+            inventory.AddWood(gatherAmount);
+        }
+
+        _nextGatherTime = Time.time + gatherInterval;
+    }
+}
+
+public class DemoHud : MonoBehaviour
+{
+    private PlayerResourceInventory _inventory;
+
+    private void Awake()
+    {
+        _inventory = GetComponent<PlayerResourceInventory>();
+    }
+
+    private void OnGUI()
+    {
+        if (_inventory == null)
+        {
+            return;
+        }
+
+        GUI.Box(new Rect(12f, 12f, 320f, 90f), "醜力全開大亂鬥 - Demo");
+        GUI.Label(new Rect(24f, 40f, 260f, 22f), "WASD 移動到藍色方框開始砍樹");
+        GUI.Label(new Rect(24f, 62f, 220f, 22f), "木材: " + _inventory.wood);
     }
 }
 
