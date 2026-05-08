@@ -6,7 +6,6 @@ using UnityEngine;
 using UnityEngine.Rendering;
 using UnityEngine.SceneManagement;
 
-[InitializeOnLoad]
 public static class UrpToonProjectSetup
 {
     private const string ScenePath = "Assets/Scenes/SampleScene.unity";
@@ -16,17 +15,6 @@ public static class UrpToonProjectSetup
     private const string SetupObjectName = "Toon Setup";
     private const string TargetRootName = "CAT";
     private const string ToonShaderName = "Custom/ToonLitOutline";
-
-    static UrpToonProjectSetup()
-    {
-        EditorApplication.delayCall += TrySetup;
-    }
-
-    [MenuItem("Tools/Apply CAT Toon Render")]
-    public static void ApplyCatToonRender()
-    {
-        TrySetup();
-    }
 
     private static void TrySetup()
     {

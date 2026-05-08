@@ -3,28 +3,12 @@ using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.UI;
 
-[InitializeOnLoad]
 public static class ResourceHudSetup
 {
-    static ResourceHudSetup()
-    {
-        EditorApplication.delayCall += AutoSetup;
-    }
-
     [MenuItem("Tools/Setup Resource HUD")]
     public static void Setup()
     {
         SetupInternal(true);
-    }
-
-    private static void AutoSetup()
-    {
-        if (EditorApplication.isPlayingOrWillChangePlaymode)
-        {
-            return;
-        }
-
-        SetupInternal(false);
     }
 
     private static void SetupInternal(bool showDialog)
