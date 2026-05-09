@@ -11,11 +11,18 @@ public class TreesChoppingSystem : MonoBehaviour
     [Header("Player")]
     [SerializeField] private CatPlayerController player;
     [SerializeField] private bool autoFindPlayer = true;
+    [SerializeField] private string preferredPlayerName = "CAT";
+
+    [Header("Interaction Area")]
+    [SerializeField] private Collider interactionArea;
+    [SerializeField] private bool autoUseParentTriggerArea = true;
 
     [Header("Chopping")]
     [SerializeField] private int woodPerTick = 1;
     [SerializeField] private float tickInterval = 1f;
     [SerializeField] private bool playDigAnimation = true;
+    [SerializeField] private bool requirePlayerStopped = true;
+    [SerializeField] private float stoppedInputThreshold = 0.05f;
 
     [Header("Range Visual Only")]
     [SerializeField] private float chopRange = 2.2f;
@@ -26,6 +33,7 @@ public class TreesChoppingSystem : MonoBehaviour
     [SerializeField] private float dashFill = 0.55f;
     [SerializeField] private float lineWidth = 0.08f;
     [SerializeField] private float ringHeight = 0.16f;
+    [SerializeField] private bool autoGenerateRangeVisuals;
 
     private const string VisualRootName = "Tree Chop Range Visuals";
 
@@ -35,6 +43,7 @@ public class TreesChoppingSystem : MonoBehaviour
     private Material visualMaterial;
     private bool rebuilding;
     private bool playerWasInRange;
+    private bool playerWasGathering;
     private float nextGatherTime;
     private float nextPlayerSearchTime;
     private Vector3 lastPosition;
@@ -54,22 +63,36 @@ public class TreesChoppingSystem : MonoBehaviour
     {
         if (!Application.isPlaying)
         {
-            RebuildIfTransformChanged();
+            if (autoGenerateRangeVisuals)
+            {
+                RebuildIfTransformChanged();
+            }
+
             return;
         }
 
         if (treeRanges.Count == 0)
         {
-            RebuildVisuals();
+            if (autoGenerateRangeVisuals)
+            {
+                RebuildVisuals();
+            }
+            else
+            {
+                RebuildRangeCache();
+            }
         }
 
         FindPlayerIfNeeded();
-        bool playerInRange = player != null && IsPlayerInsideAnyRange(player.transform.position);
-        if (playerInRange)
+        FindInteractionAreaIfNeeded();
+
+        bool playerInRange = player != null && IsPlayerInsideInteractionArea(player.transform.position);
+        bool playerCanGather = playerInRange && CanGatherNow(player);
+        if (playerCanGather)
         {
-            if (!playerWasInRange)
+            if (!playerWasGathering)
             {
-                nextGatherTime = Time.time;
+                nextGatherTime = Time.time + tickInterval;
             }
 
             if (playDigAnimation)
@@ -83,17 +106,25 @@ public class TreesChoppingSystem : MonoBehaviour
                 AddWood();
             }
         }
-        else if (playerWasInRange && player != null && playDigAnimation)
+        else if (playerWasGathering && player != null && playDigAnimation)
         {
             player.StopAction();
         }
 
         playerWasInRange = playerInRange;
+        playerWasGathering = playerCanGather;
     }
 
     private void OnEnable()
     {
-        QueueRebuild();
+        if (autoGenerateRangeVisuals)
+        {
+            QueueRebuild();
+        }
+        else
+        {
+            RebuildRangeCache();
+        }
     }
 
     private void OnDisable()
@@ -113,7 +144,14 @@ public class TreesChoppingSystem : MonoBehaviour
     {
         if (!rebuilding && isActiveAndEnabled)
         {
-            QueueRebuild();
+            if (autoGenerateRangeVisuals)
+            {
+                QueueRebuild();
+            }
+            else
+            {
+                treeRanges.Clear();
+            }
         }
     }
 
@@ -123,12 +161,21 @@ public class TreesChoppingSystem : MonoBehaviour
         rangePadding = Mathf.Max(0f, rangePadding);
         woodPerTick = Mathf.Max(1, woodPerTick);
         tickInterval = Mathf.Max(0.05f, tickInterval);
+        stoppedInputThreshold = Mathf.Max(0f, stoppedInputThreshold);
         dashCount = Mathf.Clamp(dashCount, 8, 64);
         dashFill = Mathf.Clamp(dashFill, 0.1f, 0.9f);
         lineWidth = Mathf.Max(0.01f, lineWidth);
         ringHeight = Mathf.Max(0.01f, ringHeight);
+        preferredPlayerName = string.IsNullOrWhiteSpace(preferredPlayerName) ? "CAT" : preferredPlayerName.Trim();
 
-        QueueRebuild();
+        if (autoGenerateRangeVisuals)
+        {
+            QueueRebuild();
+        }
+        else
+        {
+            treeRanges.Clear();
+        }
     }
 
     [ContextMenu("Rebuild Tree Range Visuals")]
@@ -205,6 +252,42 @@ public class TreesChoppingSystem : MonoBehaviour
 
         treeRanges.Add(new TreeRange { center = worldCenter, radius = worldRadius });
         AddDashedRing(vertices, triangles, localCenter, localRadius, localLineWidth);
+    }
+
+    private void RebuildRangeCache()
+    {
+        treeRanges.Clear();
+
+        if (LooksLikeTree(transform))
+        {
+            AddRangeCacheForTree(transform);
+            return;
+        }
+
+        for (int i = 0; i < transform.childCount; i++)
+        {
+            Transform tree = transform.GetChild(i);
+            if (tree == null || tree.name == VisualRootName || !tree.gameObject.activeInHierarchy)
+            {
+                continue;
+            }
+
+            AddRangeCacheForTree(tree);
+        }
+    }
+
+    private void AddRangeCacheForTree(Transform tree)
+    {
+        Bounds bounds;
+        if (!TryGetTreeBounds(tree, out bounds))
+        {
+            return;
+        }
+
+        float worldRadius = Mathf.Max(chopRange, Mathf.Max(bounds.extents.x, bounds.extents.z) + rangePadding);
+        Vector3 anchor = tree.TransformPoint(rangeCenterOffset);
+        Vector3 worldCenter = new Vector3(anchor.x, anchor.y + ringHeight, anchor.z);
+        treeRanges.Add(new TreeRange { center = worldCenter, radius = worldRadius });
     }
 
     private bool LooksLikeTree(Transform candidate)
@@ -422,7 +505,175 @@ public class TreesChoppingSystem : MonoBehaviour
         }
 
         nextPlayerSearchTime = Time.time + 1f;
-        player = FindObjectOfType<CatPlayerController>();
+        player = FindPreferredPlayer();
+    }
+
+    private CatPlayerController FindPreferredPlayer()
+    {
+        CatPlayerController[] candidates = FindObjectsOfType<CatPlayerController>();
+        CatPlayerController fallback = null;
+        CatPlayerController nonDogFallback = null;
+        string preferredName = string.IsNullOrWhiteSpace(preferredPlayerName) ? "CAT" : preferredPlayerName.Trim();
+
+        for (int i = 0; i < candidates.Length; i++)
+        {
+            CatPlayerController candidate = candidates[i];
+            if (candidate == null || !candidate.gameObject.activeInHierarchy || !candidate.enabled)
+            {
+                continue;
+            }
+
+            if (fallback == null)
+            {
+                fallback = candidate;
+            }
+
+            if (nonDogFallback == null && !NameContains(candidate.gameObject, "dog"))
+            {
+                nonDogFallback = candidate;
+            }
+
+            if (NameContains(candidate.gameObject, preferredName))
+            {
+                return candidate;
+            }
+        }
+
+        return nonDogFallback != null ? nonDogFallback : fallback;
+    }
+
+    private bool NameContains(GameObject target, string text)
+    {
+        return target != null
+            && !string.IsNullOrWhiteSpace(text)
+            && target.name.ToLowerInvariant().Contains(text.ToLowerInvariant());
+    }
+
+    private void FindInteractionAreaIfNeeded()
+    {
+        if (!autoUseParentTriggerArea || interactionArea != null)
+        {
+            return;
+        }
+
+        Collider bestArea = FindBestTriggerArea(transform);
+        if (bestArea == null && transform.parent != null)
+        {
+            bestArea = FindBestTriggerArea(transform.parent);
+        }
+
+        if (bestArea != null)
+        {
+            interactionArea = bestArea;
+        }
+    }
+
+    private Collider FindBestTriggerArea(Transform searchRoot)
+    {
+        Collider bestArea = null;
+        int bestScore = int.MinValue;
+
+        Collider[] parentColliders = GetComponentsInParent<Collider>(true);
+        for (int i = 0; i < parentColliders.Length; i++)
+        {
+            ConsiderTriggerArea(parentColliders[i], ref bestArea, ref bestScore);
+        }
+
+        Collider[] childColliders = searchRoot.GetComponentsInChildren<Collider>(true);
+        for (int i = 0; i < childColliders.Length; i++)
+        {
+            ConsiderTriggerArea(childColliders[i], ref bestArea, ref bestScore);
+        }
+
+        return bestArea;
+    }
+
+    private void ConsiderTriggerArea(Collider candidate, ref Collider bestArea, ref int bestScore)
+    {
+        if (candidate == null || !candidate.enabled || !candidate.isTrigger)
+        {
+            return;
+        }
+
+        int score = 0;
+        string lowerName = candidate.gameObject.name.ToLowerInvariant();
+        if (candidate.GetComponent<InteractiveAreaVisual>() != null)
+        {
+            score += 100;
+        }
+
+        if (lowerName.Contains("dashed"))
+        {
+            score += 40;
+        }
+
+        if (lowerName.Contains("area"))
+        {
+            score += 30;
+        }
+
+        if (candidate.transform == transform)
+        {
+            score += 10;
+        }
+        else if (candidate.transform.IsChildOf(transform))
+        {
+            score += 5;
+        }
+
+        if (score > bestScore)
+        {
+            bestScore = score;
+            bestArea = candidate;
+        }
+    }
+
+    private bool IsPlayerInsideInteractionArea(Vector3 playerPosition)
+    {
+        if (interactionArea != null && interactionArea.enabled)
+        {
+            return IsPointInsideAreaXZ(interactionArea, playerPosition);
+        }
+
+        if (HasManualInteractionArea())
+        {
+            return false;
+        }
+
+        return IsPlayerInsideAnyRange(playerPosition);
+    }
+
+    private bool CanGatherNow(CatPlayerController activePlayer)
+    {
+        return activePlayer != null
+            && (!requirePlayerStopped || !activePlayer.HasMovementInput(stoppedInputThreshold));
+    }
+
+    private bool HasManualInteractionArea()
+    {
+        if (GetComponentInChildren<InteractiveAreaVisual>(true) != null)
+        {
+            return true;
+        }
+
+        return transform.parent != null && transform.parent.GetComponentInChildren<InteractiveAreaVisual>(true) != null;
+    }
+
+    private bool IsPointInsideAreaXZ(Collider area, Vector3 point)
+    {
+        BoxCollider box = area as BoxCollider;
+        if (box != null)
+        {
+            Vector3 localPoint = box.transform.InverseTransformPoint(point) - box.center;
+            Vector3 halfSize = box.size * 0.5f;
+            return Mathf.Abs(localPoint.x) <= halfSize.x && Mathf.Abs(localPoint.z) <= halfSize.z;
+        }
+
+        Bounds bounds = area.bounds;
+        return point.x >= bounds.min.x
+            && point.x <= bounds.max.x
+            && point.z >= bounds.min.z
+            && point.z <= bounds.max.z;
     }
 
     private bool IsPlayerInsideAnyRange(Vector3 playerPosition)

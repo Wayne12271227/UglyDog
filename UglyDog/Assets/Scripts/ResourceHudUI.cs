@@ -11,8 +11,14 @@ public class ResourceHudUI : MonoBehaviour
     [SerializeField] private Vector2 topRightOffset = new Vector2(-24f, -18f);
     [SerializeField] private Vector2 itemSize = new Vector2(150f, 54f);
     [SerializeField] private float itemSpacing = 10f;
+    [SerializeField] private Vector2 iconSize = new Vector2(144f, 144f);
     [SerializeField] private Color backgroundColor = new Color(0f, 0f, 0f, 0.68f);
     [SerializeField] private Color iconPlaceholderColor = new Color(1f, 1f, 1f, 0.35f);
+
+    [Header("Icons")]
+    [SerializeField] private Sprite coinIcon;
+    [SerializeField] private Sprite woodIcon;
+    [SerializeField] private Sprite stoneIcon;
 
     private Text coinText;
     private Text woodText;
@@ -25,13 +31,13 @@ public class ResourceHudUI : MonoBehaviour
 
     private void Awake()
     {
-        BuildUI();
+        EnsureUI();
     }
 
     private void OnEnable()
     {
         ApplyReadableDefaults();
-        BuildUI();
+        EnsureUI();
         TrySubscribe();
         Refresh();
     }
@@ -40,7 +46,7 @@ public class ResourceHudUI : MonoBehaviour
     {
         ApplyReadableDefaults();
 
-        if (isActiveAndEnabled)
+        if (isActiveAndEnabled && MissingResourceSlots())
         {
             QueueEditorRebuild();
         }
@@ -68,7 +74,7 @@ public class ResourceHudUI : MonoBehaviour
             return;
         }
 
-        BuildUI();
+        EnsureUI();
         Refresh();
 #endif
     }
@@ -86,6 +92,7 @@ public class ResourceHudUI : MonoBehaviour
     {
         TrySubscribe();
         BindValueTexts();
+        BindIconImages();
         Refresh();
     }
 
@@ -143,11 +150,35 @@ public class ResourceHudUI : MonoBehaviour
 
         ClearChildren();
 
-        coinText = CreateResourceItem("Coin Slot", "\u91d1\u5e63", 0);
-        woodText = CreateResourceItem("Wood Slot", "\u6728\u982d", 1);
-        stoneText = CreateResourceItem("Stone Slot", "\u77f3\u982d", 2);
+        coinText = CreateResourceItem("Coin Slot", "\u91d1\u5e63", coinIcon, 0);
+        woodText = CreateResourceItem("Wood Slot", "\u6728\u982d", woodIcon, 1);
+        stoneText = CreateResourceItem("Stone Slot", "\u77f3\u982d", stoneIcon, 2);
         BindValueTexts();
+        BindIconImages();
         ForceNextRefresh();
+    }
+
+    private void EnsureUI()
+    {
+        if (!MissingResourceSlots())
+        {
+            BindValueTexts();
+            BindIconImages();
+            ForceNextRefresh();
+            return;
+        }
+
+        BuildUI();
+    }
+
+    private bool MissingResourceSlots()
+    {
+        return transform.Find("Coin Slot") == null
+            || transform.Find("Wood Slot") == null
+            || transform.Find("Stone Slot") == null
+            || FindValueText("Coin Slot") == null
+            || FindValueText("Wood Slot") == null
+            || FindValueText("Stone Slot") == null;
     }
 
     private void TrySubscribe()
@@ -230,7 +261,44 @@ public class ResourceHudUI : MonoBehaviour
         return value.GetComponent<Text>();
     }
 
-    private Text CreateResourceItem(string itemName, string resourceName, int index)
+    private void BindIconImages()
+    {
+        BindIconImage("Coin Slot", coinIcon);
+        BindIconImage("Wood Slot", woodIcon);
+        BindIconImage("Stone Slot", stoneIcon);
+    }
+
+    private void BindIconImage(string slotName, Sprite iconSprite)
+    {
+        Image iconImage = FindIconImage(slotName);
+        if (iconImage == null || iconImage.sprite != null || iconSprite == null)
+        {
+            return;
+        }
+
+        iconImage.sprite = iconSprite;
+        iconImage.preserveAspect = true;
+        iconImage.color = Color.white;
+    }
+
+    private Image FindIconImage(string slotName)
+    {
+        Transform slot = transform.Find(slotName);
+        if (slot == null)
+        {
+            return null;
+        }
+
+        Transform icon = slot.Find("Icon");
+        if (icon == null)
+        {
+            icon = slot.Find("Icon Placeholder");
+        }
+
+        return icon != null ? icon.GetComponent<Image>() : null;
+    }
+
+    private Text CreateResourceItem(string itemName, string resourceName, Sprite iconSprite, int index)
     {
         GameObject item = new GameObject(itemName, typeof(RectTransform), typeof(Image));
         item.transform.SetParent(transform, false);
@@ -246,7 +314,7 @@ public class ResourceHudUI : MonoBehaviour
         background.color = backgroundColor;
         background.raycastTarget = false;
 
-        GameObject icon = new GameObject("Icon Placeholder", typeof(RectTransform), typeof(Image));
+        GameObject icon = new GameObject("Icon", typeof(RectTransform), typeof(Image));
         icon.transform.SetParent(item.transform, false);
 
         RectTransform iconRect = icon.GetComponent<RectTransform>();
@@ -254,10 +322,12 @@ public class ResourceHudUI : MonoBehaviour
         iconRect.anchorMax = new Vector2(0f, 0.5f);
         iconRect.pivot = new Vector2(0f, 0.5f);
         iconRect.anchoredPosition = new Vector2(10f, 0f);
-        iconRect.sizeDelta = new Vector2(36f, 36f);
+        iconRect.sizeDelta = iconSize;
 
         Image iconImage = icon.GetComponent<Image>();
-        iconImage.color = iconPlaceholderColor;
+        iconImage.sprite = iconSprite;
+        iconImage.preserveAspect = true;
+        iconImage.color = iconSprite != null ? Color.white : iconPlaceholderColor;
         iconImage.raycastTarget = false;
 
         GameObject nameObject = new GameObject("Name", typeof(RectTransform), typeof(Text));
@@ -266,7 +336,8 @@ public class ResourceHudUI : MonoBehaviour
         RectTransform nameRect = nameObject.GetComponent<RectTransform>();
         nameRect.anchorMin = new Vector2(0f, 0f);
         nameRect.anchorMax = new Vector2(1f, 1f);
-        nameRect.offsetMin = new Vector2(54f, 27f);
+        float textLeftOffset = 10f + iconSize.x + 8f;
+        nameRect.offsetMin = new Vector2(textLeftOffset, 27f);
         nameRect.offsetMax = new Vector2(-12f, -4f);
 
         Text nameText = nameObject.GetComponent<Text>();
@@ -285,7 +356,7 @@ public class ResourceHudUI : MonoBehaviour
         RectTransform labelRect = label.GetComponent<RectTransform>();
         labelRect.anchorMin = new Vector2(0f, 0f);
         labelRect.anchorMax = new Vector2(1f, 1f);
-        labelRect.offsetMin = new Vector2(54f, 0f);
+        labelRect.offsetMin = new Vector2(textLeftOffset, 0f);
         labelRect.offsetMax = new Vector2(-12f, -2f);
 
         Text text = label.GetComponent<Text>();
@@ -303,8 +374,17 @@ public class ResourceHudUI : MonoBehaviour
 
     private void ApplyReadableDefaults()
     {
-        itemSize.x = Mathf.Max(itemSize.x, 150f);
-        itemSize.y = Mathf.Max(itemSize.y, 54f);
+        LoadDefaultIconsInEditor();
+
+        if (!MissingResourceSlots())
+        {
+            return;
+        }
+
+        iconSize.x = Mathf.Max(iconSize.x, 144f);
+        iconSize.y = Mathf.Max(iconSize.y, 144f);
+        itemSize.x = Mathf.Max(itemSize.x, iconSize.x + 96f);
+        itemSize.y = Mathf.Max(itemSize.y, iconSize.y);
         itemSpacing = Mathf.Max(itemSpacing, 10f);
 
         if (backgroundColor.a < 0.6f)
@@ -317,6 +397,40 @@ public class ResourceHudUI : MonoBehaviour
             iconPlaceholderColor = new Color(1f, 1f, 1f, 0.35f);
         }
     }
+
+    private void LoadDefaultIconsInEditor()
+    {
+#if UNITY_EDITOR
+        bool changed = false;
+        changed |= TryAssignDefaultIcon(ref coinIcon, "Assets/image/ui/coin1.png");
+        changed |= TryAssignDefaultIcon(ref woodIcon, "Assets/image/ui/wood1.png");
+        changed |= TryAssignDefaultIcon(ref stoneIcon, "Assets/image/ui/stone1.png");
+
+        if (changed && !Application.isPlaying)
+        {
+            UnityEditor.EditorUtility.SetDirty(this);
+        }
+#endif
+    }
+
+#if UNITY_EDITOR
+    private bool TryAssignDefaultIcon(ref Sprite icon, string assetPath)
+    {
+        if (icon != null)
+        {
+            return false;
+        }
+
+        Sprite loadedIcon = UnityEditor.AssetDatabase.LoadAssetAtPath<Sprite>(assetPath);
+        if (loadedIcon == null)
+        {
+            return false;
+        }
+
+        icon = loadedIcon;
+        return true;
+    }
+#endif
 
     private void AddTextShadow(GameObject textObject)
     {

@@ -6,12 +6,15 @@ public class WoodGatheringZone : MonoBehaviour
     [SerializeField] private int woodPerTick = 1;
     [SerializeField] private float tickInterval = 1f;
     [SerializeField] private bool requirePlayerController = true;
+    [SerializeField] private bool requirePlayerStopped = true;
+    [SerializeField] private float stoppedInputThreshold = 0.05f;
     [SerializeField] private LayerMask detectionLayers = ~0;
 
     private int playersInside;
     private float nextGatherTime;
     private Collider zoneCollider;
     private CatPlayerController activePlayer;
+    private bool playerWasGathering;
 
     private void Reset()
     {
@@ -31,13 +34,32 @@ public class WoodGatheringZone : MonoBehaviour
         bool playerDetected = playersInside > 0 || detectedPlayer != null;
         if (!playerDetected)
         {
+            playerWasGathering = false;
             return;
+        }
+
+        if (!CanGatherNow(detectedPlayer))
+        {
+            if (playerWasGathering && detectedPlayer != null)
+            {
+                detectedPlayer.StopAction();
+            }
+
+            playerWasGathering = false;
+            return;
+        }
+
+        if (!playerWasGathering)
+        {
+            nextGatherTime = Time.time + tickInterval;
         }
 
         if (detectedPlayer != null)
         {
             detectedPlayer.PlayDig();
         }
+
+        playerWasGathering = true;
 
         if (Time.time < nextGatherTime)
         {
@@ -46,6 +68,13 @@ public class WoodGatheringZone : MonoBehaviour
 
         nextGatherTime = Time.time + tickInterval;
         AddWood(detectedPlayer);
+    }
+
+    private void OnValidate()
+    {
+        woodPerTick = Mathf.Max(1, woodPerTick);
+        tickInterval = Mathf.Max(0.05f, tickInterval);
+        stoppedInputThreshold = Mathf.Max(0f, stoppedInputThreshold);
     }
 
     private void OnTriggerEnter(Collider other)
@@ -78,6 +107,8 @@ public class WoodGatheringZone : MonoBehaviour
         {
             activePlayer = null;
         }
+
+        playerWasGathering = false;
 
         if (player != null)
         {
@@ -125,6 +156,12 @@ public class WoodGatheringZone : MonoBehaviour
         }
 
         return null;
+    }
+
+    private bool CanGatherNow(CatPlayerController player)
+    {
+        return player != null
+            && (!requirePlayerStopped || !player.HasMovementInput(stoppedInputThreshold));
     }
 
     private void AddWood(CatPlayerController player)

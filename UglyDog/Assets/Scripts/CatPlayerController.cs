@@ -182,6 +182,11 @@ public class CatPlayerController : MonoBehaviour
         PlayAction(buildHash, hasBuildTrigger, buildStateName);
     }
 
+    public bool HasMovementInput(float threshold = 0.05f)
+    {
+        return GetCurrentInputMagnitude() > threshold;
+    }
+
     public void StopAction()
     {
         if (animator == null)

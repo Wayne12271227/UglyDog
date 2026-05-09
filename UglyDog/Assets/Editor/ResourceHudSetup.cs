@@ -60,6 +60,9 @@ public static class ResourceHudSetup
         {
             SerializedObject serializedHud = new SerializedObject(hud);
             serializedHud.FindProperty("resourceManager").objectReferenceValue = manager;
+            AssignDefaultIcon(serializedHud, "coinIcon", "Assets/image/ui/coin1.png");
+            AssignDefaultIcon(serializedHud, "woodIcon", "Assets/image/ui/wood1.png");
+            AssignDefaultIcon(serializedHud, "stoneIcon", "Assets/image/ui/stone1.png");
             serializedHud.ApplyModifiedProperties();
         }
 
@@ -84,6 +87,17 @@ public static class ResourceHudSetup
 
         GameObject managerObject = new GameObject("ResourceManager", typeof(ResourceManager));
         Undo.RegisterCreatedObjectUndo(managerObject, "Create ResourceManager");
+    }
+
+    private static void AssignDefaultIcon(SerializedObject serializedHud, string propertyName, string assetPath)
+    {
+        SerializedProperty property = serializedHud.FindProperty(propertyName);
+        if (property == null || property.objectReferenceValue != null)
+        {
+            return;
+        }
+
+        property.objectReferenceValue = AssetDatabase.LoadAssetAtPath<Sprite>(assetPath);
     }
 
     private static void EnsureEventSystem()
