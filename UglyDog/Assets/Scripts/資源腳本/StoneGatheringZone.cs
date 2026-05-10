@@ -51,7 +51,7 @@ public class StoneGatheringZone : MonoBehaviour
 
         if (!playerWasGathering)
         {
-            nextGatherTime = Time.time + tickInterval;
+            nextGatherTime = Time.time + GetEffectiveTickInterval();
         }
 
         if (detectedPlayer != null)
@@ -66,7 +66,7 @@ public class StoneGatheringZone : MonoBehaviour
             return;
         }
 
-        nextGatherTime = Time.time + tickInterval;
+        nextGatherTime = Time.time + GetEffectiveTickInterval();
         AddStone(detectedPlayer);
     }
 
@@ -128,7 +128,7 @@ public class StoneGatheringZone : MonoBehaviour
 
     private CatPlayerController GetPlayer(Collider other)
     {
-        return other.GetComponentInParent<CatPlayerController>();
+        return PreferredPlayerFinder.GetPreferredPlayer(other);
     }
 
     private CatPlayerController FindPlayerInsideZone()
@@ -162,6 +162,12 @@ public class StoneGatheringZone : MonoBehaviour
     {
         return player != null
             && (!requirePlayerStopped || !player.HasMovementInput(stoppedInputThreshold));
+    }
+
+    private float GetEffectiveTickInterval()
+    {
+        PlayerUpgradeManager upgrades = PlayerUpgradeManager.Instance;
+        return upgrades != null ? upgrades.GetGatherTickInterval(ResourceType.Stone, tickInterval) : tickInterval;
     }
 
     private void AddStone(CatPlayerController player)

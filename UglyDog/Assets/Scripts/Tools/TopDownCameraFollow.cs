@@ -11,8 +11,29 @@ public class TopDownCameraFollow : MonoBehaviour
     [SerializeField] private float fieldOfView = 42f;
     [SerializeField] private bool autoFindPlayer = true;
 
+    [Header("Orbit")]
+    [SerializeField] private bool allowOrbit = true;
+    [SerializeField] private int mouseOrbitButton = 1;
+    [SerializeField] private int resetViewMouseButton = 2;
+    [SerializeField] private float mouseYawSpeed = 180f;
+    [SerializeField] private float mousePitchSpeed = 90f;
+    [SerializeField] private float minPitch = 20f;
+    [SerializeField] private float maxPitch = 75f;
+
+    [Header("Zoom")]
+    [SerializeField] private bool allowZoom = true;
+    [SerializeField] private float zoomSpeed = 3f;
+    [SerializeField] private float minDistance = 4f;
+    [SerializeField] private float maxDistance = 14f;
+
     private Camera cameraComponent;
     private Vector3 followVelocity;
+    private float yaw;
+    private float pitch;
+    private float distance;
+    private float defaultYaw;
+    private float defaultPitch;
+    private float defaultDistance;
 
     public Transform Target
     {
@@ -23,6 +44,7 @@ public class TopDownCameraFollow : MonoBehaviour
     private void Awake()
     {
         cameraComponent = GetComponent<Camera>();
+        InitializeOrbitFromOffset();
         ApplyCameraSettings();
         FindPlayerIfNeeded();
         SnapToTarget();
@@ -31,6 +53,7 @@ public class TopDownCameraFollow : MonoBehaviour
     private void OnValidate()
     {
         cameraComponent = GetComponent<Camera>();
+        InitializeOrbitFromOffset();
         ApplyCameraSettings();
         SnapToTarget();
     }
@@ -38,6 +61,7 @@ public class TopDownCameraFollow : MonoBehaviour
     private void LateUpdate()
     {
         FindPlayerIfNeeded();
+        UpdateOrbitInput();
 
         if (target == null)
         {
@@ -73,7 +97,7 @@ public class TopDownCameraFollow : MonoBehaviour
 
     private Vector3 GetTargetCameraPosition()
     {
-        return target.position + offset;
+        return target.position + GetOrbitOffset();
     }
 
     private void LookAtTarget()
@@ -98,6 +122,73 @@ public class TopDownCameraFollow : MonoBehaviour
         cameraComponent.fieldOfView = fieldOfView;
     }
 
+    private void InitializeOrbitFromOffset()
+    {
+        Vector3 startOffset = offset;
+        if (startOffset.sqrMagnitude <= 0.001f)
+        {
+            startOffset = new Vector3(0f, 8f, -6.5f);
+        }
+
+        distance = Mathf.Clamp(startOffset.magnitude, minDistance, maxDistance);
+        yaw = Mathf.Atan2(startOffset.x, startOffset.z) * Mathf.Rad2Deg;
+
+        float horizontalDistance = new Vector2(startOffset.x, startOffset.z).magnitude;
+        pitch = Mathf.Atan2(startOffset.y, horizontalDistance) * Mathf.Rad2Deg;
+        pitch = Mathf.Clamp(pitch, minPitch, maxPitch);
+
+        defaultYaw = yaw;
+        defaultPitch = pitch;
+        defaultDistance = distance;
+    }
+
+    private void UpdateOrbitInput()
+    {
+        if (!Application.isPlaying || !allowOrbit)
+        {
+            return;
+        }
+
+        if (Input.GetMouseButtonDown(resetViewMouseButton))
+        {
+            ResetView();
+        }
+
+        if (Input.GetMouseButton(mouseOrbitButton))
+        {
+            yaw += Input.GetAxis("Mouse X") * mouseYawSpeed * Time.deltaTime;
+            pitch -= Input.GetAxis("Mouse Y") * mousePitchSpeed * Time.deltaTime;
+        }
+
+        if (allowZoom)
+        {
+            distance -= Input.mouseScrollDelta.y * zoomSpeed;
+            distance = Mathf.Clamp(distance, minDistance, maxDistance);
+        }
+
+        pitch = Mathf.Clamp(pitch, minPitch, maxPitch);
+    }
+
+    private void ResetView()
+    {
+        yaw = defaultYaw;
+        pitch = defaultPitch;
+        distance = defaultDistance;
+        followVelocity = Vector3.zero;
+    }
+
+    private Vector3 GetOrbitOffset()
+    {
+        float yawRadians = yaw * Mathf.Deg2Rad;
+        float pitchRadians = pitch * Mathf.Deg2Rad;
+        float horizontalDistance = Mathf.Cos(pitchRadians) * distance;
+
+        return new Vector3(
+            Mathf.Sin(yawRadians) * horizontalDistance,
+            Mathf.Sin(pitchRadians) * distance,
+            Mathf.Cos(yawRadians) * horizontalDistance);
+    }
+
     private void FindPlayerIfNeeded()
     {
         if (!autoFindPlayer || target != null)
@@ -105,7 +196,7 @@ public class TopDownCameraFollow : MonoBehaviour
             return;
         }
 
-        CatPlayerController player = FindObjectOfType<CatPlayerController>();
+        CatPlayerController player = PreferredPlayerFinder.FindPreferredPlayer();
         if (player != null)
         {
             target = player.transform;

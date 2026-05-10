@@ -178,7 +178,7 @@ public class BuildZone : MonoBehaviour
 
     private CatPlayerController GetPlayer(Collider other)
     {
-        return other.GetComponentInParent<CatPlayerController>();
+        return PreferredPlayerFinder.GetPreferredPlayer(other);
     }
 
     private CatPlayerController FindPlayerInsideZone()

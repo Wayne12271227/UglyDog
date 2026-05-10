@@ -1,20 +1,23 @@
 using UnityEngine;
 
 [RequireComponent(typeof(Collider))]
-public class WoodGatheringZone : MonoBehaviour
+public class ResourceSellZone : MonoBehaviour
 {
-    [SerializeField] private int woodPerTick = 1;
-    [SerializeField] private float tickInterval = 1f;
+    [Header("Trade")]
+    [SerializeField] private ResourceType resourceToSell = ResourceType.Wood;
+    [SerializeField] private int resourcePerTick = 1;
+    [SerializeField] private int coinsPerTick = 1;
+    [SerializeField] private float tickInterval = 0.5f;
+    [SerializeField] private bool sellImmediatelyOnEnter = true;
+
+    [Header("Detection")]
     [SerializeField] private bool requirePlayerController = true;
-    [SerializeField] private bool requirePlayerStopped = true;
-    [SerializeField] private float stoppedInputThreshold = 0.05f;
     [SerializeField] private LayerMask detectionLayers = ~0;
 
-    private int playersInside;
-    private float nextGatherTime;
     private Collider zoneCollider;
     private CatPlayerController activePlayer;
-    private bool playerWasGathering;
+    private int playersInside;
+    private float nextSellTime;
 
     private void Reset()
     {
@@ -30,51 +33,32 @@ public class WoodGatheringZone : MonoBehaviour
 
     private void Update()
     {
-        CatPlayerController detectedPlayer = activePlayer != null ? activePlayer : FindPlayerInsideZone();
-        bool playerDetected = playersInside > 0 || detectedPlayer != null;
+        CatPlayerController player = activePlayer != null ? activePlayer : FindPlayerInsideZone();
+        bool playerDetected = playersInside > 0 || player != null;
         if (!playerDetected)
         {
-            playerWasGathering = false;
             return;
         }
 
-        if (!CanGatherNow(detectedPlayer))
-        {
-            if (playerWasGathering && detectedPlayer != null)
-            {
-                detectedPlayer.StopAction();
-            }
-
-            playerWasGathering = false;
-            return;
-        }
-
-        if (!playerWasGathering)
-        {
-            nextGatherTime = Time.time + GetEffectiveTickInterval();
-        }
-
-        if (detectedPlayer != null)
-        {
-            detectedPlayer.PlayDig();
-        }
-
-        playerWasGathering = true;
-
-        if (Time.time < nextGatherTime)
+        if (Time.time < nextSellTime)
         {
             return;
         }
 
-        nextGatherTime = Time.time + GetEffectiveTickInterval();
-        AddWood(detectedPlayer);
+        nextSellTime = Time.time + tickInterval;
+        TrySell();
     }
 
     private void OnValidate()
     {
-        woodPerTick = Mathf.Max(1, woodPerTick);
+        if (resourceToSell == ResourceType.Coin)
+        {
+            resourceToSell = ResourceType.Wood;
+        }
+
+        resourcePerTick = Mathf.Max(1, resourcePerTick);
+        coinsPerTick = Mathf.Max(1, coinsPerTick);
         tickInterval = Mathf.Max(0.05f, tickInterval);
-        stoppedInputThreshold = Mathf.Max(0f, stoppedInputThreshold);
     }
 
     private void OnTriggerEnter(Collider other)
@@ -91,7 +75,7 @@ public class WoodGatheringZone : MonoBehaviour
             activePlayer = player;
         }
 
-        nextGatherTime = Time.time;
+        nextSellTime = sellImmediatelyOnEnter ? Time.time : Time.time + tickInterval;
     }
 
     private void OnTriggerExit(Collider other)
@@ -106,13 +90,6 @@ public class WoodGatheringZone : MonoBehaviour
         if (activePlayer != null && player == activePlayer)
         {
             activePlayer = null;
-        }
-
-        playerWasGathering = false;
-
-        if (player != null)
-        {
-            player.StopAction();
         }
     }
 
@@ -158,26 +135,19 @@ public class WoodGatheringZone : MonoBehaviour
         return null;
     }
 
-    private bool CanGatherNow(CatPlayerController player)
-    {
-        return player != null
-            && (!requirePlayerStopped || !player.HasMovementInput(stoppedInputThreshold));
-    }
-
-    private float GetEffectiveTickInterval()
-    {
-        PlayerUpgradeManager upgrades = PlayerUpgradeManager.Instance;
-        return upgrades != null ? upgrades.GetGatherTickInterval(ResourceType.Wood, tickInterval) : tickInterval;
-    }
-
-    private void AddWood(CatPlayerController player)
+    private void TrySell()
     {
         if (ResourceManager.Instance == null)
         {
-            Debug.LogWarning("WoodGatheringZone cannot find ResourceManager.");
+            Debug.LogWarning("ResourceSellZone cannot find ResourceManager.");
             return;
         }
 
-        ResourceManager.Instance.Add(ResourceType.Wood, woodPerTick);
+        if (!ResourceManager.Instance.Spend(resourceToSell, resourcePerTick))
+        {
+            return;
+        }
+
+        ResourceManager.Instance.Add(ResourceType.Coin, coinsPerTick);
     }
 }

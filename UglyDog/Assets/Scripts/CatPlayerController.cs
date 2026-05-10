@@ -61,6 +61,18 @@ public class CatPlayerController : MonoBehaviour
 
     private void Update()
     {
+        if (PreferredPlayerFinder.FindPreferredPlayer() != this)
+        {
+            UpdateAnimation(0f);
+            return;
+        }
+
+        if (UpgradeShopUI.BlocksPlayerInput)
+        {
+            UpdateAnimation(0f);
+            return;
+        }
+
         Vector3 input = GetMovementInput();
         input = Vector3.ClampMagnitude(input, 1f);
 
@@ -73,7 +85,7 @@ public class CatPlayerController : MonoBehaviour
             transform.rotation = Quaternion.Slerp(transform.rotation, targetRotation, turnSpeed * Time.deltaTime);
         }
 
-        MovePlayer(moveDirection * moveSpeed * Time.deltaTime);
+        MovePlayer(moveDirection * GetEffectiveMoveSpeed() * Time.deltaTime);
         SnapToGroundIfNeeded();
 
         UpdateAnimation(input.magnitude);
@@ -135,6 +147,13 @@ public class CatPlayerController : MonoBehaviour
         }
 
         return new Vector3(horizontal, 0f, vertical);
+    }
+
+    private float GetEffectiveMoveSpeed()
+    {
+        PlayerUpgradeManager upgrades = PlayerUpgradeManager.Instance;
+        float multiplier = upgrades != null ? upgrades.MoveSpeedMultiplier : 1f;
+        return moveSpeed * multiplier;
     }
 
     private void MovePlayer(Vector3 offset)

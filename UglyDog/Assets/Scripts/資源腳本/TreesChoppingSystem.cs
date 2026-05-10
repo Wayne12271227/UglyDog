@@ -11,7 +11,7 @@ public class TreesChoppingSystem : MonoBehaviour
     [Header("Player")]
     [SerializeField] private CatPlayerController player;
     [SerializeField] private bool autoFindPlayer = true;
-    [SerializeField] private string preferredPlayerName = "CAT";
+    [SerializeField] private string preferredPlayerName = PreferredPlayerFinder.PreferredPlayerName;
 
     [Header("Interaction Area")]
     [SerializeField] private Collider interactionArea;
@@ -92,7 +92,7 @@ public class TreesChoppingSystem : MonoBehaviour
         {
             if (!playerWasGathering)
             {
-                nextGatherTime = Time.time + tickInterval;
+                nextGatherTime = Time.time + GetEffectiveTickInterval();
             }
 
             if (playDigAnimation)
@@ -102,7 +102,7 @@ public class TreesChoppingSystem : MonoBehaviour
 
             if (Time.time >= nextGatherTime)
             {
-                nextGatherTime = Time.time + tickInterval;
+                nextGatherTime = Time.time + GetEffectiveTickInterval();
                 AddWood();
             }
         }
@@ -166,7 +166,7 @@ public class TreesChoppingSystem : MonoBehaviour
         dashFill = Mathf.Clamp(dashFill, 0.1f, 0.9f);
         lineWidth = Mathf.Max(0.01f, lineWidth);
         ringHeight = Mathf.Max(0.01f, ringHeight);
-        preferredPlayerName = string.IsNullOrWhiteSpace(preferredPlayerName) ? "CAT" : preferredPlayerName.Trim();
+        preferredPlayerName = string.IsNullOrWhiteSpace(preferredPlayerName) ? PreferredPlayerFinder.PreferredPlayerName : preferredPlayerName.Trim();
 
         if (autoGenerateRangeVisuals)
         {
@@ -510,43 +510,7 @@ public class TreesChoppingSystem : MonoBehaviour
 
     private CatPlayerController FindPreferredPlayer()
     {
-        CatPlayerController[] candidates = FindObjectsOfType<CatPlayerController>();
-        CatPlayerController fallback = null;
-        CatPlayerController nonDogFallback = null;
-        string preferredName = string.IsNullOrWhiteSpace(preferredPlayerName) ? "CAT" : preferredPlayerName.Trim();
-
-        for (int i = 0; i < candidates.Length; i++)
-        {
-            CatPlayerController candidate = candidates[i];
-            if (candidate == null || !candidate.gameObject.activeInHierarchy || !candidate.enabled)
-            {
-                continue;
-            }
-
-            if (fallback == null)
-            {
-                fallback = candidate;
-            }
-
-            if (nonDogFallback == null && !NameContains(candidate.gameObject, "dog"))
-            {
-                nonDogFallback = candidate;
-            }
-
-            if (NameContains(candidate.gameObject, preferredName))
-            {
-                return candidate;
-            }
-        }
-
-        return nonDogFallback != null ? nonDogFallback : fallback;
-    }
-
-    private bool NameContains(GameObject target, string text)
-    {
-        return target != null
-            && !string.IsNullOrWhiteSpace(text)
-            && target.name.ToLowerInvariant().Contains(text.ToLowerInvariant());
+        return PreferredPlayerFinder.FindPreferredPlayer();
     }
 
     private void FindInteractionAreaIfNeeded()
@@ -701,6 +665,12 @@ public class TreesChoppingSystem : MonoBehaviour
         }
 
         ResourceManager.Instance.Add(ResourceType.Wood, woodPerTick);
+    }
+
+    private float GetEffectiveTickInterval()
+    {
+        PlayerUpgradeManager upgrades = PlayerUpgradeManager.Instance;
+        return upgrades != null ? upgrades.GetGatherTickInterval(ResourceType.Wood, tickInterval) : tickInterval;
     }
 
     private void RebuildIfTransformChanged()
