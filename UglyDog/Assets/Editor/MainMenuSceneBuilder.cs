@@ -22,6 +22,8 @@ public static class MainMenuSceneBuilder
     private const string BackgroundMaterialPath = MaterialsFolder + "/MenuBackgroundUnlit.mat";
     private const string ContactShadowMaterialPath = MaterialsFolder + "/MenuContactShadow.mat";
     private const string OutlineMaterialPath = MaterialsFolder + "/DefaultToonOutline.mat";
+    private const string DogToonMaterialPath = MaterialsFolder + "/DogToon.mat";
+    private const string DogOutlineMaterialPath = MaterialsFolder + "/DogOutline.mat";
     private const string OutlineShaderName = "Custom/URPToonOutline";
     private const string ToonShaderName = "Custom/ToonLitOutline";
 
@@ -234,7 +236,9 @@ public static class MainMenuSceneBuilder
                 dog.name = "Menu DOG";
                 dog.transform.SetParent(stage.transform, true);
                 FitCharacterToMenu(dog, 1.55f, CharacterGroundY, CharacterZ + 0.1f, 2.25f);
-                ApplyMenuToon(dog, outlineMaterial);
+                Material dogToonMaterial = AssetDatabase.LoadAssetAtPath<Material>(DogToonMaterialPath);
+                Material dogOutlineMaterial = AssetDatabase.LoadAssetAtPath<Material>(DogOutlineMaterialPath);
+                ApplyMenuToon(dog, dogOutlineMaterial != null ? dogOutlineMaterial : outlineMaterial, dogToonMaterial, false);
                 PrepareMenuCharacter(dog);
                 CreateContactShadow(shadowRoot, "DOG Contact Shadow", dog, 0.85f, 0.28f);
             }
@@ -352,7 +356,7 @@ public static class MainMenuSceneBuilder
         textRect.offsetMax = Vector2.zero;
     }
 
-    private static void ApplyMenuToon(GameObject characterRoot, Material outlineMaterial)
+    private static void ApplyMenuToon(GameObject characterRoot, Material outlineMaterial, Material baseToonMaterial = null, bool preserveExistingMaterialTextures = true)
     {
         ToonCharacterSetup setup = characterRoot.GetComponent<ToonCharacterSetup>();
         if (setup == null)
@@ -363,11 +367,11 @@ public static class MainMenuSceneBuilder
         SerializedObject serializedSetup = new SerializedObject(setup);
         serializedSetup.FindProperty("targetRootName").stringValue = characterRoot.name;
         serializedSetup.FindProperty("targetRoot").objectReferenceValue = characterRoot.transform;
-        serializedSetup.FindProperty("baseToonMaterial").objectReferenceValue = null;
+        serializedSetup.FindProperty("baseToonMaterial").objectReferenceValue = baseToonMaterial;
         serializedSetup.FindProperty("toonShaderName").stringValue = ToonShaderName;
         serializedSetup.FindProperty("outlineMaterial").objectReferenceValue = outlineMaterial;
         serializedSetup.FindProperty("enableOutline").boolValue = true;
-        serializedSetup.FindProperty("preserveExistingMaterialTextures").boolValue = true;
+        serializedSetup.FindProperty("preserveExistingMaterialTextures").boolValue = preserveExistingMaterialTextures;
         serializedSetup.FindProperty("baseColor").colorValue = Color.white;
         serializedSetup.FindProperty("shadowColor").colorValue = new Color(0.68f, 0.55f, 0.44f, 1f);
         serializedSetup.FindProperty("shadowThreshold").floatValue = 0.38f;

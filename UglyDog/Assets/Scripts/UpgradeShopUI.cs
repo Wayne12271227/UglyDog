@@ -8,7 +8,7 @@ public class UpgradeShopUI : MonoBehaviour
     public static UpgradeShopUI Instance { get; private set; }
     public static bool BlocksPlayerInput => Instance != null && Instance.IsOpen;
 
-    [SerializeField] private Vector2 panelSize = new Vector2(660f, 440f);
+    [SerializeField] private Vector2 panelSize = new Vector2(660f, 640f);
     [SerializeField] private Color panelColor = new Color(0.08f, 0.07f, 0.055f, 0.94f);
     [SerializeField] private Color rowColor = new Color(1f, 1f, 1f, 0.08f);
     [SerializeField] private Color buttonColor = new Color(0.95f, 0.66f, 0.18f, 1f);
@@ -16,6 +16,7 @@ public class UpgradeShopUI : MonoBehaviour
     [SerializeField] private KeyCode closeKey = KeyCode.Escape;
 
     private readonly Dictionary<PlayerUpgradeType, UpgradeRow> rows = new Dictionary<PlayerUpgradeType, UpgradeRow>();
+    private readonly Dictionary<BuildingType, BuildingRow> buildingRows = new Dictionary<BuildingType, BuildingRow>();
     private Canvas canvas;
     private GameObject panel;
     private Text resourceText;
@@ -28,6 +29,16 @@ public class UpgradeShopUI : MonoBehaviour
     {
         public Text nameText;
         public Text levelText;
+        public Text effectText;
+        public Text costText;
+        public Button buyButton;
+        public Text buttonText;
+    }
+
+    private class BuildingRow
+    {
+        public Text nameText;
+        public Text hpText;
         public Text effectText;
         public Text costText;
         public Button buyButton;
@@ -164,11 +175,13 @@ public class UpgradeShopUI : MonoBehaviour
         panel = CreatePanel(canvasObject.transform);
         CreateTitle(panel.transform);
         resourceText = CreateText(panel.transform, "Resources", 18, FontStyle.Bold, TextAnchor.MiddleCenter);
-        SetRect(resourceText.rectTransform, new Vector2(0f, 125f), new Vector2(560f, 34f));
+        SetRect(resourceText.rectTransform, new Vector2(0f, 225f), new Vector2(560f, 34f));
 
-        CreateUpgradeRow(PlayerUpgradeType.MoveSpeed, 50f);
-        CreateUpgradeRow(PlayerUpgradeType.WoodGatherSpeed, -60f);
-        CreateUpgradeRow(PlayerUpgradeType.StoneGatherSpeed, -170f);
+        CreateUpgradeRow(PlayerUpgradeType.MoveSpeed, 130f);
+        CreateUpgradeRow(PlayerUpgradeType.WoodGatherSpeed, 35f);
+        CreateUpgradeRow(PlayerUpgradeType.StoneGatherSpeed, -60f);
+        CreateBuildingRow(BuildingType.AutoLumberCamp, -175f);
+        CreateBuildingRow(BuildingType.AutoQuarry, -270f);
     }
 
     private GameObject CreatePanel(Transform parent)
@@ -190,10 +203,10 @@ public class UpgradeShopUI : MonoBehaviour
 
     private void CreateTitle(Transform parent)
     {
-        Text title = CreateText(parent, "商店", 34, FontStyle.Bold, TextAnchor.MiddleCenter);
-        SetRect(title.rectTransform, new Vector2(0f, 180f), new Vector2(520f, 48f));
+        Text title = CreateText(parent, "狗狗商店", 34, FontStyle.Bold, TextAnchor.MiddleCenter);
+        SetRect(title.rectTransform, new Vector2(0f, 280f), new Vector2(520f, 48f));
 
-        Button closeButton = CreateButton(parent, "X", new Vector2(292f, 180f), new Vector2(44f, 44f));
+        Button closeButton = CreateButton(parent, "X", new Vector2(292f, 280f), new Vector2(44f, 44f));
         closeButton.onClick.AddListener(Close);
     }
 
@@ -226,6 +239,37 @@ public class UpgradeShopUI : MonoBehaviour
         row.buyButton.onClick.AddListener(() => Buy(type));
 
         rows[type] = row;
+    }
+
+    private void CreateBuildingRow(BuildingType type, float y)
+    {
+        GameObject rowObject = new GameObject(type + " Row");
+        rowObject.transform.SetParent(panel.transform, false);
+
+        RectTransform rowRect = rowObject.AddComponent<RectTransform>();
+        SetRect(rowRect, new Vector2(0f, y), new Vector2(580f, 88f));
+
+        Image rowImage = rowObject.AddComponent<Image>();
+        rowImage.color = rowColor;
+
+        BuildingRow row = new BuildingRow();
+        row.nameText = CreateText(rowObject.transform, "Name", 20, FontStyle.Bold, TextAnchor.MiddleLeft);
+        SetRect(row.nameText.rectTransform, new Vector2(-200f, 20f), new Vector2(170f, 30f));
+
+        row.hpText = CreateText(rowObject.transform, "HP", 16, FontStyle.Normal, TextAnchor.MiddleLeft);
+        SetRect(row.hpText.rectTransform, new Vector2(-200f, -18f), new Vector2(170f, 28f));
+
+        row.effectText = CreateText(rowObject.transform, "Effect", 16, FontStyle.Normal, TextAnchor.MiddleLeft);
+        SetRect(row.effectText.rectTransform, new Vector2(45f, 20f), new Vector2(280f, 30f));
+
+        row.costText = CreateText(rowObject.transform, "Cost", 16, FontStyle.Normal, TextAnchor.MiddleLeft);
+        SetRect(row.costText.rectTransform, new Vector2(45f, -18f), new Vector2(280f, 28f));
+
+        row.buyButton = CreateButton(rowObject.transform, "建造", new Vector2(235f, 0f), new Vector2(92f, 46f));
+        row.buttonText = row.buyButton.GetComponentInChildren<Text>();
+        row.buyButton.onClick.AddListener(() => BuyBuilding(type));
+
+        buildingRows[type] = row;
     }
 
     private Text CreateText(Transform parent, string name, int fontSize, FontStyle fontStyle, TextAnchor alignment)
@@ -293,6 +337,11 @@ public class UpgradeShopUI : MonoBehaviour
         {
             RefreshRow(upgrades, resources, pair.Key, pair.Value);
         }
+
+        foreach (KeyValuePair<BuildingType, BuildingRow> pair in buildingRows)
+        {
+            RefreshBuildingRow(resources, pair.Key, pair.Value);
+        }
     }
 
     private void RefreshRow(PlayerUpgradeManager upgrades, ResourceManager resources, PlayerUpgradeType type, UpgradeRow row)
@@ -307,10 +356,10 @@ public class UpgradeShopUI : MonoBehaviour
         row.nameText.text = upgrades.GetDisplayName(type);
         row.levelText.text = $"Lv.{level} / {maxLevel}";
         row.effectText.text = upgrades.GetEffectText(type);
-        row.costText.text = isMaxLevel ? "已滿級" : $"價格 {cost} 金幣";
+        row.costText.text = isMaxLevel ? "已滿級" : $"花費 {cost} 金幣";
 
         row.buyButton.interactable = canBuy;
-        row.buttonText.text = isMaxLevel ? "完成" : canAfford ? "升級" : "不足";
+        row.buttonText.text = isMaxLevel ? "滿級" : canAfford ? "升級" : "不足";
 
         Image buttonImage = row.buyButton.GetComponent<Image>();
         if (buttonImage != null)
@@ -319,9 +368,38 @@ public class UpgradeShopUI : MonoBehaviour
         }
     }
 
+    private void RefreshBuildingRow(ResourceManager resources, BuildingType type, BuildingRow row)
+    {
+        int cost = BuildingSystem.GetCoinCost(type);
+        bool canAfford = resources != null && resources.CanSpend(ResourceType.Coin, cost);
+
+        row.nameText.text = BuildingSystem.GetDisplayName(type);
+        row.hpText.text = "20/20 HP";
+        row.effectText.text = BuildingSystem.GetEffectText(type);
+        row.costText.text = $"花費 {cost} 金幣";
+        row.buyButton.interactable = canAfford;
+        row.buttonText.text = canAfford ? "建造" : "不足";
+
+        Image buttonImage = row.buyButton.GetComponent<Image>();
+        if (buttonImage != null)
+        {
+            buttonImage.color = canAfford ? buttonColor : disabledButtonColor;
+        }
+    }
+
     private void Buy(PlayerUpgradeType type)
     {
         PlayerUpgradeManager.EnsureInstance().TryUpgrade(type);
+        Refresh();
+    }
+
+    private void BuyBuilding(BuildingType type)
+    {
+        if (BuildingSystem.BeginPlacement(type))
+        {
+            Close();
+        }
+
         Refresh();
     }
 

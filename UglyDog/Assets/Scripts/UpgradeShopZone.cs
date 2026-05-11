@@ -70,6 +70,12 @@ public class UpgradeShopZone : MonoBehaviour
             return;
         }
 
+        if (BuildingPlacementController.BlocksPlayerInput)
+        {
+            HidePrompt();
+            return;
+        }
+
         CatPlayerController playerInRange = GetPreferredPlayerInsideZone();
         if (playerInRange == null)
         {

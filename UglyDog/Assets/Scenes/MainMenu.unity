@@ -1141,15 +1141,15 @@ PrefabInstance:
     m_Modifications:
     - target: {fileID: 3402737550659631943, guid: bca9caf136578df439ff764a6cdca938, type: 3}
       propertyPath: m_LocalScale.x
-      value: 8
+      value: 10
       objectReference: {fileID: 0}
     - target: {fileID: 3402737550659631943, guid: bca9caf136578df439ff764a6cdca938, type: 3}
       propertyPath: m_LocalScale.y
-      value: 8
+      value: 10
       objectReference: {fileID: 0}
     - target: {fileID: 3402737550659631943, guid: bca9caf136578df439ff764a6cdca938, type: 3}
       propertyPath: m_LocalScale.z
-      value: 8
+      value: 10
       objectReference: {fileID: 0}
     - target: {fileID: 3402737550659631943, guid: bca9caf136578df439ff764a6cdca938, type: 3}
       propertyPath: m_LocalPosition.x
@@ -1254,7 +1254,7 @@ PrefabInstance:
     - target: {fileID: 7978394019825862942, guid: bca9caf136578df439ff764a6cdca938, type: 3}
       propertyPath: outlineMaterial
       value: 
-      objectReference: {fileID: 2100000, guid: bae7e37ed33d70c41b630322d8e9e7e2, type: 2}
+      objectReference: {fileID: 2100000, guid: 325c92928855ac645b3f867c0cac0e4e, type: 2}
     - target: {fileID: 7978394019825862942, guid: bca9caf136578df439ff764a6cdca938, type: 3}
       propertyPath: shadowThreshold
       value: 0.38
@@ -1262,14 +1262,14 @@ PrefabInstance:
     - target: {fileID: 7978394019825862942, guid: bca9caf136578df439ff764a6cdca938, type: 3}
       propertyPath: baseToonMaterial
       value: 
-      objectReference: {fileID: 0}
+      objectReference: {fileID: 2100000, guid: cfd5645baeb727544902c95bf38d976c, type: 2}
     - target: {fileID: 7978394019825862942, guid: bca9caf136578df439ff764a6cdca938, type: 3}
       propertyPath: shadowSmoothness
       value: 0.05
       objectReference: {fileID: 0}
     - target: {fileID: 7978394019825862942, guid: bca9caf136578df439ff764a6cdca938, type: 3}
       propertyPath: preserveExistingMaterialTextures
-      value: 1
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 8288235601549171076, guid: bca9caf136578df439ff764a6cdca938, type: 3}
       propertyPath: m_Enabled
@@ -1286,7 +1286,7 @@ PrefabInstance:
     - target: {fileID: 8409821233145188800, guid: bca9caf136578df439ff764a6cdca938, type: 3}
       propertyPath: m_Materials.Array.data[0]
       value: 
-      objectReference: {fileID: 2100000, guid: bae7e37ed33d70c41b630322d8e9e7e2, type: 2}
+      objectReference: {fileID: 2100000, guid: 325c92928855ac645b3f867c0cac0e4e, type: 2}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []

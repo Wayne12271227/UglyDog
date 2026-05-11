@@ -8,6 +8,8 @@ public class ResourceSellZone : MonoBehaviour
     [SerializeField] private int resourcePerTick = 1;
     [SerializeField] private int coinsPerTick = 1;
     [SerializeField] private float tickInterval = 0.5f;
+    [SerializeField] private float fastestTickInterval = 0.08f;
+    [SerializeField] private float accelerationDuration = 6f;
     [SerializeField] private bool sellImmediatelyOnEnter = true;
 
     [Header("Detection")]
@@ -18,6 +20,8 @@ public class ResourceSellZone : MonoBehaviour
     private CatPlayerController activePlayer;
     private int playersInside;
     private float nextSellTime;
+    private float timeInsideZone;
+    private bool wasPlayerDetected;
 
     private void Reset()
     {
@@ -37,15 +41,25 @@ public class ResourceSellZone : MonoBehaviour
         bool playerDetected = playersInside > 0 || player != null;
         if (!playerDetected)
         {
+            ResetAcceleration();
             return;
         }
+
+        if (!wasPlayerDetected)
+        {
+            timeInsideZone = 0f;
+            nextSellTime = sellImmediatelyOnEnter ? Time.time : Time.time + GetCurrentTickInterval();
+        }
+
+        wasPlayerDetected = true;
+        timeInsideZone += Time.deltaTime;
 
         if (Time.time < nextSellTime)
         {
             return;
         }
 
-        nextSellTime = Time.time + tickInterval;
+        nextSellTime = Time.time + GetCurrentTickInterval();
         TrySell();
     }
 
@@ -59,6 +73,8 @@ public class ResourceSellZone : MonoBehaviour
         resourcePerTick = Mathf.Max(1, resourcePerTick);
         coinsPerTick = Mathf.Max(1, coinsPerTick);
         tickInterval = Mathf.Max(0.05f, tickInterval);
+        fastestTickInterval = Mathf.Clamp(fastestTickInterval, 0.02f, tickInterval);
+        accelerationDuration = Mathf.Max(0.1f, accelerationDuration);
     }
 
     private void OnTriggerEnter(Collider other)
@@ -69,13 +85,19 @@ public class ResourceSellZone : MonoBehaviour
             return;
         }
 
+        bool wasEmpty = playersInside <= 0;
         playersInside++;
         if (activePlayer == null)
         {
             activePlayer = player;
         }
 
-        nextSellTime = sellImmediatelyOnEnter ? Time.time : Time.time + tickInterval;
+        if (wasEmpty)
+        {
+            timeInsideZone = 0f;
+            wasPlayerDetected = false;
+            nextSellTime = sellImmediatelyOnEnter ? Time.time : Time.time + tickInterval;
+        }
     }
 
     private void OnTriggerExit(Collider other)
@@ -90,6 +112,11 @@ public class ResourceSellZone : MonoBehaviour
         if (activePlayer != null && player == activePlayer)
         {
             activePlayer = null;
+        }
+
+        if (playersInside <= 0)
+        {
+            ResetAcceleration();
         }
     }
 
@@ -149,5 +176,19 @@ public class ResourceSellZone : MonoBehaviour
         }
 
         ResourceManager.Instance.Add(ResourceType.Coin, coinsPerTick);
+    }
+
+    private float GetCurrentTickInterval()
+    {
+        float acceleration = Mathf.Clamp01(timeInsideZone / accelerationDuration);
+        float easedAcceleration = 1f - Mathf.Pow(1f - acceleration, 2f);
+        return Mathf.Lerp(tickInterval, fastestTickInterval, easedAcceleration);
+    }
+
+    private void ResetAcceleration()
+    {
+        timeInsideZone = 0f;
+        wasPlayerDetected = false;
+        nextSellTime = 0f;
     }
 }
