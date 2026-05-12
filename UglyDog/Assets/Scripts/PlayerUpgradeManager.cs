@@ -144,6 +144,74 @@ public class PlayerUpgradeManager : MonoBehaviour
         return true;
     }
 
+    public int GetCombinedGatherLevel()
+    {
+        return Mathf.Min(woodGatherSpeedLevel, stoneGatherSpeedLevel);
+    }
+
+    public int GetCombinedGatherMaxLevel()
+    {
+        return Mathf.Max(woodGatherSpeedLevel, stoneGatherSpeedLevel);
+    }
+
+    public int GetCombinedGatherCost()
+    {
+        int cost = 0;
+        if (!IsMaxLevel(PlayerUpgradeType.WoodGatherSpeed))
+        {
+            cost += GetNextCost(PlayerUpgradeType.WoodGatherSpeed);
+        }
+
+        if (!IsMaxLevel(PlayerUpgradeType.StoneGatherSpeed))
+        {
+            cost += GetNextCost(PlayerUpgradeType.StoneGatherSpeed);
+        }
+
+        return cost;
+    }
+
+    public bool CanUpgradeCombinedGather()
+    {
+        if (ResourceManager.Instance == null)
+        {
+            return false;
+        }
+
+        if (IsMaxLevel(PlayerUpgradeType.WoodGatherSpeed) && IsMaxLevel(PlayerUpgradeType.StoneGatherSpeed))
+        {
+            return false;
+        }
+
+        return ResourceManager.Instance.CanSpend(ResourceType.Coin, GetCombinedGatherCost());
+    }
+
+    public bool TryUpgradeCombinedGather()
+    {
+        if (ResourceManager.Instance == null)
+        {
+            return false;
+        }
+
+        int totalCost = GetCombinedGatherCost();
+        if (totalCost <= 0 || !ResourceManager.Instance.Spend(ResourceType.Coin, totalCost))
+        {
+            return false;
+        }
+
+        if (!IsMaxLevel(PlayerUpgradeType.WoodGatherSpeed))
+        {
+            woodGatherSpeedLevel = Mathf.Clamp(woodGatherSpeedLevel + 1, 0, maxLevel);
+        }
+
+        if (!IsMaxLevel(PlayerUpgradeType.StoneGatherSpeed))
+        {
+            stoneGatherSpeedLevel = Mathf.Clamp(stoneGatherSpeedLevel + 1, 0, maxLevel);
+        }
+
+        UpgradesChanged?.Invoke();
+        return true;
+    }
+
     public float GetGatherTickInterval(ResourceType resourceType, float baseInterval)
     {
         float speedMultiplier = 1f;
