@@ -10,6 +10,11 @@ public class UpgradeShopZone : MonoBehaviour
     [SerializeField] private string promptText = "\u6309 E \u958b\u555f\u5546\u5e97";
     [SerializeField] private Vector3 promptLocalOffset = new Vector3(0f, 1.9f, 0f);
 
+    [Header("Minion Shop")]
+    [SerializeField] private bool enableMinionHotkeys = true;
+    [SerializeField] private KeyCode buyMeleeMinionKey = KeyCode.Alpha1;
+    [SerializeField] private KeyCode buyRangedMinionKey = KeyCode.Alpha2;
+
     [Header("Range")]
     [SerializeField] private Vector3 rangeCenter = new Vector3(0f, 1f, 0f);
     [SerializeField] private Vector3 rangeSize = new Vector3(4f, 2.4f, 4f);
@@ -17,6 +22,7 @@ public class UpgradeShopZone : MonoBehaviour
     [Header("Range Visual")]
     [SerializeField] private bool showRangeVisual = true;
     [SerializeField] private Color rangeColor = new Color(1f, 0.74f, 0.18f, 0.95f);
+    [SerializeField] private Color catRangeColor = new Color(0.55f, 0.55f, 0.55f, 0.95f);
     [SerializeField] private float rangeLineWidth = 0.08f;
     [SerializeField] private float rangeVisualHeight = 0.08f;
     [SerializeField] private int rangeSegments = 96;
@@ -28,6 +34,8 @@ public class UpgradeShopZone : MonoBehaviour
     private GameObject promptObject;
     private Transform promptTarget;
     private float nextInsideCheckTime;
+    private string minionFlashText;
+    private float minionFlashUntil;
 
     private const string RangeVisualName = "Shop Interaction Range Visual";
     private const string ShopRootObjectName = "dogShop";
@@ -60,6 +68,22 @@ public class UpgradeShopZone : MonoBehaviour
         rangeSegments = Mathf.Clamp(rangeSegments, 16, 192);
 
         zoneCollider = EnsureZoneCollider();
+#if UNITY_EDITOR
+        if (!Application.isPlaying)
+        {
+            UnityEditor.EditorApplication.delayCall += () =>
+            {
+                if (this == null)
+                {
+                    return;
+                }
+
+                zoneCollider = EnsureZoneCollider();
+                RefreshRangeVisual();
+            };
+            return;
+        }
+#endif
         RefreshRangeVisual();
     }
 
@@ -99,6 +123,18 @@ public class UpgradeShopZone : MonoBehaviour
             {
                 UpgradeShopUI.EnsureInstance().Toggle(this);
                 HidePrompt();
+            }
+        }
+
+        if (enableMinionHotkeys && GetPreferredPlayerInsideZone() != null)
+        {
+            if (Input.GetKeyDown(buyMeleeMinionKey))
+            {
+                TryBuyMinion(MinionKind.Melee);
+            }
+            else if (Input.GetKeyDown(buyRangedMinionKey))
+            {
+                TryBuyMinion(MinionKind.Ranged);
             }
         }
     }
@@ -158,7 +194,7 @@ public class UpgradeShopZone : MonoBehaviour
 
     private CatPlayerController GetPlayer(Collider other)
     {
-        return PreferredPlayerFinder.GetPreferredPlayer(other);
+        return PreferredPlayerFinder.GetPlayer(other, GetShopTeam());
     }
 
     private CatPlayerController GetPreferredPlayerInsideZone()
@@ -179,10 +215,10 @@ public class UpgradeShopZone : MonoBehaviour
         }
 
         nextInsideCheckTime = Time.time + 0.08f;
-        CatPlayerController dog = PreferredPlayerFinder.FindPreferredPlayer();
-        if (dog != null && IsInsideZone(dog.transform.position))
+        CatPlayerController player = PreferredPlayerFinder.FindPlayer(GetShopTeam());
+        if (player != null && IsInsideZone(player.transform.position))
         {
-            return dog;
+            return player;
         }
 
         return null;
@@ -271,7 +307,8 @@ public class UpgradeShopZone : MonoBehaviour
         meshRenderer.receiveShadows = false;
 
         Material material = meshRenderer.sharedMaterial;
-        if (material == null)
+        string materialName = GetRangeVisualMaterialName();
+        if (material == null || !material.name.StartsWith(materialName))
         {
             Shader shader = Shader.Find("Universal Render Pipeline/Unlit");
             if (shader == null)
@@ -282,15 +319,16 @@ public class UpgradeShopZone : MonoBehaviour
             if (shader != null)
             {
                 material = new Material(shader);
-                material.name = "DogShopRangeVisual";
+                material.name = materialName;
                 meshRenderer.sharedMaterial = material;
             }
         }
 
         if (material != null)
         {
-            SetMaterialColor(material, rangeColor);
-            material.color = rangeColor;
+            Color effectiveRangeColor = GetRangeVisualColor();
+            SetMaterialColor(material, effectiveRangeColor);
+            material.color = effectiveRangeColor;
             material.renderQueue = 3000;
         }
 
@@ -380,7 +418,8 @@ public class UpgradeShopZone : MonoBehaviour
 
     private bool IsShopRootObject()
     {
-        return name.Equals(ShopRootObjectName, System.StringComparison.OrdinalIgnoreCase);
+        return name.Equals(ShopRootObjectName, System.StringComparison.OrdinalIgnoreCase)
+            || name.Equals("catShop", System.StringComparison.OrdinalIgnoreCase);
     }
 
     private void SetMaterialColor(Material material, Color color)
@@ -419,7 +458,6 @@ public class UpgradeShopZone : MonoBehaviour
                 }
             }
 
-            promptMesh.text = promptText;
             promptMesh.anchor = TextAnchor.MiddleCenter;
             promptMesh.alignment = TextAlignment.Center;
             promptMesh.characterSize = 0.14f;
@@ -430,6 +468,7 @@ public class UpgradeShopZone : MonoBehaviour
         promptTarget = player.transform;
         promptObject.transform.SetParent(null, true);
         promptObject.SetActive(true);
+        promptMesh.text = GetCurrentPromptText();
         UpdatePrompt();
     }
 
@@ -461,6 +500,11 @@ public class UpgradeShopZone : MonoBehaviour
             promptObject.transform.position = promptTarget.TransformPoint(promptLocalOffset);
         }
 
+        if (promptMesh != null)
+        {
+            promptMesh.text = GetCurrentPromptText();
+        }
+
         Camera camera = Camera.main;
         if (camera != null)
         {
@@ -484,5 +528,77 @@ public class UpgradeShopZone : MonoBehaviour
         }
 
         return Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+    }
+
+    private void TryBuyMinion(MinionKind kind)
+    {
+        MinionManager manager = MinionManager.EnsureInstance();
+        MinionTeam team = GetShopTeam();
+        bool bought = manager.TryBuyAndSummon(kind, team);
+        if (bought)
+        {
+            FlashMinionPrompt("\u5df2\u53ec\u559a " + manager.GetDisplayName(kind));
+        }
+        else
+        {
+            FlashMinionPrompt("\u9700\u8981 " + manager.GetCost(kind) + " \u91d1\u5e63");
+        }
+    }
+
+    private void FlashMinionPrompt(string text)
+    {
+        minionFlashText = text;
+        minionFlashUntil = Time.time + 1.1f;
+        if (promptMesh != null)
+        {
+            promptMesh.text = text;
+        }
+    }
+
+    private string GetCurrentPromptText()
+    {
+        if (Time.time < minionFlashUntil && !string.IsNullOrEmpty(minionFlashText))
+        {
+            return minionFlashText;
+        }
+
+        if (!enableMinionHotkeys)
+        {
+            return promptText;
+        }
+
+        MinionManager manager = MinionManager.EnsureInstance();
+        return promptText
+            + "\n1 " + manager.GetDisplayName(MinionKind.Melee) + " -" + manager.GetCost(MinionKind.Melee) + " \u91d1\u5e63"
+            + "\n2 " + manager.GetDisplayName(MinionKind.Ranged) + " -" + manager.GetCost(MinionKind.Ranged) + " \u91d1\u5e63";
+    }
+
+    private MinionTeam GetShopTeam()
+    {
+        string lowerName = GetHierarchyName(transform).ToLowerInvariant();
+        return lowerName.Contains("cat") ? MinionTeam.Cat : MinionTeam.Dog;
+    }
+
+    private Color GetRangeVisualColor()
+    {
+        return GetShopTeam() == MinionTeam.Cat ? catRangeColor : rangeColor;
+    }
+
+    private string GetRangeVisualMaterialName()
+    {
+        return GetShopTeam() == MinionTeam.Cat ? "CatShopRangeVisual" : "DogShopRangeVisual";
+    }
+
+    private static string GetHierarchyName(Transform target)
+    {
+        string names = string.Empty;
+        Transform current = target;
+        while (current != null)
+        {
+            names += " " + current.name;
+            current = current.parent;
+        }
+
+        return names;
     }
 }

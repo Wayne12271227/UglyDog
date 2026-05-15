@@ -621,6 +621,10 @@ PrefabInstance:
       propertyPath: m_ReflectionProbeUsage
       value: 0
       objectReference: {fileID: 0}
+    - target: {fileID: 2992313275554045206, guid: f20693ef168a0aa46a5cd7fdf2e42956, type: 3}
+      propertyPath: SortKey
+      value: 442367644
+      objectReference: {fileID: 0}
     - target: {fileID: 3311274965155794148, guid: f20693ef168a0aa46a5cd7fdf2e42956, type: 3}
       propertyPath: m_LightProbeUsage
       value: 0
@@ -1215,6 +1219,10 @@ PrefabInstance:
       propertyPath: m_ReflectionProbeUsage
       value: 0
       objectReference: {fileID: 0}
+    - target: {fileID: 5978274937131963385, guid: bca9caf136578df439ff764a6cdca938, type: 3}
+      propertyPath: SortKey
+      value: 735537151
+      objectReference: {fileID: 0}
     - target: {fileID: 7978394019825862942, guid: bca9caf136578df439ff764a6cdca938, type: 3}
       propertyPath: rimPower
       value: 3.2
@@ -1349,7 +1357,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 164a5e7fa707d8f409827fb1ff6c8d86, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  gameSceneName: SampleScene
+  gameSceneName: RoomLobby
 --- !u!114 &376613836
 MonoBehaviour:
   m_ObjectHideFlags: 0
