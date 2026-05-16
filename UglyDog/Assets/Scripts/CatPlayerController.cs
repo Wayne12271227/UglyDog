@@ -1,3 +1,4 @@
+using Fusion;
 using UnityEngine;
 
 public class CatPlayerController : MonoBehaviour
@@ -34,6 +35,16 @@ public class CatPlayerController : MonoBehaviour
     [SerializeField] private float actionLoopRestartTime = 0.92f;
     [SerializeField] private float actionLoopBlendTime = 0.03f;
 
+    [Header("Combat")]
+    [SerializeField] private int attackDamage = 1;
+    [SerializeField] private float attackRange = 1.6f;
+    [SerializeField] private float attackRadius = 0.75f;
+    [SerializeField] private float attackForwardOffset = 0.75f;
+    [SerializeField] private float attackKnockbackDistance = 4.2f;
+    [SerializeField] private float attackCooldown = 5f;
+    [SerializeField] private float attackAnimationSpeed = 2.5f;
+    [SerializeField] private float attackAnimationSpeedDuration = 0.4f;
+
     private int speedHash;
     private int attackHash;
     private int digHash;
@@ -46,6 +57,15 @@ public class CatPlayerController : MonoBehaviour
     private string sustainedActionStateName;
     private CapsuleCollider capsuleCollider;
     private Rigidbody playerRigidbody;
+    private NetworkObject networkObject;
+    private UglyDogNetworkPlayer networkPlayer;
+    private PlayerCombatant playerCombatant;
+    private bool networkControlled;
+    private float currentInputMagnitude;
+    private UglyDogNetworkAction lastRequestedNetworkAction;
+    private float nextAttackTime;
+    private float restoreAnimatorSpeedTime;
+    private float defaultAnimatorSpeed = 1f;
 
     private void Awake()
     {
@@ -54,13 +74,32 @@ public class CatPlayerController : MonoBehaviour
             animator = GetComponentInChildren<Animator>();
         }
 
+        if (animator != null)
+        {
+            defaultAnimatorSpeed = animator.speed;
+        }
+
         capsuleCollider = GetComponent<CapsuleCollider>();
         playerRigidbody = GetComponent<Rigidbody>();
+        networkObject = GetComponent<NetworkObject>();
+        networkPlayer = GetComponent<UglyDogNetworkPlayer>();
+        playerCombatant = GetComponent<PlayerCombatant>();
+        if (playerCombatant == null)
+        {
+            playerCombatant = gameObject.AddComponent<PlayerCombatant>();
+        }
+
+        ConfigureRigidbodyForTopDown();
         CacheAnimatorParameters();
     }
 
     private void Update()
     {
+        if (networkControlled)
+        {
+            return;
+        }
+
         if (PreferredPlayerFinder.FindPreferredPlayer() != this)
         {
             UpdateAnimation(0f);
@@ -74,7 +113,44 @@ public class CatPlayerController : MonoBehaviour
         }
 
         Vector3 input = GetMovementInput();
+        bool attackPressed = Input.GetKeyDown(attackKey);
+        ApplyMovementInput(input, attackPressed, Time.deltaTime);
+    }
+
+    public bool HasLocalPlayerAuthority()
+    {
+        return networkObject == null || networkObject.Runner == null || networkObject.HasInputAuthority;
+    }
+
+    public bool HasRunningNetworkInputAuthority()
+    {
+        return networkObject != null && networkObject.Runner != null && networkObject.HasInputAuthority;
+    }
+
+    public void SetNetworkControlled(bool isNetworkControlled)
+    {
+        networkControlled = isNetworkControlled;
+        if (!networkControlled)
+        {
+            currentInputMagnitude = 0f;
+        }
+    }
+
+    public void ApplyNetworkInput(Vector2 moveInput, bool attackPressed, float deltaTime)
+    {
+        ApplyMovementInput(new Vector3(moveInput.x, 0f, moveInput.y), attackPressed, deltaTime);
+    }
+
+    public void ApplyNetworkAnimation(float speedValue)
+    {
+        currentInputMagnitude = Mathf.Clamp01(speedValue);
+        UpdateAnimation(currentInputMagnitude);
+    }
+
+    private void ApplyMovementInput(Vector3 input, bool attackPressed, float deltaTime)
+    {
         input = Vector3.ClampMagnitude(input, 1f);
+        currentInputMagnitude = input.magnitude;
 
         Vector3 moveDirection = GetMoveDirection(input);
         bool isWalking = moveDirection.sqrMagnitude > 0.001f;
@@ -82,17 +158,17 @@ public class CatPlayerController : MonoBehaviour
         if (isWalking)
         {
             Quaternion targetRotation = Quaternion.LookRotation(moveDirection, Vector3.up) * Quaternion.Euler(0f, modelForwardOffsetY, 0f);
-            transform.rotation = Quaternion.Slerp(transform.rotation, targetRotation, turnSpeed * Time.deltaTime);
+            transform.rotation = Quaternion.Slerp(transform.rotation, targetRotation, turnSpeed * deltaTime);
         }
 
-        MovePlayer(moveDirection * GetEffectiveMoveSpeed() * Time.deltaTime);
+        MovePlayer(moveDirection * GetEffectiveMoveSpeed() * deltaTime);
         SnapToGroundIfNeeded();
 
         UpdateAnimation(input.magnitude);
 
-        if (Input.GetKeyDown(attackKey))
+        if (attackPressed)
         {
-            PlayAttack();
+            TryKickAttack();
         }
     }
 
@@ -174,6 +250,12 @@ public class CatPlayerController : MonoBehaviour
             return;
         }
 
+        if (restoreAnimatorSpeedTime > 0f && Time.time >= restoreAnimatorSpeedTime)
+        {
+            animator.speed = defaultAnimatorSpeed;
+            restoreAnimatorSpeedTime = 0f;
+        }
+
         if (hasSpeedParameter)
         {
             animator.SetFloat(speedHash, speedValue);
@@ -186,17 +268,32 @@ public class CatPlayerController : MonoBehaviour
     public void PlayAttack()
     {
         sustainedActionStateName = null;
+        SpeedUpAttackAnimation();
         PlayAction(attackHash, hasAttackTrigger, attackStateName);
+    }
+
+    public void ApplyKnockback(Vector3 direction, float distance)
+    {
+        direction.y = 0f;
+        if (direction.sqrMagnitude <= 0.001f || distance <= 0f)
+        {
+            return;
+        }
+
+        MovePlayer(direction.normalized * distance);
+        SnapToGroundIfNeeded();
     }
 
     public void PlayDig()
     {
+        RequestNetworkAction(UglyDogNetworkAction.Dig);
         sustainedActionStateName = digStateName;
         PlayAction(digHash, hasDigTrigger, digStateName);
     }
 
     public void PlayBuild()
     {
+        RequestNetworkAction(UglyDogNetworkAction.Build);
         sustainedActionStateName = buildStateName;
         PlayAction(buildHash, hasBuildTrigger, buildStateName);
     }
@@ -217,6 +314,7 @@ public class CatPlayerController : MonoBehaviour
         ResetTriggerIfAvailable(digHash, hasDigTrigger);
         ResetTriggerIfAvailable(buildHash, hasBuildTrigger);
         sustainedActionStateName = null;
+        RequestNetworkAction(UglyDogNetworkAction.Stop);
 
         currentSpeedValue = GetCurrentInputMagnitude();
         if (hasSpeedParameter)
@@ -339,8 +437,171 @@ public class CatPlayerController : MonoBehaviour
 
     private float GetCurrentInputMagnitude()
     {
+        if (networkControlled)
+        {
+            return currentInputMagnitude;
+        }
+
         Vector3 input = new Vector3(Input.GetAxisRaw("Horizontal"), 0f, Input.GetAxisRaw("Vertical"));
         return Vector3.ClampMagnitude(input, 1f).magnitude;
+    }
+
+    private void RequestNetworkAction(UglyDogNetworkAction action)
+    {
+        if (!networkControlled || networkPlayer == null || !HasRunningNetworkInputAuthority())
+        {
+            return;
+        }
+
+        if (lastRequestedNetworkAction == action)
+        {
+            return;
+        }
+
+        lastRequestedNetworkAction = action;
+        networkPlayer.RequestAction(action);
+    }
+
+    private void TryKickAttack()
+    {
+        if (Time.time < nextAttackTime)
+        {
+            return;
+        }
+
+        nextAttackTime = Time.time + attackCooldown;
+        PlayAttack();
+        PerformKickAttack();
+    }
+
+    private void PerformKickAttack()
+    {
+
+        MinionTeam attackerTeam = PreferredPlayerFinder.IsPlayerTeam(this, MinionTeam.Cat) ? MinionTeam.Cat : MinionTeam.Dog;
+        Vector3 forward = GetAttackForward();
+        Vector3 center = transform.position + forward * attackForwardOffset + Vector3.up * 0.8f;
+        Collider[] hits = Physics.OverlapSphere(center, attackRadius + attackRange * 0.5f, ~0, QueryTriggerInteraction.Collide);
+
+        for (int i = 0; i < hits.Length; i++)
+        {
+            Collider hit = hits[i];
+            if (hit == null || hit.transform.IsChildOf(transform))
+            {
+                continue;
+            }
+
+            Vector3 toTarget = hit.bounds.center - transform.position;
+            toTarget.y = 0f;
+            if (toTarget.sqrMagnitude > attackRange * attackRange)
+            {
+                continue;
+            }
+
+            if (Vector3.Dot(forward, toTarget.normalized) < 0.2f)
+            {
+                continue;
+            }
+
+            if (TryKickMinion(hit, attackerTeam, forward)
+                || TryKickBuilding(hit, attackerTeam)
+                || TryKickPlayer(hit, attackerTeam, forward))
+            {
+                return;
+            }
+        }
+    }
+
+    private void SpeedUpAttackAnimation()
+    {
+        if (animator == null)
+        {
+            return;
+        }
+
+        animator.speed = attackAnimationSpeed;
+        restoreAnimatorSpeedTime = Time.time + attackAnimationSpeedDuration;
+    }
+
+    private bool TryKickMinion(Collider hit, MinionTeam attackerTeam, Vector3 forward)
+    {
+        MinionCombatant minion = hit.GetComponentInParent<MinionCombatant>();
+        if (minion == null || minion.Team == attackerTeam || minion.IsDead)
+        {
+            return false;
+        }
+
+        minion.TakeDamage(attackDamage);
+        MinionUnit unit = minion.GetComponent<MinionUnit>();
+        if (unit != null)
+        {
+            unit.ApplyKnockback(forward, attackKnockbackDistance);
+        }
+        else
+        {
+            minion.transform.position += forward.normalized * attackKnockbackDistance;
+        }
+
+        return true;
+    }
+
+    private bool TryKickPlayer(Collider hit, MinionTeam attackerTeam, Vector3 forward)
+    {
+        CatPlayerController targetPlayer = hit.GetComponentInParent<CatPlayerController>();
+        if (targetPlayer == null || targetPlayer == this || !PreferredPlayerFinder.IsPlayerTeam(targetPlayer, GetEnemyTeam(attackerTeam)))
+        {
+            return false;
+        }
+
+        PlayerCombatant targetCombatant = targetPlayer.GetComponent<PlayerCombatant>();
+        if (targetCombatant == null)
+        {
+            targetCombatant = targetPlayer.gameObject.AddComponent<PlayerCombatant>();
+        }
+
+        targetCombatant.TakeDamage(attackDamage);
+        targetPlayer.ApplyKnockback(forward, attackKnockbackDistance);
+        return true;
+    }
+
+    private bool TryKickBuilding(Collider hit, MinionTeam attackerTeam)
+    {
+        TeamBuilding building = hit.GetComponentInParent<TeamBuilding>();
+        if (building == null || building.Team == attackerTeam || building.Health == null || building.Health.IsDestroyed)
+        {
+            return false;
+        }
+
+        building.Health.TakeDamage(attackDamage);
+        return true;
+    }
+
+    private Vector3 GetAttackForward()
+    {
+        Vector3 forward = (transform.rotation * Quaternion.Euler(0f, -modelForwardOffsetY, 0f)) * Vector3.forward;
+        forward.y = 0f;
+        if (forward.sqrMagnitude <= 0.001f)
+        {
+            forward = Vector3.forward;
+        }
+
+        return forward.normalized;
+    }
+
+    private static MinionTeam GetEnemyTeam(MinionTeam team)
+    {
+        return team == MinionTeam.Dog ? MinionTeam.Cat : MinionTeam.Dog;
+    }
+
+    private void ConfigureRigidbodyForTopDown()
+    {
+        if (playerRigidbody == null)
+        {
+            return;
+        }
+
+        playerRigidbody.useGravity = false;
+        playerRigidbody.constraints |= RigidbodyConstraints.FreezeRotation;
+        playerRigidbody.constraints |= RigidbodyConstraints.FreezePositionY;
     }
 
     private void SnapToGroundIfNeeded()

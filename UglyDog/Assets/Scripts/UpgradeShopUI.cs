@@ -1,3 +1,4 @@
+using System;
 using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.UI;
@@ -7,60 +8,70 @@ public class UpgradeShopUI : MonoBehaviour
     public static UpgradeShopUI Instance { get; private set; }
     public static bool BlocksPlayerInput => Instance != null && Instance.IsOpen;
 
-    [System.Serializable]
-    private class UpgradeCardBinding
+    [Header("Input")]
+    [SerializeField] private KeyCode closeKey = KeyCode.Escape;
+
+    [Header("Prefab References")]
+    [SerializeField] private string closeButtonName = "EscButton";
+    [SerializeField] private Button closeButton;
+    [SerializeField] private string coinTextName = "CoinNum";
+    [SerializeField] private string woodTextName = "WoodNum";
+    [SerializeField] private string stoneTextName = "StoneNum";
+    [SerializeField] private Text coinText;
+    [SerializeField] private Text woodText;
+    [SerializeField] private Text stoneText;
+    [SerializeField] private UpgradeCard moveSpeedCard = new UpgradeCard { rootName = "MoveSpeedCard" };
+    [SerializeField] private UpgradeCard gatherSpeedCard = new UpgradeCard { rootName = "GatherSpeedCard" };
+
+    [Header("Button Colors")]
+    [SerializeField] private Color buttonEnabledColor = new Color(1f, 0.56f, 0.29f, 1f);
+    [SerializeField] private Color buttonDisabledColor = new Color(0.45f, 0.45f, 0.45f, 1f);
+
+    private UpgradeShopZone sourceZone;
+    private Canvas canvas;
+    private bool initialized;
+
+    public bool IsOpen => canvas != null && canvas.enabled && gameObject.activeInHierarchy;
+
+    [Serializable]
+    private class UpgradeCard
     {
         public string rootName;
-        public GameObject root;
+        public Transform root;
         public Text titleText;
         public Text levelText;
         public Text descriptionText;
         public Button upgradeButton;
         public Image upgradeButtonImage;
         public Text upgradeButtonText;
-    }
 
-    [Header("Shop Canvas")]
-    [SerializeField] private string shopCanvasName = "ShopCanvas";
-    [SerializeField] private GameObject shopCanvas;
+        public bool HasButton => upgradeButton != null;
 
-    [Header("Close")]
-    [SerializeField] private KeyCode closeKey = KeyCode.Escape;
-    [SerializeField] private KeyCode fallbackToggleKey = KeyCode.E;
-    [SerializeField] private string closeButtonName = "EscButton";
-    [SerializeField] private Button closeButton;
+        public void Resolve(Transform searchRoot)
+        {
+            if (searchRoot == null)
+            {
+                return;
+            }
 
-    [Header("Resource Text Names")]
-    [SerializeField] private string resourceRootName = "Gameresourse";
-    [SerializeField] private string coinTextName = "CoinNum";
-    [SerializeField] private string woodTextName = "WoodNum";
-    [SerializeField] private string stoneTextName = "StoneNum";
+            if (root == null && !string.IsNullOrEmpty(rootName))
+            {
+                root = FindDeepChild(searchRoot, rootName);
+            }
 
-    [Header("Resource Texts")]
-    [SerializeField] private Text coinText;
-    [SerializeField] private Text woodText;
-    [SerializeField] private Text stoneText;
+            Transform cardRoot = root != null ? root : searchRoot;
+            titleText = titleText != null ? titleText : FindComponentInChildrenByName<Text>(cardRoot, "TitleText");
+            levelText = levelText != null ? levelText : FindComponentInChildrenByName<Text>(cardRoot, "LevelText");
+            descriptionText = descriptionText != null ? descriptionText : FindComponentInChildrenByName<Text>(cardRoot, "DescriptionText");
+            upgradeButton = upgradeButton != null ? upgradeButton : FindComponentInChildrenByName<Button>(cardRoot, "UpgradeButton");
 
-    [Header("Upgrade Cards In ShopCanvas")]
-    [SerializeField] private UpgradeCardBinding moveSpeedCard = new UpgradeCardBinding { rootName = "MoveSpeedCard" };
-    [SerializeField] private UpgradeCardBinding gatherSpeedCard = new UpgradeCardBinding { rootName = "GatherSpeedCard" };
-    [SerializeField] private Color buttonEnabledColor = new Color(1f, 0.56f, 0.29f, 1f);
-    [SerializeField] private Color buttonDisabledColor = new Color(0.45f, 0.45f, 0.45f, 1f);
-
-    private const float MoveSpeedBonusPerLevel = 0.1f;
-    private const float GatherSpeedBonusPerLevel = 0.15f;
-
-    private ResourceManager boundResourceManager;
-    private PlayerUpgradeManager boundUpgradeManager;
-    private UpgradeShopZone sourceZone;
-    private bool isOpeningCanvas;
-
-    public bool IsOpen => shopCanvas != null && shopCanvas.activeSelf;
-
-    [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
-    private static void InitializeAfterSceneLoad()
-    {
-        EnsureInstance();
+            if (upgradeButton != null)
+            {
+                upgradeButtonImage = upgradeButtonImage != null ? upgradeButtonImage : upgradeButton.GetComponent<Image>();
+                upgradeButtonText = upgradeButtonText != null ? upgradeButtonText : FindComponentInChildrenByName<Text>(upgradeButton.transform, "ButtonText");
+                upgradeButtonText = upgradeButtonText != null ? upgradeButtonText : upgradeButton.GetComponentInChildren<Text>(true);
+            }
+        }
     }
 
     public static UpgradeShopUI EnsureInstance()
@@ -70,16 +81,20 @@ public class UpgradeShopUI : MonoBehaviour
             return Instance;
         }
 
-        UpgradeShopUI existing = FindExistingInstance();
+        UpgradeShopUI existing = FindObjectOfType<UpgradeShopUI>(true);
         if (existing != null)
         {
             Instance = existing;
-            existing.BindShopCanvas();
+            existing.Initialize();
+            existing.Close();
             return existing;
         }
 
-        GameObject controller = new GameObject("Upgrade Shop UI");
-        return controller.AddComponent<UpgradeShopUI>();
+        GameObject uiObject = new GameObject("Upgrade Shop UI");
+        UpgradeShopUI ui = uiObject.AddComponent<UpgradeShopUI>();
+        ui.Initialize();
+        ui.Close();
+        return ui;
     }
 
     private void Awake()
@@ -91,29 +106,20 @@ public class UpgradeShopUI : MonoBehaviour
         }
 
         Instance = this;
-
-        if (GetComponent<Canvas>() == null)
-        {
-            DontDestroyOnLoad(gameObject);
-        }
-
-        BindShopCanvas();
-        if (!isOpeningCanvas)
-        {
-            Close();
-        }
+        Initialize();
+        Close();
     }
 
     private void OnEnable()
     {
-        BindShopCanvas();
-        BindManagers();
-        RefreshAll();
+        Initialize();
+        Subscribe();
+        Refresh();
     }
 
     private void OnDisable()
     {
-        UnbindManagers();
+        Unsubscribe();
     }
 
     private void Update()
@@ -125,58 +131,48 @@ public class UpgradeShopUI : MonoBehaviour
 
         if (Input.GetKeyDown(closeKey))
         {
-            Close();
+            CloseShop();
             return;
         }
 
-        if (sourceZone == null && Input.GetKeyDown(fallbackToggleKey))
-        {
-            Close();
-        }
+        Refresh();
     }
 
     public void Open(UpgradeShopZone zone)
     {
         sourceZone = zone;
-        if (!BindShopCanvas())
+        Initialize();
+
+        if (canvas == null)
         {
+            Debug.LogWarning("UpgradeShopUI could not find a Canvas. Drag ShopCanvas.prefab into the scene before using the shop.");
             return;
         }
 
-        isOpeningCanvas = true;
-        shopCanvas.SetActive(true);
-        isOpeningCanvas = false;
+        if (!gameObject.activeSelf)
+        {
+            gameObject.SetActive(true);
+        }
+
+        if (canvas != null)
+        {
+            canvas.enabled = true;
+        }
 
         Cursor.visible = true;
         Cursor.lockState = CursorLockMode.None;
-
-        BindManagers();
-        RefreshAll();
+        Refresh();
     }
 
     public void Toggle(UpgradeShopZone zone)
     {
         if (IsOpen)
         {
-            Close();
+            CloseShop();
             return;
         }
 
         Open(zone);
-    }
-
-    public void Close()
-    {
-        sourceZone = null;
-
-        if (shopCanvas != null)
-        {
-            shopCanvas.SetActive(false);
-        }
-        else if (GetComponent<Canvas>() != null)
-        {
-            gameObject.SetActive(false);
-        }
     }
 
     public void CloseShop()
@@ -184,309 +180,200 @@ public class UpgradeShopUI : MonoBehaviour
         Close();
     }
 
+    public void Close()
+    {
+        sourceZone = null;
+
+        if (canvas != null)
+        {
+            canvas.enabled = false;
+        }
+
+        if (gameObject.activeSelf)
+        {
+            gameObject.SetActive(false);
+        }
+    }
+
     public void CloseIfOpenedBy(UpgradeShopZone zone)
     {
         if (sourceZone == zone)
         {
-            Close();
+            CloseShop();
         }
     }
 
-    private bool BindShopCanvas()
+    public void BuyMoveSpeed()
     {
-        EnsureDefaultCardBindings();
+        PlayerUpgradeManager.EnsureInstance().TryUpgrade(PlayerUpgradeType.MoveSpeed);
+        Refresh();
+    }
 
-        if (shopCanvas == null)
+    public void BuyGatherSpeed()
+    {
+        PlayerUpgradeManager.EnsureInstance().TryUpgradeGatherSpeed();
+        Refresh();
+    }
+
+    private void Initialize()
+    {
+        if (initialized)
         {
-            Canvas selfCanvas = GetComponent<Canvas>();
-            shopCanvas = selfCanvas != null ? selfCanvas.gameObject : FindSceneObject(shopCanvasName);
+            return;
         }
 
-        if (shopCanvas == null)
-        {
-            return false;
-        }
-
-        BindCloseButton();
-        BindResourceTexts();
-        BindCard(moveSpeedCard);
-        BindCard(gatherSpeedCard);
+        initialized = true;
         EnsureEventSystem();
-        return true;
+        canvas = GetComponentInChildren<Canvas>(true);
+        ResolvePrefabReferences();
+        WireButtons();
     }
 
-    private void EnsureDefaultCardBindings()
+    private void ResolvePrefabReferences()
     {
-        if (moveSpeedCard == null)
-        {
-            moveSpeedCard = new UpgradeCardBinding();
-        }
-
-        if (gatherSpeedCard == null)
-        {
-            gatherSpeedCard = new UpgradeCardBinding();
-        }
-
-        if (string.IsNullOrEmpty(moveSpeedCard.rootName))
-        {
-            moveSpeedCard.rootName = "MoveSpeedCard";
-        }
-
-        if (string.IsNullOrEmpty(gatherSpeedCard.rootName))
-        {
-            gatherSpeedCard.rootName = "GatherSpeedCard";
-        }
+        closeButton = closeButton != null ? closeButton : FindComponentInChildrenByName<Button>(transform, closeButtonName);
+        coinText = coinText != null ? coinText : FindComponentInChildrenByName<Text>(transform, coinTextName);
+        woodText = woodText != null ? woodText : FindComponentInChildrenByName<Text>(transform, woodTextName);
+        stoneText = stoneText != null ? stoneText : FindComponentInChildrenByName<Text>(transform, stoneTextName);
+        moveSpeedCard.Resolve(transform);
+        gatherSpeedCard.Resolve(transform);
     }
 
-    private void BindCloseButton()
+    private void WireButtons()
     {
-        if (closeButton == null)
+        if (closeButton != null)
         {
-            Transform buttonTransform = FindChildRecursive(shopCanvas.transform, closeButtonName);
-            if (buttonTransform != null)
-            {
-                closeButton = buttonTransform.GetComponent<Button>();
-            }
+            closeButton.onClick.RemoveListener(CloseShop);
+            closeButton.onClick.AddListener(CloseShop);
         }
 
-        if (closeButton == null)
+        if (moveSpeedCard.upgradeButton != null)
         {
-            return;
+            moveSpeedCard.upgradeButton.onClick.RemoveListener(BuyMoveSpeed);
+            moveSpeedCard.upgradeButton.onClick.AddListener(BuyMoveSpeed);
         }
 
-        closeButton.onClick.RemoveListener(CloseShop);
-        closeButton.onClick.AddListener(CloseShop);
+        if (gatherSpeedCard.upgradeButton != null)
+        {
+            gatherSpeedCard.upgradeButton.onClick.RemoveListener(BuyGatherSpeed);
+            gatherSpeedCard.upgradeButton.onClick.AddListener(BuyGatherSpeed);
+        }
+
     }
 
-    private void BindResourceTexts()
+    private void Subscribe()
     {
-        Transform root = FindChildRecursive(shopCanvas.transform, resourceRootName);
-        if (root == null)
+        PlayerUpgradeManager.EnsureInstance().UpgradesChanged += Refresh;
+        if (ResourceManager.Instance != null)
         {
-            root = shopCanvas.transform;
-        }
-
-        if (coinText == null)
-        {
-            coinText = FindTextByName(root, coinTextName);
-        }
-
-        if (woodText == null)
-        {
-            woodText = FindTextByName(root, woodTextName);
-        }
-
-        if (stoneText == null)
-        {
-            stoneText = FindTextByName(root, stoneTextName);
+            ResourceManager.Instance.ResourcesChanged += Refresh;
         }
     }
 
-    private void BindCard(UpgradeCardBinding card)
+    private void Unsubscribe()
     {
-        if (card == null || string.IsNullOrEmpty(card.rootName))
+        if (PlayerUpgradeManager.Instance != null)
         {
-            return;
+            PlayerUpgradeManager.Instance.UpgradesChanged -= Refresh;
         }
 
-        if (card.root == null)
+        if (ResourceManager.Instance != null)
         {
-            Transform root = FindChildRecursive(shopCanvas.transform, card.rootName);
-            if (root != null)
-            {
-                card.root = root.gameObject;
-            }
-        }
-
-        if (card.root == null)
-        {
-            return;
-        }
-
-        Transform rootTransform = card.root.transform;
-        if (card.titleText == null) card.titleText = FindTextByName(rootTransform, "TitleText");
-        if (card.levelText == null) card.levelText = FindTextByName(rootTransform, "LevelText");
-        if (card.descriptionText == null) card.descriptionText = FindTextByName(rootTransform, "DescriptionText");
-
-        if (card.upgradeButton == null)
-        {
-            Transform buttonTransform = FindChildRecursive(rootTransform, "UpgradeButton");
-            if (buttonTransform != null)
-            {
-                card.upgradeButton = buttonTransform.GetComponent<Button>();
-            }
-        }
-
-        if (card.upgradeButton != null)
-        {
-            if (card.upgradeButtonImage == null)
-            {
-                card.upgradeButtonImage = card.upgradeButton.GetComponent<Image>();
-            }
-
-            if (card.upgradeButtonText == null)
-            {
-                card.upgradeButtonText = card.upgradeButton.GetComponentInChildren<Text>();
-            }
+            ResourceManager.Instance.ResourcesChanged -= Refresh;
         }
     }
 
-    private void BindManagers()
-    {
-        BindResourceManager();
-        BindUpgradeManager();
-    }
-
-    private void BindResourceManager()
-    {
-        ResourceManager current = ResourceManager.Instance;
-        if (boundResourceManager == current)
-        {
-            return;
-        }
-
-        if (boundResourceManager != null)
-        {
-            boundResourceManager.ResourcesChanged -= RefreshAll;
-        }
-
-        boundResourceManager = current;
-        if (boundResourceManager != null)
-        {
-            boundResourceManager.ResourcesChanged += RefreshAll;
-        }
-    }
-
-    private void BindUpgradeManager()
-    {
-        PlayerUpgradeManager current = PlayerUpgradeManager.EnsureInstance();
-        if (boundUpgradeManager == current)
-        {
-            return;
-        }
-
-        if (boundUpgradeManager != null)
-        {
-            boundUpgradeManager.UpgradesChanged -= RefreshAll;
-        }
-
-        boundUpgradeManager = current;
-        if (boundUpgradeManager != null)
-        {
-            boundUpgradeManager.UpgradesChanged += RefreshAll;
-        }
-    }
-
-    private void UnbindManagers()
-    {
-        if (boundResourceManager != null)
-        {
-            boundResourceManager.ResourcesChanged -= RefreshAll;
-            boundResourceManager = null;
-        }
-
-        if (boundUpgradeManager != null)
-        {
-            boundUpgradeManager.UpgradesChanged -= RefreshAll;
-            boundUpgradeManager = null;
-        }
-    }
-
-    private void RefreshAll()
-    {
-        BindShopCanvas();
-        RefreshResources();
-        RefreshUpgradeCards();
-    }
-
-    private void RefreshResources()
-    {
-        ResourceManager resources = ResourceManager.Instance;
-        if (resources == null)
-        {
-            SetText(coinText, 0);
-            SetText(woodText, 0);
-            SetText(stoneText, 0);
-            return;
-        }
-
-        SetText(coinText, resources.Coins);
-        SetText(woodText, resources.Wood);
-        SetText(stoneText, resources.Stone);
-    }
-
-    private void RefreshUpgradeCards()
+    private void Refresh()
     {
         PlayerUpgradeManager upgrades = PlayerUpgradeManager.EnsureInstance();
         ResourceManager resources = ResourceManager.Instance;
 
-        RefreshMoveSpeedCard(upgrades, resources);
-        RefreshGatherSpeedCard(upgrades, resources);
+        if (coinText != null)
+        {
+            coinText.text = GetResourceAmount(resources, ResourceType.Coin).ToString();
+        }
+
+        if (woodText != null)
+        {
+            woodText.text = GetResourceAmount(resources, ResourceType.Wood).ToString();
+        }
+
+        if (stoneText != null)
+        {
+            stoneText.text = GetResourceAmount(resources, ResourceType.Stone).ToString();
+        }
+
+        RefreshMoveSpeed(upgrades, resources);
+        RefreshGatherSpeed(upgrades, resources);
     }
 
-    private void RefreshMoveSpeedCard(PlayerUpgradeManager upgrades, ResourceManager resources)
+    private void RefreshMoveSpeed(PlayerUpgradeManager upgrades, ResourceManager resources)
     {
         int level = upgrades.GetLevel(PlayerUpgradeType.MoveSpeed);
         int maxLevel = upgrades.GetMaxLevel(PlayerUpgradeType.MoveSpeed);
         int cost = upgrades.GetNextCost(PlayerUpgradeType.MoveSpeed);
-        bool isMaxLevel = upgrades.IsMaxLevel(PlayerUpgradeType.MoveSpeed);
-        bool canBuy = !isMaxLevel && resources != null && resources.CanSpend(ResourceType.Coin, cost);
-        int currentBonus = GetBonusPercent(level, MoveSpeedBonusPerLevel);
-        int nextBonus = GetBonusPercent(Mathf.Min(level + 1, maxLevel), MoveSpeedBonusPerLevel);
+        bool isMax = upgrades.IsMaxLevel(PlayerUpgradeType.MoveSpeed);
+        bool canAfford = resources != null && resources.CanSpend(ResourceType.Coin, cost);
 
-        SetCard(
+        RefreshCard(
             moveSpeedCard,
-            "移動速度",
+            "\u79fb\u52d5\u901f\u5ea6",
             level,
-            isMaxLevel ? $"跑速 <color=#89E35B>{currentBonus}%</color>" : $"跑速 {currentBonus}%→<color=#89E35B>{nextBonus}%</color>",
-            isMaxLevel ? "已滿級" : $"升級\n{cost}金幣",
-            canBuy,
-            TryUpgradeMoveSpeed);
+            maxLevel,
+            DescribePercent(level, maxLevel, 10, "\u8dd1\u901f"),
+            cost,
+            isMax,
+            canAfford);
     }
 
-    private void RefreshGatherSpeedCard(PlayerUpgradeManager upgrades, ResourceManager resources)
+    private void RefreshGatherSpeed(PlayerUpgradeManager upgrades, ResourceManager resources)
     {
-        int level = upgrades.GetCombinedGatherMaxLevel();
-        int maxLevel = upgrades.GetMaxLevel(PlayerUpgradeType.WoodGatherSpeed);
-        int cost = upgrades.GetCombinedGatherCost();
-        bool isMaxLevel = cost <= 0;
-        bool canBuy = !isMaxLevel && resources != null && resources.CanSpend(ResourceType.Coin, cost);
-        int currentBonus = GetBonusPercent(level, GatherSpeedBonusPerLevel);
-        int nextBonus = GetBonusPercent(Mathf.Min(level + 1, maxLevel), GatherSpeedBonusPerLevel);
+        int level = upgrades.GetGatherSpeedLevel();
+        int maxLevel = upgrades.GetGatherSpeedMaxLevel();
+        int cost = upgrades.GetGatherSpeedNextCost();
+        bool isMax = upgrades.IsGatherSpeedMaxLevel();
+        bool canAfford = resources != null && resources.CanSpend(ResourceType.Coin, cost);
 
-        SetCard(
+        RefreshCard(
             gatherSpeedCard,
-            "採集速度",
+            "\u63a1\u96c6\u901f\u5ea6",
             level,
-            isMaxLevel ? $"採集 <color=#89E35B>{currentBonus}%</color>" : $"採集 {currentBonus}%→<color=#89E35B>{nextBonus}%</color>",
-            isMaxLevel ? "已滿級" : $"升級\n{cost}金幣",
-            canBuy,
-            TryUpgradeGatherSpeed);
+            maxLevel,
+            DescribePercent(level, maxLevel, 15, "\u63a1\u96c6"),
+            cost,
+            isMax,
+            canAfford);
     }
 
-    private void SetCard(
-        UpgradeCardBinding card,
+    private void RefreshCard(
+        UpgradeCard card,
         string title,
         int level,
+        int maxLevel,
         string description,
-        string buttonText,
-        bool canBuy,
-        UnityEngine.Events.UnityAction clickAction)
+        int cost,
+        bool isMax,
+        bool canAfford,
+        string buyTextFormat = "\u5347\u7d1a\n{0}\u91d1\u5e63")
     {
-        if (card == null || card.root == null)
+        if (card.titleText != null)
         {
-            return;
+            card.titleText.text = title;
         }
 
-        SetText(card.titleText, title);
-        SetText(card.levelText, $"Lv.{level}");
-        SetText(card.descriptionText, description);
-        SetText(card.upgradeButtonText, buttonText);
+        if (card.levelText != null)
+        {
+            card.levelText.text = maxLevel > 0 ? $"Lv.{level}" : string.Empty;
+        }
 
+        if (card.descriptionText != null)
+        {
+            card.descriptionText.text = description;
+        }
+
+        bool canBuy = !isMax && canAfford;
         if (card.upgradeButton != null)
         {
-            card.upgradeButton.onClick.RemoveAllListeners();
-            card.upgradeButton.onClick.AddListener(clickAction);
             card.upgradeButton.interactable = canBuy;
         }
 
@@ -494,114 +381,42 @@ public class UpgradeShopUI : MonoBehaviour
         {
             card.upgradeButtonImage.color = canBuy ? buttonEnabledColor : buttonDisabledColor;
         }
-    }
 
-    private void TryUpgradeMoveSpeed()
-    {
-        PlayerUpgradeManager.EnsureInstance().TryUpgrade(PlayerUpgradeType.MoveSpeed);
-        RefreshAll();
-    }
-
-    private void TryUpgradeGatherSpeed()
-    {
-        PlayerUpgradeManager.EnsureInstance().TryUpgradeCombinedGather();
-        RefreshAll();
-    }
-
-    private static int GetBonusPercent(int level, float bonusPerLevel)
-    {
-        return Mathf.RoundToInt(level * bonusPerLevel * 100f);
-    }
-
-    private static void SetText(Text text, int value)
-    {
-        if (text != null)
+        if (card.upgradeButtonText != null)
         {
-            text.text = value.ToString();
-        }
-    }
-
-    private static void SetText(Text text, string value)
-    {
-        if (text != null)
-        {
-            text.text = value;
-        }
-    }
-
-    private static GameObject FindSceneObject(string objectName)
-    {
-        GameObject exact = GameObject.Find(objectName);
-        if (exact != null)
-        {
-            return exact;
-        }
-
-        GameObject[] allObjects = Resources.FindObjectsOfTypeAll<GameObject>();
-        for (int i = 0; i < allObjects.Length; i++)
-        {
-            GameObject candidate = allObjects[i];
-            if (candidate.name == objectName && candidate.scene.IsValid())
+            if (isMax)
             {
-                return candidate;
+                card.upgradeButtonText.text = "\u5df2\u6eff\u7d1a";
+            }
+            else if (!canAfford)
+            {
+                card.upgradeButtonText.text = "\u91d1\u5e63\u4e0d\u8db3";
+            }
+            else
+            {
+                card.upgradeButtonText.text = string.Format(buyTextFormat, cost);
             }
         }
-
-        return null;
     }
 
-    private static UpgradeShopUI FindExistingInstance()
+    private string DescribePercent(int level, int maxLevel, int percentPerLevel, string label)
     {
-        UpgradeShopUI active = FindObjectOfType<UpgradeShopUI>();
-        if (active != null)
+        int currentPercent = level * percentPerLevel;
+        if (level >= maxLevel)
         {
-            return active;
+            return $"{label} +{currentPercent}%";
         }
 
-        UpgradeShopUI[] allObjects = Resources.FindObjectsOfTypeAll<UpgradeShopUI>();
-        for (int i = 0; i < allObjects.Length; i++)
-        {
-            UpgradeShopUI candidate = allObjects[i];
-            if (candidate != null && candidate.gameObject.scene.IsValid())
-            {
-                return candidate;
-            }
-        }
-
-        return null;
+        int nextPercent = (level + 1) * percentPerLevel;
+        return $"{label} {currentPercent}%\u2192<color=#89E35B>{nextPercent}%</color>";
     }
 
-    private static Transform FindChildRecursive(Transform root, string childName)
+    private int GetResourceAmount(ResourceManager resources, ResourceType type)
     {
-        if (root == null)
-        {
-            return null;
-        }
-
-        if (root.name == childName)
-        {
-            return root;
-        }
-
-        for (int i = 0; i < root.childCount; i++)
-        {
-            Transform result = FindChildRecursive(root.GetChild(i), childName);
-            if (result != null)
-            {
-                return result;
-            }
-        }
-
-        return null;
+        return resources != null ? resources.GetAmount(type) : 0;
     }
 
-    private static Text FindTextByName(Transform root, string textName)
-    {
-        Transform textTransform = FindChildRecursive(root, textName);
-        return textTransform != null ? textTransform.GetComponent<Text>() : null;
-    }
-
-    private static void EnsureEventSystem()
+    private void EnsureEventSystem()
     {
         if (FindObjectOfType<EventSystem>() != null)
         {
@@ -611,5 +426,31 @@ public class UpgradeShopUI : MonoBehaviour
         GameObject eventSystemObject = new GameObject("EventSystem");
         eventSystemObject.AddComponent<EventSystem>();
         eventSystemObject.AddComponent<StandaloneInputModule>();
+        DontDestroyOnLoad(eventSystemObject);
     }
+
+    private static Transform FindDeepChild(Transform parent, string childName)
+    {
+        if (parent == null || string.IsNullOrEmpty(childName))
+        {
+            return null;
+        }
+
+        foreach (Transform child in parent.GetComponentsInChildren<Transform>(true))
+        {
+            if (child.name == childName)
+            {
+                return child;
+            }
+        }
+
+        return null;
+    }
+
+    private static T FindComponentInChildrenByName<T>(Transform parent, string childName) where T : Component
+    {
+        Transform child = FindDeepChild(parent, childName);
+        return child != null ? child.GetComponent<T>() : null;
+    }
+
 }
