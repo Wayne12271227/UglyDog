@@ -502,7 +502,9 @@ public class CatPlayerController : MonoBehaviour
                 continue;
             }
 
-            if (TryKickMinion(hit, attackerTeam, forward) || TryKickPlayer(hit, attackerTeam, forward))
+            if (TryKickMinion(hit, attackerTeam, forward)
+                || TryKickBuilding(hit, attackerTeam)
+                || TryKickPlayer(hit, attackerTeam, forward))
             {
                 return;
             }
@@ -558,6 +560,18 @@ public class CatPlayerController : MonoBehaviour
 
         targetCombatant.TakeDamage(attackDamage);
         targetPlayer.ApplyKnockback(forward, attackKnockbackDistance);
+        return true;
+    }
+
+    private bool TryKickBuilding(Collider hit, MinionTeam attackerTeam)
+    {
+        TeamBuilding building = hit.GetComponentInParent<TeamBuilding>();
+        if (building == null || building.Team == attackerTeam || building.Health == null || building.Health.IsDestroyed)
+        {
+            return false;
+        }
+
+        building.Health.TakeDamage(attackDamage);
         return true;
     }
 

@@ -7,6 +7,7 @@ public class MinionProjectile : MonoBehaviour
 
     private MinionCombatant target;
     private MinionBaseHealth baseTarget;
+    private BuildingHealth buildingTarget;
     private int damage;
     private float expireTime;
 
@@ -66,6 +67,34 @@ public class MinionProjectile : MonoBehaviour
         projectile.Initialize(target, damage);
     }
 
+    public static void Spawn(Vector3 position, BuildingHealth target, int damage, MinionTeam sourceTeam)
+    {
+        if (target == null || target.IsDestroyed)
+        {
+            return;
+        }
+
+        GameObject projectileObject = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+        projectileObject.name = sourceTeam + " Minion Building Projectile";
+        projectileObject.transform.position = position;
+        projectileObject.transform.localScale = Vector3.one * 0.24f;
+
+        Collider collider = projectileObject.GetComponent<Collider>();
+        if (collider != null)
+        {
+            collider.isTrigger = true;
+        }
+
+        Renderer renderer = projectileObject.GetComponent<Renderer>();
+        if (renderer != null)
+        {
+            renderer.sharedMaterial = MinionManager.GetTeamMaterial(sourceTeam);
+        }
+
+        MinionProjectile projectile = projectileObject.AddComponent<MinionProjectile>();
+        projectile.Initialize(target, damage);
+    }
+
     private void Initialize(MinionCombatant newTarget, int newDamage)
     {
         target = newTarget;
@@ -76,6 +105,13 @@ public class MinionProjectile : MonoBehaviour
     private void Initialize(MinionBaseHealth newTarget, int newDamage)
     {
         baseTarget = newTarget;
+        damage = Mathf.Max(1, newDamage);
+        expireTime = Time.time + lifeTime;
+    }
+
+    private void Initialize(BuildingHealth newTarget, int newDamage)
+    {
+        buildingTarget = newTarget;
         damage = Mathf.Max(1, newDamage);
         expireTime = Time.time + lifeTime;
     }
@@ -108,7 +144,12 @@ public class MinionProjectile : MonoBehaviour
             return !target.IsDead;
         }
 
-        return baseTarget != null && !baseTarget.IsDestroyed;
+        if (baseTarget != null)
+        {
+            return !baseTarget.IsDestroyed;
+        }
+
+        return buildingTarget != null && !buildingTarget.IsDestroyed;
     }
 
     private Vector3 GetTargetPosition()
@@ -118,7 +159,12 @@ public class MinionProjectile : MonoBehaviour
             return target.transform.position + Vector3.up * 0.8f;
         }
 
-        return baseTarget.transform.position + Vector3.up * 1f;
+        if (baseTarget != null)
+        {
+            return baseTarget.transform.position + Vector3.up * 1f;
+        }
+
+        return buildingTarget.transform.position + Vector3.up * 1.1f;
     }
 
     private void ApplyDamage()
@@ -130,6 +176,10 @@ public class MinionProjectile : MonoBehaviour
         else if (baseTarget != null)
         {
             baseTarget.TakeDamage(damage);
+        }
+        else if (buildingTarget != null)
+        {
+            buildingTarget.TakeDamage(damage);
         }
     }
 }

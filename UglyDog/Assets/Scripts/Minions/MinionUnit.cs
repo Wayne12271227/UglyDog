@@ -19,6 +19,7 @@ public class MinionUnit : MonoBehaviour
 
     private MinionCombatant combatant;
     private MinionCombatant currentTarget;
+    private TeamBuilding currentBuildingTarget;
     private Transform goal;
     private MinionBaseHealth enemyBase;
     private float nextAttackTime;
@@ -47,7 +48,19 @@ public class MinionUnit : MonoBehaviour
 
         if (currentTarget != null)
         {
+            currentBuildingTarget = null;
             ChaseOrAttack(currentTarget);
+            return;
+        }
+
+        if (!IsValidBuildingTarget(currentBuildingTarget) || Time.time >= nextTargetSearchTime)
+        {
+            currentBuildingTarget = FindNearestEnemyBuilding();
+        }
+
+        if (currentBuildingTarget != null)
+        {
+            ChaseOrAttack(currentBuildingTarget);
             return;
         }
 
@@ -61,7 +74,10 @@ public class MinionUnit : MonoBehaviour
 
     private void OnTriggerEnter(Collider other)
     {
-        TryMeleeHitBase(other);
+        if (!TryMeleeHitBuilding(other))
+        {
+            TryMeleeHitBase(other);
+        }
     }
 
     private void OnCollisionEnter(Collision collision)
@@ -71,7 +87,10 @@ public class MinionUnit : MonoBehaviour
             return;
         }
 
-        TryMeleeHitBase(collision.collider);
+        if (!TryMeleeHitBuilding(collision.collider))
+        {
+            TryMeleeHitBase(collision.collider);
+        }
     }
 
     private void LateUpdate()
@@ -182,6 +201,60 @@ public class MinionUnit : MonoBehaviour
 
         hitBase.TakeDamage(attackDamage);
         Destroy(gameObject);
+        return true;
+    }
+
+    private void ChaseOrAttack(TeamBuilding targetBuilding)
+    {
+        BuildingHealth health = targetBuilding != null ? targetBuilding.Health : null;
+        if (health == null || health.IsDestroyed)
+        {
+            currentBuildingTarget = null;
+            return;
+        }
+
+        Vector3 offset = targetBuilding.transform.position - transform.position;
+        offset.y = 0f;
+        float attackDistance = GetAttackRangeForBuilding(health);
+
+        if (offset.sqrMagnitude > attackDistance * attackDistance)
+        {
+            MoveInDirection(offset.normalized);
+            return;
+        }
+
+        FaceDirection(offset);
+        if (Time.time < nextAttackTime)
+        {
+            return;
+        }
+
+        nextAttackTime = Time.time + attackCooldown;
+        if (kind == MinionKind.Ranged)
+        {
+            MinionProjectile.Spawn(transform.position + Vector3.up * 0.9f, health, attackDamage, Team);
+        }
+        else
+        {
+            health.TakeDamage(attackDamage);
+        }
+    }
+
+    private bool TryMeleeHitBuilding(Collider other)
+    {
+        if (kind != MinionKind.Melee || other == null || Time.time < nextAttackTime)
+        {
+            return false;
+        }
+
+        TeamBuilding hitBuilding = other.GetComponentInParent<TeamBuilding>();
+        if (!IsValidBuildingTarget(hitBuilding))
+        {
+            return false;
+        }
+
+        hitBuilding.Health.TakeDamage(attackDamage);
+        nextAttackTime = Time.time + attackCooldown;
         return true;
     }
 
@@ -333,12 +406,47 @@ public class MinionUnit : MonoBehaviour
         return nearest;
     }
 
+    private TeamBuilding FindNearestEnemyBuilding()
+    {
+        Collider[] hits = Physics.OverlapSphere(transform.position, targetSearchRadius, searchLayers, QueryTriggerInteraction.Collide);
+        TeamBuilding nearest = null;
+        float nearestDistance = float.PositiveInfinity;
+
+        for (int i = 0; i < hits.Length; i++)
+        {
+            TeamBuilding candidate = hits[i] != null ? hits[i].GetComponentInParent<TeamBuilding>() : null;
+            if (!IsValidBuildingTarget(candidate))
+            {
+                continue;
+            }
+
+            Vector3 offset = candidate.transform.position - transform.position;
+            offset.y = 0f;
+            float distance = offset.sqrMagnitude;
+            if (distance < nearestDistance)
+            {
+                nearest = candidate;
+                nearestDistance = distance;
+            }
+        }
+
+        return nearest;
+    }
+
     private bool IsValidTarget(MinionCombatant candidate)
     {
         return candidate != null
             && candidate != combatant
             && !candidate.IsDead
             && candidate.Team != Team;
+    }
+
+    private bool IsValidBuildingTarget(TeamBuilding candidate)
+    {
+        return candidate != null
+            && candidate.Team != Team
+            && candidate.Health != null
+            && !candidate.Health.IsDestroyed;
     }
 
     private float GetAttackRangeForTarget(MinionCombatant target)
@@ -355,6 +463,17 @@ public class MinionUnit : MonoBehaviour
     private float GetAttackRangeForBase(MinionBaseHealth targetBase)
     {
         Collider collider = targetBase != null ? targetBase.GetComponentInChildren<Collider>() : null;
+        if (collider == null)
+        {
+            return attackRange;
+        }
+
+        return attackRange + Mathf.Max(collider.bounds.extents.x, collider.bounds.extents.z);
+    }
+
+    private float GetAttackRangeForBuilding(BuildingHealth targetBuilding)
+    {
+        Collider collider = targetBuilding != null ? targetBuilding.GetComponentInChildren<Collider>() : null;
         if (collider == null)
         {
             return attackRange;
