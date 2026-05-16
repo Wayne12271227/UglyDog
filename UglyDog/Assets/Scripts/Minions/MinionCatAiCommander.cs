@@ -3,9 +3,9 @@ using UnityEngine;
 public class MinionCatAiCommander : MonoBehaviour
 {
     [SerializeField] private bool onlyWhenNoHumanCatPlayer = true;
-    [SerializeField] private float firstSummonDelay = 2.5f;
-    [SerializeField] private float summonInterval = 5.5f;
-    [SerializeField] private int rangedEveryNthSummon = 3;
+    [SerializeField] private float firstSummonDelay = 8f;
+    [SerializeField] private float summonInterval = 10f;
+    [SerializeField] private int rangedEveryNthSummon = 4;
 
     private float nextSummonTime;
     private int summonCount;

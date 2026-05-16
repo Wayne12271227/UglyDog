@@ -28,7 +28,7 @@ public class ArcherTowerBuildZone : MonoBehaviour
     [Header("Prepared Dashed Range")]
     [SerializeField] private bool autoFindDashedRangeRenderers = true;
     [SerializeField] private Renderer[] dashedRangeRenderers;
-    [SerializeField] private Color neutralColor = new Color(0.45f, 0.45f, 0.45f, 1f);
+    [SerializeField] private Color neutralColor = Color.white;
     [SerializeField] private Color dogColor = new Color(1f, 0.682f, 0f, 1f);
     [SerializeField] private Color catColor = new Color(0f, 0.847f, 1f, 1f);
 
@@ -73,11 +73,14 @@ public class ArcherTowerBuildZone : MonoBehaviour
 
     private void Update()
     {
-        CatPlayerController builder = activeBuilder != null ? activeBuilder : FindPlayerInsideZone();
+        CatPlayerController builder = activeBuilder != null && IsPlayerInsideZone(activeBuilder)
+            ? activeBuilder
+            : FindPlayerInsideZone();
         if (builder == null)
         {
             activeBuilder = null;
             HidePrompt();
+            HideBuildUI();
             if (isBuilding)
             {
                 CancelBuild();
@@ -128,6 +131,7 @@ public class ArcherTowerBuildZone : MonoBehaviour
 
         activeBuilder = null;
         HidePrompt();
+        HideBuildUI();
     }
 
     public void BeginBuild(BuildSiteBuildingType type)
@@ -184,7 +188,7 @@ public class ArcherTowerBuildZone : MonoBehaviour
         isBuilding = false;
         buildProgress = 0f;
         builder.StopAction();
-        FlashPrompt("\u5efa\u9020\u5b8c\u6210");
+        HidePrompt();
     }
 
     private void CancelBuild()
@@ -396,6 +400,27 @@ public class ArcherTowerBuildZone : MonoBehaviour
         }
 
         return null;
+    }
+
+    private bool IsPlayerInsideZone(CatPlayerController player)
+    {
+        if (player == null)
+        {
+            return false;
+        }
+
+        if (zoneCollider == null)
+        {
+            zoneCollider = GetComponent<Collider>();
+        }
+
+        if (zoneCollider == null || !zoneCollider.enabled)
+        {
+            return false;
+        }
+
+        Vector3 closestPoint = zoneCollider.ClosestPoint(player.transform.position);
+        return (closestPoint - player.transform.position).sqrMagnitude <= 0.0001f;
     }
 
     private static MinionTeam GetPlayerTeam(CatPlayerController player)

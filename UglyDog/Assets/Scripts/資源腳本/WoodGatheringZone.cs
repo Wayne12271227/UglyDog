@@ -4,7 +4,7 @@ using UnityEngine;
 public class WoodGatheringZone : MonoBehaviour
 {
     [SerializeField] private int woodPerTick = 1;
-    [SerializeField] private float tickInterval = 1f;
+    [SerializeField] private float tickInterval = 0.5f;
     [SerializeField] private bool requirePlayerController = true;
     [SerializeField] private bool requirePlayerStopped = true;
     [SerializeField] private float stoppedInputThreshold = 0.05f;
