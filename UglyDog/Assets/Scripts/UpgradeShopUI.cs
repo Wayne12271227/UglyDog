@@ -29,7 +29,6 @@ public class UpgradeShopUI : MonoBehaviour
 
     private UpgradeShopZone sourceZone;
     private Canvas canvas;
-    private bool initialized;
 
     public bool IsOpen => canvas != null && canvas.enabled && gameObject.activeInHierarchy;
 
@@ -217,14 +216,9 @@ public class UpgradeShopUI : MonoBehaviour
 
     private void Initialize()
     {
-        if (initialized)
-        {
-            return;
-        }
-
-        initialized = true;
         EnsureEventSystem();
-        canvas = GetComponentInChildren<Canvas>(true);
+        canvas = canvas != null ? canvas : GetComponentInChildren<Canvas>(true);
+        EnsureGraphicRaycaster();
         ResolvePrefabReferences();
         WireButtons();
     }
@@ -243,6 +237,14 @@ public class UpgradeShopUI : MonoBehaviour
     {
         if (closeButton != null)
         {
+            closeButton.interactable = true;
+            Graphic closeGraphic = closeButton.targetGraphic != null ? closeButton.targetGraphic : closeButton.GetComponent<Graphic>();
+            if (closeGraphic != null)
+            {
+                closeGraphic.raycastTarget = true;
+                closeButton.targetGraphic = closeGraphic;
+            }
+
             closeButton.onClick.RemoveListener(CloseShop);
             closeButton.onClick.AddListener(CloseShop);
         }
@@ -259,6 +261,19 @@ public class UpgradeShopUI : MonoBehaviour
             gatherSpeedCard.upgradeButton.onClick.AddListener(BuyGatherSpeed);
         }
 
+    }
+
+    private void EnsureGraphicRaycaster()
+    {
+        if (canvas == null)
+        {
+            return;
+        }
+
+        if (canvas.GetComponent<GraphicRaycaster>() == null)
+        {
+            canvas.gameObject.AddComponent<GraphicRaycaster>();
+        }
     }
 
     private void Subscribe()
