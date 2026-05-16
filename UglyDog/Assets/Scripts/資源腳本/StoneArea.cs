@@ -19,7 +19,7 @@ public class StoneArea : MonoBehaviour
 
     [Header("Mining")]
     [SerializeField] private int stonePerTick = 1;
-    [SerializeField] private float tickInterval = 1f;
+    [SerializeField] private float tickInterval = 0.5f;
     [SerializeField] private bool playDigAnimation = true;
     [SerializeField] private bool requirePlayerStopped = true;
     [SerializeField] private float stoppedInputThreshold = 0.05f;
