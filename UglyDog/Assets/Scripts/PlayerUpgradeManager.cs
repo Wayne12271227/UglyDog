@@ -34,6 +34,7 @@ public class PlayerUpgradeManager : MonoBehaviour
     public float MoveSpeedMultiplier => 1f + moveSpeedLevel * moveSpeedBonusPerLevel;
     public float WoodGatherSpeedMultiplier => 1f + woodGatherSpeedLevel * gatherSpeedBonusPerLevel;
     public float StoneGatherSpeedMultiplier => 1f + stoneGatherSpeedLevel * gatherSpeedBonusPerLevel;
+    public float GatherSpeedMultiplier => 1f + GetGatherSpeedLevel() * gatherSpeedBonusPerLevel;
 
     public static PlayerUpgradeManager EnsureInstance()
     {
@@ -94,9 +95,24 @@ public class PlayerUpgradeManager : MonoBehaviour
         return maxLevel;
     }
 
+    public int GetGatherSpeedLevel()
+    {
+        return Mathf.Min(woodGatherSpeedLevel, stoneGatherSpeedLevel);
+    }
+
+    public int GetGatherSpeedMaxLevel()
+    {
+        return maxLevel;
+    }
+
     public bool IsMaxLevel(PlayerUpgradeType type)
     {
         return GetLevel(type) >= GetMaxLevel(type);
+    }
+
+    public bool IsGatherSpeedMaxLevel()
+    {
+        return woodGatherSpeedLevel >= maxLevel && stoneGatherSpeedLevel >= maxLevel;
     }
 
     public int GetNextCost(PlayerUpgradeType type)
@@ -116,6 +132,22 @@ public class PlayerUpgradeManager : MonoBehaviour
         return costs[Mathf.Clamp(level, 0, costs.Length - 1)];
     }
 
+    public int GetGatherSpeedNextCost()
+    {
+        int cost = 0;
+        if (woodGatherSpeedLevel < maxLevel)
+        {
+            cost += GetCostAtLevel(PlayerUpgradeType.WoodGatherSpeed, woodGatherSpeedLevel);
+        }
+
+        if (stoneGatherSpeedLevel < maxLevel)
+        {
+            cost += GetCostAtLevel(PlayerUpgradeType.StoneGatherSpeed, stoneGatherSpeedLevel);
+        }
+
+        return cost;
+    }
+
     public bool CanUpgrade(PlayerUpgradeType type)
     {
         if (IsMaxLevel(type) || ResourceManager.Instance == null)
@@ -124,6 +156,16 @@ public class PlayerUpgradeManager : MonoBehaviour
         }
 
         return ResourceManager.Instance.CanSpend(ResourceType.Coin, GetNextCost(type));
+    }
+
+    public bool CanUpgradeGatherSpeed()
+    {
+        if (IsGatherSpeedMaxLevel() || ResourceManager.Instance == null)
+        {
+            return false;
+        }
+
+        return ResourceManager.Instance.CanSpend(ResourceType.Coin, GetGatherSpeedNextCost());
     }
 
     public bool TryUpgrade(PlayerUpgradeType type)
@@ -140,6 +182,33 @@ public class PlayerUpgradeManager : MonoBehaviour
         }
 
         SetLevel(type, GetLevel(type) + 1);
+        UpgradesChanged?.Invoke();
+        return true;
+    }
+
+    public bool TryUpgradeGatherSpeed()
+    {
+        if (IsGatherSpeedMaxLevel() || ResourceManager.Instance == null)
+        {
+            return false;
+        }
+
+        int cost = GetGatherSpeedNextCost();
+        if (!ResourceManager.Instance.Spend(ResourceType.Coin, cost))
+        {
+            return false;
+        }
+
+        if (woodGatherSpeedLevel < maxLevel)
+        {
+            woodGatherSpeedLevel++;
+        }
+
+        if (stoneGatherSpeedLevel < maxLevel)
+        {
+            stoneGatherSpeedLevel++;
+        }
+
         UpgradesChanged?.Invoke();
         return true;
     }
@@ -216,6 +285,17 @@ public class PlayerUpgradeManager : MonoBehaviour
             default:
                 return null;
         }
+    }
+
+    private int GetCostAtLevel(PlayerUpgradeType type, int level)
+    {
+        int[] costs = GetCosts(type);
+        if (costs == null || costs.Length == 0)
+        {
+            return 0;
+        }
+
+        return costs[Mathf.Clamp(level, 0, costs.Length - 1)];
     }
 
     private void SetLevel(PlayerUpgradeType type, int level)

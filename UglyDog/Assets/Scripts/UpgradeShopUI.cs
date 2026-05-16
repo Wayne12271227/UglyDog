@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+using System;
 using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.UI;
@@ -8,41 +8,70 @@ public class UpgradeShopUI : MonoBehaviour
     public static UpgradeShopUI Instance { get; private set; }
     public static bool BlocksPlayerInput => Instance != null && Instance.IsOpen;
 
-    [SerializeField] private Vector2 panelSize = new Vector2(660f, 640f);
-    [SerializeField] private Color panelColor = new Color(0.08f, 0.07f, 0.055f, 0.94f);
-    [SerializeField] private Color rowColor = new Color(1f, 1f, 1f, 0.08f);
-    [SerializeField] private Color buttonColor = new Color(0.95f, 0.66f, 0.18f, 1f);
-    [SerializeField] private Color disabledButtonColor = new Color(0.35f, 0.35f, 0.35f, 1f);
+    [Header("Input")]
     [SerializeField] private KeyCode closeKey = KeyCode.Escape;
 
-    private readonly Dictionary<PlayerUpgradeType, UpgradeRow> rows = new Dictionary<PlayerUpgradeType, UpgradeRow>();
-    private readonly Dictionary<BuildingType, BuildingRow> buildingRows = new Dictionary<BuildingType, BuildingRow>();
-    private Canvas canvas;
-    private GameObject panel;
-    private Text resourceText;
-    private Font defaultFont;
+    [Header("Prefab References")]
+    [SerializeField] private string closeButtonName = "EscButton";
+    [SerializeField] private Button closeButton;
+    [SerializeField] private string coinTextName = "CoinNum";
+    [SerializeField] private string woodTextName = "WoodNum";
+    [SerializeField] private string stoneTextName = "StoneNum";
+    [SerializeField] private Text coinText;
+    [SerializeField] private Text woodText;
+    [SerializeField] private Text stoneText;
+    [SerializeField] private UpgradeCard moveSpeedCard = new UpgradeCard { rootName = "MoveSpeedCard" };
+    [SerializeField] private UpgradeCard gatherSpeedCard = new UpgradeCard { rootName = "GatherSpeedCard" };
+
+    [Header("Button Colors")]
+    [SerializeField] private Color buttonEnabledColor = new Color(1f, 0.56f, 0.29f, 1f);
+    [SerializeField] private Color buttonDisabledColor = new Color(0.45f, 0.45f, 0.45f, 1f);
+
     private UpgradeShopZone sourceZone;
+    private Canvas canvas;
+    private bool initialized;
 
-    public bool IsOpen => panel != null && panel.activeSelf;
+    public bool IsOpen => canvas != null && canvas.enabled && gameObject.activeInHierarchy;
 
-    private class UpgradeRow
+    [Serializable]
+    private class UpgradeCard
     {
-        public Text nameText;
+        public string rootName;
+        public Transform root;
+        public Text titleText;
         public Text levelText;
-        public Text effectText;
-        public Text costText;
-        public Button buyButton;
-        public Text buttonText;
-    }
+        public Text descriptionText;
+        public Button upgradeButton;
+        public Image upgradeButtonImage;
+        public Text upgradeButtonText;
 
-    private class BuildingRow
-    {
-        public Text nameText;
-        public Text hpText;
-        public Text effectText;
-        public Text costText;
-        public Button buyButton;
-        public Text buttonText;
+        public bool HasButton => upgradeButton != null;
+
+        public void Resolve(Transform searchRoot)
+        {
+            if (searchRoot == null)
+            {
+                return;
+            }
+
+            if (root == null && !string.IsNullOrEmpty(rootName))
+            {
+                root = FindDeepChild(searchRoot, rootName);
+            }
+
+            Transform cardRoot = root != null ? root : searchRoot;
+            titleText = titleText != null ? titleText : FindComponentInChildrenByName<Text>(cardRoot, "TitleText");
+            levelText = levelText != null ? levelText : FindComponentInChildrenByName<Text>(cardRoot, "LevelText");
+            descriptionText = descriptionText != null ? descriptionText : FindComponentInChildrenByName<Text>(cardRoot, "DescriptionText");
+            upgradeButton = upgradeButton != null ? upgradeButton : FindComponentInChildrenByName<Button>(cardRoot, "UpgradeButton");
+
+            if (upgradeButton != null)
+            {
+                upgradeButtonImage = upgradeButtonImage != null ? upgradeButtonImage : upgradeButton.GetComponent<Image>();
+                upgradeButtonText = upgradeButtonText != null ? upgradeButtonText : FindComponentInChildrenByName<Text>(upgradeButton.transform, "ButtonText");
+                upgradeButtonText = upgradeButtonText != null ? upgradeButtonText : upgradeButton.GetComponentInChildren<Text>(true);
+            }
+        }
     }
 
     public static UpgradeShopUI EnsureInstance()
@@ -52,15 +81,20 @@ public class UpgradeShopUI : MonoBehaviour
             return Instance;
         }
 
-        UpgradeShopUI existing = FindObjectOfType<UpgradeShopUI>();
+        UpgradeShopUI existing = FindObjectOfType<UpgradeShopUI>(true);
         if (existing != null)
         {
             Instance = existing;
+            existing.Initialize();
+            existing.Close();
             return existing;
         }
 
         GameObject uiObject = new GameObject("Upgrade Shop UI");
-        return uiObject.AddComponent<UpgradeShopUI>();
+        UpgradeShopUI ui = uiObject.AddComponent<UpgradeShopUI>();
+        ui.Initialize();
+        ui.Close();
+        return ui;
     }
 
     private void Awake()
@@ -72,12 +106,162 @@ public class UpgradeShopUI : MonoBehaviour
         }
 
         Instance = this;
-        DontDestroyOnLoad(gameObject);
-        BuildUI();
+        Initialize();
         Close();
     }
 
     private void OnEnable()
+    {
+        Initialize();
+        Subscribe();
+        Refresh();
+    }
+
+    private void OnDisable()
+    {
+        Unsubscribe();
+    }
+
+    private void Update()
+    {
+        if (!IsOpen)
+        {
+            return;
+        }
+
+        if (Input.GetKeyDown(closeKey))
+        {
+            CloseShop();
+            return;
+        }
+
+        Refresh();
+    }
+
+    public void Open(UpgradeShopZone zone)
+    {
+        sourceZone = zone;
+        Initialize();
+
+        if (canvas == null)
+        {
+            Debug.LogWarning("UpgradeShopUI could not find a Canvas. Drag ShopCanvas.prefab into the scene before using the shop.");
+            return;
+        }
+
+        if (!gameObject.activeSelf)
+        {
+            gameObject.SetActive(true);
+        }
+
+        if (canvas != null)
+        {
+            canvas.enabled = true;
+        }
+
+        Cursor.visible = true;
+        Cursor.lockState = CursorLockMode.None;
+        Refresh();
+    }
+
+    public void Toggle(UpgradeShopZone zone)
+    {
+        if (IsOpen)
+        {
+            CloseShop();
+            return;
+        }
+
+        Open(zone);
+    }
+
+    public void CloseShop()
+    {
+        Close();
+    }
+
+    public void Close()
+    {
+        sourceZone = null;
+
+        if (canvas != null)
+        {
+            canvas.enabled = false;
+        }
+
+        if (gameObject.activeSelf)
+        {
+            gameObject.SetActive(false);
+        }
+    }
+
+    public void CloseIfOpenedBy(UpgradeShopZone zone)
+    {
+        if (sourceZone == zone)
+        {
+            CloseShop();
+        }
+    }
+
+    public void BuyMoveSpeed()
+    {
+        PlayerUpgradeManager.EnsureInstance().TryUpgrade(PlayerUpgradeType.MoveSpeed);
+        Refresh();
+    }
+
+    public void BuyGatherSpeed()
+    {
+        PlayerUpgradeManager.EnsureInstance().TryUpgradeGatherSpeed();
+        Refresh();
+    }
+
+    private void Initialize()
+    {
+        if (initialized)
+        {
+            return;
+        }
+
+        initialized = true;
+        EnsureEventSystem();
+        canvas = GetComponentInChildren<Canvas>(true);
+        ResolvePrefabReferences();
+        WireButtons();
+    }
+
+    private void ResolvePrefabReferences()
+    {
+        closeButton = closeButton != null ? closeButton : FindComponentInChildrenByName<Button>(transform, closeButtonName);
+        coinText = coinText != null ? coinText : FindComponentInChildrenByName<Text>(transform, coinTextName);
+        woodText = woodText != null ? woodText : FindComponentInChildrenByName<Text>(transform, woodTextName);
+        stoneText = stoneText != null ? stoneText : FindComponentInChildrenByName<Text>(transform, stoneTextName);
+        moveSpeedCard.Resolve(transform);
+        gatherSpeedCard.Resolve(transform);
+    }
+
+    private void WireButtons()
+    {
+        if (closeButton != null)
+        {
+            closeButton.onClick.RemoveListener(CloseShop);
+            closeButton.onClick.AddListener(CloseShop);
+        }
+
+        if (moveSpeedCard.upgradeButton != null)
+        {
+            moveSpeedCard.upgradeButton.onClick.RemoveListener(BuyMoveSpeed);
+            moveSpeedCard.upgradeButton.onClick.AddListener(BuyMoveSpeed);
+        }
+
+        if (gatherSpeedCard.upgradeButton != null)
+        {
+            gatherSpeedCard.upgradeButton.onClick.RemoveListener(BuyGatherSpeed);
+            gatherSpeedCard.upgradeButton.onClick.AddListener(BuyGatherSpeed);
+        }
+
+    }
+
+    private void Subscribe()
     {
         PlayerUpgradeManager.EnsureInstance().UpgradesChanged += Refresh;
         if (ResourceManager.Instance != null)
@@ -86,7 +270,7 @@ public class UpgradeShopUI : MonoBehaviour
         }
     }
 
-    private void OnDisable()
+    private void Unsubscribe()
     {
         if (PlayerUpgradeManager.Instance != null)
         {
@@ -99,308 +283,137 @@ public class UpgradeShopUI : MonoBehaviour
         }
     }
 
-    private void Update()
-    {
-        if (!IsOpen)
-        {
-            return;
-        }
-
-        if (Input.GetKeyDown(closeKey))
-        {
-            Close();
-            return;
-        }
-
-        Refresh();
-    }
-
-    public void Open(UpgradeShopZone zone)
-    {
-        sourceZone = zone;
-        BuildUI();
-        panel.SetActive(true);
-        Cursor.visible = true;
-        Cursor.lockState = CursorLockMode.None;
-        Refresh();
-    }
-
-    public void Toggle(UpgradeShopZone zone)
-    {
-        if (IsOpen)
-        {
-            Close();
-        }
-        else
-        {
-            Open(zone);
-        }
-    }
-
-    public void Close()
-    {
-        sourceZone = null;
-        if (panel != null)
-        {
-            panel.SetActive(false);
-        }
-    }
-
-    public void CloseIfOpenedBy(UpgradeShopZone zone)
-    {
-        if (sourceZone == zone)
-        {
-            Close();
-        }
-    }
-
-    private void BuildUI()
-    {
-        if (panel != null)
-        {
-            return;
-        }
-
-        defaultFont = LoadDefaultFont();
-        EnsureEventSystem();
-
-        GameObject canvasObject = new GameObject("Upgrade Shop Canvas");
-        canvasObject.transform.SetParent(transform, false);
-        canvas = canvasObject.AddComponent<Canvas>();
-        canvas.renderMode = RenderMode.ScreenSpaceOverlay;
-        canvas.sortingOrder = 100;
-        canvasObject.AddComponent<CanvasScaler>().uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
-        canvasObject.AddComponent<GraphicRaycaster>();
-
-        panel = CreatePanel(canvasObject.transform);
-        CreateTitle(panel.transform);
-        resourceText = CreateText(panel.transform, "Resources", 18, FontStyle.Bold, TextAnchor.MiddleCenter);
-        SetRect(resourceText.rectTransform, new Vector2(0f, 225f), new Vector2(560f, 34f));
-
-        CreateUpgradeRow(PlayerUpgradeType.MoveSpeed, 130f);
-        CreateUpgradeRow(PlayerUpgradeType.WoodGatherSpeed, 35f);
-        CreateUpgradeRow(PlayerUpgradeType.StoneGatherSpeed, -60f);
-        CreateBuildingRow(BuildingType.AutoLumberCamp, -175f);
-        CreateBuildingRow(BuildingType.AutoQuarry, -270f);
-    }
-
-    private GameObject CreatePanel(Transform parent)
-    {
-        GameObject panelObject = new GameObject("Panel");
-        panelObject.transform.SetParent(parent, false);
-
-        RectTransform rect = panelObject.AddComponent<RectTransform>();
-        rect.anchorMin = new Vector2(0.5f, 0.5f);
-        rect.anchorMax = new Vector2(0.5f, 0.5f);
-        rect.pivot = new Vector2(0.5f, 0.5f);
-        rect.anchoredPosition = Vector2.zero;
-        rect.sizeDelta = panelSize;
-
-        Image image = panelObject.AddComponent<Image>();
-        image.color = panelColor;
-        return panelObject;
-    }
-
-    private void CreateTitle(Transform parent)
-    {
-        Text title = CreateText(parent, "狗狗商店", 34, FontStyle.Bold, TextAnchor.MiddleCenter);
-        SetRect(title.rectTransform, new Vector2(0f, 280f), new Vector2(520f, 48f));
-
-        Button closeButton = CreateButton(parent, "X", new Vector2(292f, 280f), new Vector2(44f, 44f));
-        closeButton.onClick.AddListener(Close);
-    }
-
-    private void CreateUpgradeRow(PlayerUpgradeType type, float y)
-    {
-        GameObject rowObject = new GameObject(type.ToString() + " Row");
-        rowObject.transform.SetParent(panel.transform, false);
-
-        RectTransform rowRect = rowObject.AddComponent<RectTransform>();
-        SetRect(rowRect, new Vector2(0f, y), new Vector2(580f, 88f));
-
-        Image rowImage = rowObject.AddComponent<Image>();
-        rowImage.color = rowColor;
-
-        UpgradeRow row = new UpgradeRow();
-        row.nameText = CreateText(rowObject.transform, "Name", 20, FontStyle.Bold, TextAnchor.MiddleLeft);
-        SetRect(row.nameText.rectTransform, new Vector2(-200f, 20f), new Vector2(170f, 30f));
-
-        row.levelText = CreateText(rowObject.transform, "Level", 16, FontStyle.Normal, TextAnchor.MiddleLeft);
-        SetRect(row.levelText.rectTransform, new Vector2(-200f, -18f), new Vector2(170f, 28f));
-
-        row.effectText = CreateText(rowObject.transform, "Effect", 16, FontStyle.Normal, TextAnchor.MiddleLeft);
-        SetRect(row.effectText.rectTransform, new Vector2(45f, 20f), new Vector2(280f, 30f));
-
-        row.costText = CreateText(rowObject.transform, "Cost", 16, FontStyle.Normal, TextAnchor.MiddleLeft);
-        SetRect(row.costText.rectTransform, new Vector2(45f, -18f), new Vector2(280f, 28f));
-
-        row.buyButton = CreateButton(rowObject.transform, "升級", new Vector2(235f, 0f), new Vector2(92f, 46f));
-        row.buttonText = row.buyButton.GetComponentInChildren<Text>();
-        row.buyButton.onClick.AddListener(() => Buy(type));
-
-        rows[type] = row;
-    }
-
-    private void CreateBuildingRow(BuildingType type, float y)
-    {
-        GameObject rowObject = new GameObject(type + " Row");
-        rowObject.transform.SetParent(panel.transform, false);
-
-        RectTransform rowRect = rowObject.AddComponent<RectTransform>();
-        SetRect(rowRect, new Vector2(0f, y), new Vector2(580f, 88f));
-
-        Image rowImage = rowObject.AddComponent<Image>();
-        rowImage.color = rowColor;
-
-        BuildingRow row = new BuildingRow();
-        row.nameText = CreateText(rowObject.transform, "Name", 20, FontStyle.Bold, TextAnchor.MiddleLeft);
-        SetRect(row.nameText.rectTransform, new Vector2(-200f, 20f), new Vector2(170f, 30f));
-
-        row.hpText = CreateText(rowObject.transform, "HP", 16, FontStyle.Normal, TextAnchor.MiddleLeft);
-        SetRect(row.hpText.rectTransform, new Vector2(-200f, -18f), new Vector2(170f, 28f));
-
-        row.effectText = CreateText(rowObject.transform, "Effect", 16, FontStyle.Normal, TextAnchor.MiddleLeft);
-        SetRect(row.effectText.rectTransform, new Vector2(45f, 20f), new Vector2(280f, 30f));
-
-        row.costText = CreateText(rowObject.transform, "Cost", 16, FontStyle.Normal, TextAnchor.MiddleLeft);
-        SetRect(row.costText.rectTransform, new Vector2(45f, -18f), new Vector2(280f, 28f));
-
-        row.buyButton = CreateButton(rowObject.transform, "建造", new Vector2(235f, 0f), new Vector2(92f, 46f));
-        row.buttonText = row.buyButton.GetComponentInChildren<Text>();
-        row.buyButton.onClick.AddListener(() => BuyBuilding(type));
-
-        buildingRows[type] = row;
-    }
-
-    private Text CreateText(Transform parent, string name, int fontSize, FontStyle fontStyle, TextAnchor alignment)
-    {
-        GameObject textObject = new GameObject(name);
-        textObject.transform.SetParent(parent, false);
-        Text text = textObject.AddComponent<Text>();
-        text.font = defaultFont;
-        text.fontSize = fontSize;
-        text.fontStyle = fontStyle;
-        text.alignment = alignment;
-        text.color = Color.white;
-        text.horizontalOverflow = HorizontalWrapMode.Wrap;
-        text.verticalOverflow = VerticalWrapMode.Truncate;
-        return text;
-    }
-
-    private Font LoadDefaultFont()
-    {
-        Font font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
-        if (font != null)
-        {
-            return font;
-        }
-
-        return Font.CreateDynamicFontFromOSFont(
-            new[] { "Microsoft JhengHei", "Arial", "Liberation Sans", "Noto Sans CJK TC" },
-            16);
-    }
-
-    private Button CreateButton(Transform parent, string label, Vector2 position, Vector2 size)
-    {
-        GameObject buttonObject = new GameObject(label + " Button");
-        buttonObject.transform.SetParent(parent, false);
-
-        RectTransform rect = buttonObject.AddComponent<RectTransform>();
-        SetRect(rect, position, size);
-
-        Image image = buttonObject.AddComponent<Image>();
-        image.color = buttonColor;
-
-        Button button = buttonObject.AddComponent<Button>();
-        button.targetGraphic = image;
-
-        Text text = CreateText(buttonObject.transform, label, 17, FontStyle.Bold, TextAnchor.MiddleCenter);
-        text.text = label;
-        SetRect(text.rectTransform, Vector2.zero, size);
-        return button;
-    }
-
     private void Refresh()
     {
         PlayerUpgradeManager upgrades = PlayerUpgradeManager.EnsureInstance();
         ResourceManager resources = ResourceManager.Instance;
 
-        if (resourceText != null)
+        if (coinText != null)
         {
-            int coins = resources != null ? resources.Coins : 0;
-            int wood = resources != null ? resources.Wood : 0;
-            int stone = resources != null ? resources.Stone : 0;
-            resourceText.text = $"金幣 {coins}    木頭 {wood}    石頭 {stone}";
+            coinText.text = GetResourceAmount(resources, ResourceType.Coin).ToString();
         }
 
-        foreach (KeyValuePair<PlayerUpgradeType, UpgradeRow> pair in rows)
+        if (woodText != null)
         {
-            RefreshRow(upgrades, resources, pair.Key, pair.Value);
+            woodText.text = GetResourceAmount(resources, ResourceType.Wood).ToString();
         }
 
-        foreach (KeyValuePair<BuildingType, BuildingRow> pair in buildingRows)
+        if (stoneText != null)
         {
-            RefreshBuildingRow(resources, pair.Key, pair.Value);
+            stoneText.text = GetResourceAmount(resources, ResourceType.Stone).ToString();
         }
+
+        RefreshMoveSpeed(upgrades, resources);
+        RefreshGatherSpeed(upgrades, resources);
     }
 
-    private void RefreshRow(PlayerUpgradeManager upgrades, ResourceManager resources, PlayerUpgradeType type, UpgradeRow row)
+    private void RefreshMoveSpeed(PlayerUpgradeManager upgrades, ResourceManager resources)
     {
-        int level = upgrades.GetLevel(type);
-        int maxLevel = upgrades.GetMaxLevel(type);
-        bool isMaxLevel = upgrades.IsMaxLevel(type);
-        int cost = upgrades.GetNextCost(type);
-        bool canAfford = resources != null && resources.CanSpend(ResourceType.Coin, cost);
-        bool canBuy = !isMaxLevel && canAfford;
-
-        row.nameText.text = upgrades.GetDisplayName(type);
-        row.levelText.text = $"Lv.{level} / {maxLevel}";
-        row.effectText.text = upgrades.GetEffectText(type);
-        row.costText.text = isMaxLevel ? "已滿級" : $"花費 {cost} 金幣";
-
-        row.buyButton.interactable = canBuy;
-        row.buttonText.text = isMaxLevel ? "滿級" : canAfford ? "升級" : "不足";
-
-        Image buttonImage = row.buyButton.GetComponent<Image>();
-        if (buttonImage != null)
-        {
-            buttonImage.color = canBuy ? buttonColor : disabledButtonColor;
-        }
-    }
-
-    private void RefreshBuildingRow(ResourceManager resources, BuildingType type, BuildingRow row)
-    {
-        int cost = BuildingSystem.GetCoinCost(type);
+        int level = upgrades.GetLevel(PlayerUpgradeType.MoveSpeed);
+        int maxLevel = upgrades.GetMaxLevel(PlayerUpgradeType.MoveSpeed);
+        int cost = upgrades.GetNextCost(PlayerUpgradeType.MoveSpeed);
+        bool isMax = upgrades.IsMaxLevel(PlayerUpgradeType.MoveSpeed);
         bool canAfford = resources != null && resources.CanSpend(ResourceType.Coin, cost);
 
-        row.nameText.text = BuildingSystem.GetDisplayName(type);
-        row.hpText.text = "20/20 HP";
-        row.effectText.text = BuildingSystem.GetEffectText(type);
-        row.costText.text = $"花費 {cost} 金幣";
-        row.buyButton.interactable = canAfford;
-        row.buttonText.text = canAfford ? "建造" : "不足";
+        RefreshCard(
+            moveSpeedCard,
+            "\u79fb\u52d5\u901f\u5ea6",
+            level,
+            maxLevel,
+            DescribePercent(level, maxLevel, 10, "\u8dd1\u901f"),
+            cost,
+            isMax,
+            canAfford);
+    }
 
-        Image buttonImage = row.buyButton.GetComponent<Image>();
-        if (buttonImage != null)
+    private void RefreshGatherSpeed(PlayerUpgradeManager upgrades, ResourceManager resources)
+    {
+        int level = upgrades.GetGatherSpeedLevel();
+        int maxLevel = upgrades.GetGatherSpeedMaxLevel();
+        int cost = upgrades.GetGatherSpeedNextCost();
+        bool isMax = upgrades.IsGatherSpeedMaxLevel();
+        bool canAfford = resources != null && resources.CanSpend(ResourceType.Coin, cost);
+
+        RefreshCard(
+            gatherSpeedCard,
+            "\u63a1\u96c6\u901f\u5ea6",
+            level,
+            maxLevel,
+            DescribePercent(level, maxLevel, 15, "\u63a1\u96c6"),
+            cost,
+            isMax,
+            canAfford);
+    }
+
+    private void RefreshCard(
+        UpgradeCard card,
+        string title,
+        int level,
+        int maxLevel,
+        string description,
+        int cost,
+        bool isMax,
+        bool canAfford,
+        string buyTextFormat = "\u5347\u7d1a\n{0}\u91d1\u5e63")
+    {
+        if (card.titleText != null)
         {
-            buttonImage.color = canAfford ? buttonColor : disabledButtonColor;
+            card.titleText.text = title;
+        }
+
+        if (card.levelText != null)
+        {
+            card.levelText.text = maxLevel > 0 ? $"Lv.{level}" : string.Empty;
+        }
+
+        if (card.descriptionText != null)
+        {
+            card.descriptionText.text = description;
+        }
+
+        bool canBuy = !isMax && canAfford;
+        if (card.upgradeButton != null)
+        {
+            card.upgradeButton.interactable = canBuy;
+        }
+
+        if (card.upgradeButtonImage != null)
+        {
+            card.upgradeButtonImage.color = canBuy ? buttonEnabledColor : buttonDisabledColor;
+        }
+
+        if (card.upgradeButtonText != null)
+        {
+            if (isMax)
+            {
+                card.upgradeButtonText.text = "\u5df2\u6eff\u7d1a";
+            }
+            else if (!canAfford)
+            {
+                card.upgradeButtonText.text = "\u91d1\u5e63\u4e0d\u8db3";
+            }
+            else
+            {
+                card.upgradeButtonText.text = string.Format(buyTextFormat, cost);
+            }
         }
     }
 
-    private void Buy(PlayerUpgradeType type)
+    private string DescribePercent(int level, int maxLevel, int percentPerLevel, string label)
     {
-        PlayerUpgradeManager.EnsureInstance().TryUpgrade(type);
-        Refresh();
-    }
-
-    private void BuyBuilding(BuildingType type)
-    {
-        if (BuildingSystem.BeginPlacement(type))
+        int currentPercent = level * percentPerLevel;
+        if (level >= maxLevel)
         {
-            Close();
+            return $"{label} +{currentPercent}%";
         }
 
-        Refresh();
+        int nextPercent = (level + 1) * percentPerLevel;
+        return $"{label} {currentPercent}%\u2192<color=#89E35B>{nextPercent}%</color>";
+    }
+
+    private int GetResourceAmount(ResourceManager resources, ResourceType type)
+    {
+        return resources != null ? resources.GetAmount(type) : 0;
     }
 
     private void EnsureEventSystem()
@@ -416,12 +429,28 @@ public class UpgradeShopUI : MonoBehaviour
         DontDestroyOnLoad(eventSystemObject);
     }
 
-    private static void SetRect(RectTransform rect, Vector2 anchoredPosition, Vector2 sizeDelta)
+    private static Transform FindDeepChild(Transform parent, string childName)
     {
-        rect.anchorMin = new Vector2(0.5f, 0.5f);
-        rect.anchorMax = new Vector2(0.5f, 0.5f);
-        rect.pivot = new Vector2(0.5f, 0.5f);
-        rect.anchoredPosition = anchoredPosition;
-        rect.sizeDelta = sizeDelta;
+        if (parent == null || string.IsNullOrEmpty(childName))
+        {
+            return null;
+        }
+
+        foreach (Transform child in parent.GetComponentsInChildren<Transform>(true))
+        {
+            if (child.name == childName)
+            {
+                return child;
+            }
+        }
+
+        return null;
     }
+
+    private static T FindComponentInChildrenByName<T>(Transform parent, string childName) where T : Component
+    {
+        Transform child = FindDeepChild(parent, childName);
+        return child != null ? child.GetComponent<T>() : null;
+    }
+
 }
