@@ -10,8 +10,7 @@ public class MinionShopZone : MonoBehaviour
 
     private Collider zoneCollider;
     private CatPlayerController activePlayer;
-    private GameObject promptObject;
-    private TextMesh promptMesh;
+    private WorldSpaceHealthLabel promptLabel;
     private float nextInsideCheckTime;
     private string flashText;
     private float flashUntil;
@@ -128,55 +127,55 @@ public class MinionShopZone : MonoBehaviour
             return;
         }
 
-        if (promptObject == null)
+        if (promptLabel == null)
         {
-            promptObject = new GameObject("Minion Shop Prompt");
-            promptMesh = promptObject.AddComponent<TextMesh>();
-            promptMesh.anchor = TextAnchor.MiddleCenter;
-            promptMesh.alignment = TextAlignment.Center;
-            promptMesh.characterSize = 0.12f;
-            promptMesh.fontSize = 28;
-            promptMesh.color = Color.white;
+            promptLabel = WorldSpaceHealthLabel.Create(
+                player.transform,
+                "Minion Shop Prompt",
+                promptLocalOffset,
+                26,
+                new Vector2(340f, 82f),
+                0.01f);
+        }
+        else if (promptLabel.transform.parent != player.transform)
+        {
+            promptLabel.AttachTo(player.transform, promptLocalOffset);
         }
 
-        promptObject.SetActive(true);
-        promptMesh.text = Time.time < flashUntil ? flashText : GetPromptText();
+        promptLabel.gameObject.SetActive(true);
+        promptLabel.SetText(Time.time < flashUntil ? flashText : GetPromptText());
     }
 
     private void HidePrompt()
     {
-        if (promptObject != null)
+        if (promptLabel != null)
         {
-            promptObject.SetActive(false);
+            promptLabel.gameObject.SetActive(false);
         }
     }
 
     private void UpdatePrompt()
     {
-        if (promptObject == null || !promptObject.activeSelf || activePlayer == null)
+        if (promptLabel == null || !promptLabel.gameObject.activeSelf || activePlayer == null)
         {
             return;
         }
 
-        promptObject.transform.position = activePlayer.transform.TransformPoint(promptLocalOffset);
-        Camera camera = Camera.main;
-        if (camera != null)
+        if (promptLabel.transform.parent != activePlayer.transform)
         {
-            Vector3 direction = promptObject.transform.position - camera.transform.position;
-            if (direction.sqrMagnitude > 0.001f)
-            {
-                promptObject.transform.rotation = Quaternion.LookRotation(direction, Vector3.up);
-            }
+            promptLabel.AttachTo(activePlayer.transform, promptLocalOffset);
         }
+
+        promptLabel.SetText(Time.time < flashUntil ? flashText : GetPromptText());
     }
 
     private void FlashPrompt(string text)
     {
         flashText = text;
         flashUntil = Time.time + 1.1f;
-        if (promptMesh != null)
+        if (promptLabel != null)
         {
-            promptMesh.text = text;
+            promptLabel.SetText(text);
         }
     }
 

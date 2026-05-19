@@ -17,8 +17,7 @@ public class BuildingPlacementController : MonoBehaviour
     private BuildingType pendingType;
     private GameObject previewObject;
     private Material previewMaterial;
-    private GameObject promptObject;
-    private TextMesh promptText;
+    private WorldSpaceHealthLabel promptLabel;
     private Vector3 currentPosition;
     private Collider currentGroundCollider;
     private bool canPlace;
@@ -271,55 +270,50 @@ public class BuildingPlacementController : MonoBehaviour
 
         return false;
     }
-
     private void ShowPrompt()
     {
-        if (promptObject == null)
-        {
-            promptObject = new GameObject("Building Placement Prompt");
-            promptText = promptObject.AddComponent<TextMesh>();
-            promptText.text = "按ESC取消建築";
-            promptText.anchor = TextAnchor.MiddleCenter;
-            promptText.alignment = TextAlignment.Center;
-            promptText.characterSize = 0.14f;
-            promptText.fontSize = 32;
-            promptText.color = Color.white;
-        }
-
-        promptObject.SetActive(true);
+        EnsurePromptLabel();
+        promptLabel.SetText("\u6309 ESC \u53d6\u6d88\u5efa\u7bc9");
+        promptLabel.gameObject.SetActive(true);
         UpdatePrompt();
     }
-
     private void HidePrompt()
     {
-        if (promptObject != null)
+        if (promptLabel != null)
         {
-            promptObject.SetActive(false);
+            promptLabel.gameObject.SetActive(false);
         }
-    }
 
+    }
     private void UpdatePrompt()
     {
-        if (promptObject == null || !promptObject.activeSelf)
+        if (promptLabel == null || !promptLabel.gameObject.activeSelf)
+        {
+            return;
+        }
+
+        CatPlayerController promptPlayer = PreferredPlayerFinder.FindPreferredPlayer();
+        if (promptPlayer != null && promptLabel.transform.parent != promptPlayer.transform)
+        {
+            promptLabel.AttachTo(promptPlayer.transform, promptLocalOffset);
+        }
+    }
+    private void EnsurePromptLabel()
+    {
+        if (promptLabel != null)
         {
             return;
         }
 
         CatPlayerController player = PreferredPlayerFinder.FindPreferredPlayer();
-        if (player != null)
-        {
-            promptObject.transform.position = player.transform.TransformPoint(promptLocalOffset);
-        }
-
-        Camera camera = Camera.main;
-        if (camera != null)
-        {
-            Vector3 direction = promptObject.transform.position - camera.transform.position;
-            if (direction.sqrMagnitude > 0.001f)
-            {
-                promptObject.transform.rotation = Quaternion.LookRotation(direction, Vector3.up);
-            }
-        }
+        Transform parent = player != null ? player.transform : transform;
+        promptLabel = WorldSpaceHealthLabel.Create(
+            parent,
+            "Building Placement Prompt",
+            promptLocalOffset,
+            30,
+            new Vector2(280f, 56f),
+            0.01f);
     }
 
     private static bool IsPointerOverUI()

@@ -7,7 +7,7 @@ public class BuildingHealth : MonoBehaviour
     [SerializeField] private int currentHealth = 20;
     [SerializeField] private Vector3 labelOffset = new Vector3(0f, 2.4f, 0f);
 
-    private TextMesh healthLabel;
+    private WorldSpaceHealthLabel healthLabel;
 
     public int MaxHealth => maxHealth;
     public int CurrentHealth => currentHealth;
@@ -31,16 +31,7 @@ public class BuildingHealth : MonoBehaviour
             return;
         }
 
-        healthLabel.transform.position = transform.TransformPoint(labelOffset);
-        Camera camera = Camera.main;
-        if (camera != null)
-        {
-            Vector3 direction = healthLabel.transform.position - camera.transform.position;
-            if (direction.sqrMagnitude > 0.001f)
-            {
-                healthLabel.transform.rotation = Quaternion.LookRotation(direction, Vector3.up);
-            }
-        }
+        healthLabel.transform.localPosition = labelOffset;
     }
 
     private void OnValidate()
@@ -94,21 +85,20 @@ public class BuildingHealth : MonoBehaviour
             return;
         }
 
-        GameObject labelObject = new GameObject("Building Health Label");
-        labelObject.transform.SetParent(transform, false);
-        healthLabel = labelObject.AddComponent<TextMesh>();
-        healthLabel.anchor = TextAnchor.MiddleCenter;
-        healthLabel.alignment = TextAlignment.Center;
-        healthLabel.characterSize = 0.13f;
-        healthLabel.fontSize = 28;
-        healthLabel.color = Color.white;
+        healthLabel = WorldSpaceHealthLabel.Create(
+            transform,
+            "Building Health Label",
+            labelOffset,
+            28,
+            new Vector2(220f, 50f),
+            0.012f);
     }
 
     private void RefreshLabel()
     {
         if (healthLabel != null)
         {
-            healthLabel.text = $"{currentHealth}/{maxHealth} HP";
+            healthLabel.SetText($"{currentHealth}/{maxHealth} HP");
         }
     }
 }

@@ -8,7 +8,7 @@ public class MinionCombatant : MonoBehaviour
     [SerializeField] private int currentHealth = 20;
     [SerializeField] private Vector3 labelOffset = new Vector3(0f, 1.6f, 0f);
 
-    private TextMesh healthLabel;
+    private WorldSpaceHealthLabel healthLabel;
 
     public MinionTeam Team => team;
     public int MaxHealth => maxHealth;
@@ -33,16 +33,7 @@ public class MinionCombatant : MonoBehaviour
             return;
         }
 
-        healthLabel.transform.position = transform.TransformPoint(labelOffset);
-        Camera camera = Camera.main;
-        if (camera != null)
-        {
-            Vector3 direction = healthLabel.transform.position - camera.transform.position;
-            if (direction.sqrMagnitude > 0.001f)
-            {
-                healthLabel.transform.rotation = Quaternion.LookRotation(direction, Vector3.up);
-            }
-        }
+        healthLabel.transform.localPosition = labelOffset;
     }
 
     private void OnValidate()
@@ -85,21 +76,20 @@ public class MinionCombatant : MonoBehaviour
             return;
         }
 
-        GameObject labelObject = new GameObject("Minion Health Label");
-        labelObject.transform.SetParent(transform, false);
-        healthLabel = labelObject.AddComponent<TextMesh>();
-        healthLabel.anchor = TextAnchor.MiddleCenter;
-        healthLabel.alignment = TextAlignment.Center;
-        healthLabel.characterSize = 0.09f;
-        healthLabel.fontSize = 24;
-        healthLabel.color = Color.white;
+        healthLabel = WorldSpaceHealthLabel.Create(
+            transform,
+            "Minion Health Label",
+            labelOffset,
+            24,
+            new Vector2(140f, 42f),
+            0.01f);
     }
 
     private void RefreshLabel()
     {
         if (healthLabel != null)
         {
-            healthLabel.text = currentHealth + "/" + maxHealth;
+            healthLabel.SetText(currentHealth + "/" + maxHealth);
         }
     }
 }

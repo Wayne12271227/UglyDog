@@ -16,6 +16,10 @@ public class MinionUnit : MonoBehaviour
     [SerializeField] private float playerSeparationRadius = 0.95f;
     [SerializeField] private float playerSeparationStrength = 4f;
     [SerializeField] private LayerMask searchLayers = ~0;
+    [SerializeField] private Animator animator;
+    [SerializeField] private string attackTrigger = "Attack";
+
+    private const float FallbackAttackAnimationLength = 0.55f;
 
     private MinionCombatant combatant;
     private MinionCombatant currentTarget;
@@ -24,6 +28,11 @@ public class MinionUnit : MonoBehaviour
     private MinionBaseHealth enemyBase;
     private float nextAttackTime;
     private float nextTargetSearchTime;
+    private float resumeWalkTime;
+    private float attackAnimationLength = FallbackAttackAnimationLength;
+    private int walkStateHash;
+    private int attackStateHash;
+    private bool attackAnimationPlaying;
 
     public MinionKind Kind => kind;
     public MinionTeam Team => combatant != null ? combatant.Team : MinionTeam.Dog;
@@ -31,6 +40,12 @@ public class MinionUnit : MonoBehaviour
     private void Awake()
     {
         combatant = GetComponent<MinionCombatant>();
+        if (animator == null)
+        {
+            animator = GetComponentInChildren<Animator>();
+        }
+
+        PrepareAnimator();
     }
 
     private void Update()
@@ -70,6 +85,7 @@ public class MinionUnit : MonoBehaviour
         }
 
         MoveTowardGoal();
+        KeepAnimatorMoving();
     }
 
     private void OnTriggerEnter(Collider other)
@@ -96,6 +112,7 @@ public class MinionUnit : MonoBehaviour
     private void LateUpdate()
     {
         ResolvePlayerOverlap();
+        KeepAnimatorMoving();
     }
 
     public void Configure(
@@ -130,13 +147,15 @@ public class MinionUnit : MonoBehaviour
             return;
         }
 
-        FaceDirection(offset);
+        FaceDirectionImmediate(offset);
         if (Time.time < nextAttackTime)
         {
+            KeepAnimatorMoving();
             return;
         }
 
         nextAttackTime = Time.time + attackCooldown;
+        PlayAttackAnimation();
         if (kind == MinionKind.Ranged)
         {
             MinionProjectile.Spawn(transform.position + Vector3.up * 0.9f, target, attackDamage, Team);
@@ -164,6 +183,8 @@ public class MinionUnit : MonoBehaviour
                 return false;
             }
 
+            PlayAttackAnimation();
+            FaceDirectionImmediate(offset);
             enemyBase.TakeDamage(attackDamage);
             Destroy(gameObject);
             return true;
@@ -175,13 +196,15 @@ public class MinionUnit : MonoBehaviour
             return false;
         }
 
-        FaceDirection(offset);
+        FaceDirectionImmediate(offset);
         if (Time.time < nextAttackTime)
         {
+            KeepAnimatorMoving();
             return true;
         }
 
         nextAttackTime = Time.time + attackCooldown;
+        PlayAttackAnimation();
         MinionProjectile.Spawn(transform.position + Vector3.up * 0.9f, enemyBase, attackDamage, Team);
         return true;
     }
@@ -199,6 +222,7 @@ public class MinionUnit : MonoBehaviour
             return false;
         }
 
+        PlayAttackAnimation();
         hitBase.TakeDamage(attackDamage);
         Destroy(gameObject);
         return true;
@@ -223,13 +247,15 @@ public class MinionUnit : MonoBehaviour
             return;
         }
 
-        FaceDirection(offset);
+        FaceDirectionImmediate(offset);
         if (Time.time < nextAttackTime)
         {
+            KeepAnimatorMoving();
             return;
         }
 
         nextAttackTime = Time.time + attackCooldown;
+        PlayAttackAnimation();
         if (kind == MinionKind.Ranged)
         {
             MinionProjectile.Spawn(transform.position + Vector3.up * 0.9f, health, attackDamage, Team);
@@ -255,6 +281,7 @@ public class MinionUnit : MonoBehaviour
 
         hitBuilding.Health.TakeDamage(attackDamage);
         nextAttackTime = Time.time + attackCooldown;
+        PlayAttackAnimation();
         return true;
     }
 
@@ -301,6 +328,121 @@ public class MinionUnit : MonoBehaviour
         SnapToGround();
     }
 
+    private void PlayAttackAnimation()
+    {
+        if (animator == null)
+        {
+            animator = GetComponentInChildren<Animator>();
+        }
+
+        if (animator == null || animator.runtimeAnimatorController == null)
+        {
+            return;
+        }
+
+        if (!string.IsNullOrEmpty(attackTrigger) && HasTrigger(animator, attackTrigger))
+        {
+            animator.ResetTrigger(attackTrigger);
+            animator.SetTrigger(attackTrigger);
+        }
+
+        if (attackStateHash != 0 && animator.HasState(0, attackStateHash))
+        {
+            animator.Play(attackStateHash, 0, 0f);
+        }
+
+        attackAnimationPlaying = true;
+        resumeWalkTime = Time.time + attackAnimationLength;
+    }
+
+    private void PrepareAnimator()
+    {
+        if (animator == null || animator.runtimeAnimatorController == null)
+        {
+            return;
+        }
+
+        animator.cullingMode = AnimatorCullingMode.AlwaysAnimate;
+        animator.applyRootMotion = false;
+        walkStateHash = Animator.StringToHash("Base Layer.Walk");
+        attackStateHash = Animator.StringToHash("Base Layer.Attack");
+        attackAnimationLength = FindClipLength("attack", FallbackAttackAnimationLength);
+
+        PlayWalkAnimation(Random.value);
+    }
+
+    private void KeepAnimatorMoving()
+    {
+        if (animator == null || animator.runtimeAnimatorController == null || walkStateHash == 0 || !animator.HasState(0, walkStateHash))
+        {
+            return;
+        }
+
+        if (attackAnimationPlaying)
+        {
+            if (Time.time < resumeWalkTime)
+            {
+                return;
+            }
+
+            attackAnimationPlaying = false;
+            PlayWalkAnimation(0f);
+            return;
+        }
+
+        AnimatorStateInfo state = animator.GetCurrentAnimatorStateInfo(0);
+        if (!state.IsName("Walk") || (!state.loop && state.normalizedTime >= 0.98f))
+        {
+            PlayWalkAnimation(0f);
+        }
+    }
+
+    private void PlayWalkAnimation(float normalizedTime)
+    {
+        if (animator == null || animator.runtimeAnimatorController == null || walkStateHash == 0 || !animator.HasState(0, walkStateHash))
+        {
+            return;
+        }
+
+        animator.Play(walkStateHash, 0, normalizedTime);
+        animator.Update(0f);
+    }
+
+    private float FindClipLength(string clipNamePart, float fallback)
+    {
+        if (animator == null || animator.runtimeAnimatorController == null)
+        {
+            return fallback;
+        }
+
+        AnimationClip[] clips = animator.runtimeAnimatorController.animationClips;
+        for (int i = 0; i < clips.Length; i++)
+        {
+            AnimationClip clip = clips[i];
+            if (clip != null && clip.name.ToLowerInvariant().Contains(clipNamePart))
+            {
+                return Mathf.Max(0.05f, clip.length);
+            }
+        }
+
+        return fallback;
+    }
+
+    private static bool HasTrigger(Animator targetAnimator, string triggerName)
+    {
+        AnimatorControllerParameter[] parameters = targetAnimator.parameters;
+        for (int i = 0; i < parameters.Length; i++)
+        {
+            AnimatorControllerParameter parameter = parameters[i];
+            if (parameter.name == triggerName && parameter.type == AnimatorControllerParameterType.Trigger)
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     private void FaceDirection(Vector3 direction)
     {
         direction.y = 0f;
@@ -311,6 +453,17 @@ public class MinionUnit : MonoBehaviour
 
         Quaternion targetRotation = Quaternion.LookRotation(direction.normalized, Vector3.up);
         transform.rotation = Quaternion.Slerp(transform.rotation, targetRotation, turnSpeed * Time.deltaTime);
+    }
+
+    private void FaceDirectionImmediate(Vector3 direction)
+    {
+        direction.y = 0f;
+        if (direction.sqrMagnitude <= 0.001f)
+        {
+            return;
+        }
+
+        transform.rotation = Quaternion.LookRotation(direction.normalized, Vector3.up);
     }
 
     private void SnapToGround()

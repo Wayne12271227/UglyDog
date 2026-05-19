@@ -30,8 +30,7 @@ public class UpgradeShopZone : MonoBehaviour
     private Collider zoneCollider;
     private CatPlayerController activePlayer;
     private int playersInside;
-    private TextMesh promptMesh;
-    private GameObject promptObject;
+    private WorldSpaceHealthLabel promptLabel;
     private Transform promptTarget;
     private float nextInsideCheckTime;
     private string minionFlashText;
@@ -49,13 +48,31 @@ public class UpgradeShopZone : MonoBehaviour
     private void Awake()
     {
         zoneCollider = EnsureZoneCollider();
-        RefreshRangeVisual();
     }
 
     private void OnEnable()
     {
         zoneCollider = EnsureZoneCollider();
-        RefreshRangeVisual();
+#if UNITY_EDITOR
+        if (!Application.isPlaying)
+        {
+            UnityEditor.EditorApplication.delayCall += () =>
+            {
+                if (this != null)
+                {
+                    RefreshRangeVisual();
+                }
+            };
+        }
+#endif
+    }
+
+    private void Start()
+    {
+        if (Application.isPlaying)
+        {
+            RefreshRangeVisual();
+        }
     }
 
     private void OnValidate()
@@ -69,22 +86,23 @@ public class UpgradeShopZone : MonoBehaviour
 
         zoneCollider = EnsureZoneCollider();
 #if UNITY_EDITOR
-        if (!Application.isPlaying)
+        UnityEditor.EditorApplication.delayCall += () =>
         {
-            UnityEditor.EditorApplication.delayCall += () =>
+            if (this == null)
             {
-                if (this == null)
-                {
-                    return;
-                }
+                return;
+            }
 
-                zoneCollider = EnsureZoneCollider();
+            zoneCollider = EnsureZoneCollider();
+            if (!Application.isPlaying)
+            {
                 RefreshRangeVisual();
-            };
-            return;
-        }
-#endif
+            }
+        };
+        return;
+#else
         RefreshRangeVisual();
+#endif
     }
 
     private void Update()
@@ -112,7 +130,7 @@ public class UpgradeShopZone : MonoBehaviour
         activePlayer = playerInRange;
         playersInside = Mathf.Max(1, playersInside);
         UpdatePrompt();
-        if (promptObject == null || !promptObject.activeSelf)
+        if (promptLabel == null || !promptLabel.gameObject.activeSelf)
         {
             ShowPrompt(playerInRange);
         }
@@ -443,40 +461,32 @@ public class UpgradeShopZone : MonoBehaviour
             return;
         }
 
-        if (promptObject == null)
+        if (promptLabel == null)
         {
-            promptObject = new GameObject("Shop Prompt");
-            promptMesh = promptObject.AddComponent<TextMesh>();
-            Font promptFont = LoadPromptFont();
-            if (promptFont != null)
-            {
-                promptMesh.font = promptFont;
-                MeshRenderer promptRenderer = promptObject.GetComponent<MeshRenderer>();
-                if (promptRenderer != null)
-                {
-                    promptRenderer.sharedMaterial = promptFont.material;
-                }
-            }
-
-            promptMesh.anchor = TextAnchor.MiddleCenter;
-            promptMesh.alignment = TextAlignment.Center;
-            promptMesh.characterSize = 0.14f;
-            promptMesh.fontSize = 32;
-            promptMesh.color = Color.white;
+            promptLabel = WorldSpaceHealthLabel.Create(
+                player.transform,
+                "Shop Prompt",
+                promptLocalOffset,
+                26,
+                new Vector2(360f, 96f),
+                0.01f);
+        }
+        else if (promptLabel.transform.parent != player.transform)
+        {
+            promptLabel.AttachTo(player.transform, promptLocalOffset);
         }
 
         promptTarget = player.transform;
-        promptObject.transform.SetParent(null, true);
-        promptObject.SetActive(true);
-        promptMesh.text = GetCurrentPromptText();
+        promptLabel.gameObject.SetActive(true);
+        promptLabel.SetText(GetCurrentPromptText());
         UpdatePrompt();
     }
 
     private void HidePrompt()
     {
-        if (promptObject != null)
+        if (promptLabel != null)
         {
-            promptObject.SetActive(false);
+            promptLabel.gameObject.SetActive(false);
         }
 
         promptTarget = null;
@@ -484,7 +494,7 @@ public class UpgradeShopZone : MonoBehaviour
 
     private void UpdatePrompt()
     {
-        if (promptObject == null || !promptObject.activeSelf)
+        if (promptLabel == null || !promptLabel.gameObject.activeSelf)
         {
             return;
         }
@@ -495,39 +505,15 @@ public class UpgradeShopZone : MonoBehaviour
             return;
         }
 
-        if (promptTarget != null)
+        if (promptTarget != null && promptLabel.transform.parent != promptTarget)
         {
-            promptObject.transform.position = promptTarget.TransformPoint(promptLocalOffset);
+            promptLabel.AttachTo(promptTarget, promptLocalOffset);
         }
 
-        if (promptMesh != null)
+        if (promptLabel != null)
         {
-            promptMesh.text = GetCurrentPromptText();
+            promptLabel.SetText(GetCurrentPromptText());
         }
-
-        Camera camera = Camera.main;
-        if (camera != null)
-        {
-            Vector3 direction = promptObject.transform.position - camera.transform.position;
-            if (direction.sqrMagnitude > 0.001f)
-            {
-                promptObject.transform.rotation = Quaternion.LookRotation(direction, Vector3.up);
-            }
-        }
-    }
-
-    private Font LoadPromptFont()
-    {
-        Font font = Font.CreateDynamicFontFromOSFont(
-            new[] { "Microsoft JhengHei", "Microsoft YaHei", "Arial Unicode MS", "Noto Sans CJK TC" },
-            18);
-
-        if (font != null)
-        {
-            return font;
-        }
-
-        return Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
     }
 
     private void TryBuyMinion(MinionKind kind)
@@ -549,9 +535,9 @@ public class UpgradeShopZone : MonoBehaviour
     {
         minionFlashText = text;
         minionFlashUntil = Time.time + 1.1f;
-        if (promptMesh != null)
+        if (promptLabel != null)
         {
-            promptMesh.text = text;
+            promptLabel.SetText(text);
         }
     }
 

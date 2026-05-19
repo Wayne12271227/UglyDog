@@ -9,12 +9,17 @@ public class CharacterAnimatorControllerBuilder : EditorWindow
     private enum CharacterKind
     {
         Cat,
-        Dog
+        Dog,
+        DogMeleeMinion,
+        DogRangedMinion,
+        CatMeleeMinion,
+        CatRangedMinion
     }
 
     private const string AnimatorRootFolder = "Assets/animator";
     private const string CatControllerFolder = AnimatorRootFolder + "/cat_action";
     private const string DogControllerFolder = AnimatorRootFolder + "/dog_action";
+    private const string MinionControllerFolder = AnimatorRootFolder + "/minion_action";
     private const float RunStateSpeed = 2.5f;
     private const float AttackStateSpeed = 1.5f;
     private const float ActionStateSpeed = 3.5f;
@@ -44,21 +49,35 @@ public class CharacterAnimatorControllerBuilder : EditorWindow
     private void OnGUI()
     {
         EditorGUILayout.LabelField("Character Animator Setup", EditorStyles.boldLabel);
-        EditorGUILayout.HelpBox("Builds a 5-action controller for CAT or DOG: Idle, Run, Attack, Dig, and Build. Missing clips will get empty placeholder states so the controller can still be wired.", MessageType.Info);
+        bool isMinion = IsMinion(characterKind);
+        EditorGUILayout.HelpBox(
+            isMinion
+                ? "Builds a 2-action controller for minions: Walk and Attack. Missing clips will get empty placeholder states so the controller can still be wired."
+                : "Builds a 5-action controller for CAT or DOG: Idle, Run, Attack, Dig, and Build. Missing clips will get empty placeholder states so the controller can still be wired.",
+            MessageType.Info);
 
         characterKind = (CharacterKind)EditorGUILayout.EnumPopup("Character Type", characterKind);
         characterRoot = (GameObject)EditorGUILayout.ObjectField("Character Root", characterRoot, typeof(GameObject), true);
-        idleClip = (AnimationClip)EditorGUILayout.ObjectField("Idle Clip", idleClip, typeof(AnimationClip), false);
-        runClip = (AnimationClip)EditorGUILayout.ObjectField("Run Clip", runClip, typeof(AnimationClip), false);
+
+        if (!isMinion)
+        {
+            idleClip = (AnimationClip)EditorGUILayout.ObjectField("Idle Clip", idleClip, typeof(AnimationClip), false);
+        }
+
+        runClip = (AnimationClip)EditorGUILayout.ObjectField(isMinion ? "Walk Clip" : "Run Clip", runClip, typeof(AnimationClip), false);
         attackClip = (AnimationClip)EditorGUILayout.ObjectField("Attack Clip", attackClip, typeof(AnimationClip), false);
-        digClip = (AnimationClip)EditorGUILayout.ObjectField("Dig Clip", digClip, typeof(AnimationClip), false);
-        buildClip = (AnimationClip)EditorGUILayout.ObjectField("Build Clip", buildClip, typeof(AnimationClip), false);
+
+        if (!isMinion)
+        {
+            digClip = (AnimationClip)EditorGUILayout.ObjectField("Dig Clip", digClip, typeof(AnimationClip), false);
+            buildClip = (AnimationClip)EditorGUILayout.ObjectField("Build Clip", buildClip, typeof(AnimationClip), false);
+        }
 
         EditorGUILayout.Space(8f);
 
         using (new EditorGUI.DisabledScope(characterRoot == null))
         {
-            if (GUILayout.Button("Build And Assign 5 Action Animator", GUILayout.Height(32f)))
+            if (GUILayout.Button(isMinion ? "Build And Assign Minion Animator" : "Build And Assign 5 Action Animator", GUILayout.Height(32f)))
             {
                 BuildAndAssign();
             }
@@ -79,7 +98,14 @@ public class CharacterAnimatorControllerBuilder : EditorWindow
             controller = AnimatorController.CreateAnimatorControllerAtPath(controllerPath);
         }
 
-        RebuildController(controller, characterPrefix, controllerFolder);
+        if (IsMinion(characterKind))
+        {
+            RebuildMinionController(controller, characterPrefix, controllerFolder);
+        }
+        else
+        {
+            RebuildCharacterController(controller, characterPrefix, controllerFolder);
+        }
 
         Animator animator = characterRoot.GetComponentInChildren<Animator>();
         if (animator == null)
@@ -91,29 +117,33 @@ public class CharacterAnimatorControllerBuilder : EditorWindow
         animator.runtimeAnimatorController = controller;
         animator.applyRootMotion = false;
 
-        CatPlayerController playerController = characterRoot.GetComponent<CatPlayerController>();
-        if (playerController == null)
+        if (!IsMinion(characterKind))
         {
-            playerController = Undo.AddComponent<CatPlayerController>(characterRoot);
+            CatPlayerController playerController = characterRoot.GetComponent<CatPlayerController>();
+            if (playerController == null)
+            {
+                playerController = Undo.AddComponent<CatPlayerController>(characterRoot);
+            }
+
+            SerializedObject serializedPlayer = new SerializedObject(playerController);
+            serializedPlayer.FindProperty("animator").objectReferenceValue = animator;
+            serializedPlayer.FindProperty("speedParameter").stringValue = "Speed";
+            serializedPlayer.FindProperty("attackTrigger").stringValue = "Attack";
+            serializedPlayer.FindProperty("digTrigger").stringValue = "Dig";
+            serializedPlayer.FindProperty("buildTrigger").stringValue = "Build";
+            serializedPlayer.ApplyModifiedProperties();
+
+            EditorUtility.SetDirty(playerController);
         }
 
-        SerializedObject serializedPlayer = new SerializedObject(playerController);
-        serializedPlayer.FindProperty("animator").objectReferenceValue = animator;
-        serializedPlayer.FindProperty("speedParameter").stringValue = "Speed";
-        serializedPlayer.FindProperty("attackTrigger").stringValue = "Attack";
-        serializedPlayer.FindProperty("digTrigger").stringValue = "Dig";
-        serializedPlayer.FindProperty("buildTrigger").stringValue = "Build";
-        serializedPlayer.ApplyModifiedProperties();
-
         EditorUtility.SetDirty(animator);
-        EditorUtility.SetDirty(playerController);
         AssetDatabase.SaveAssets();
 
         Selection.activeObject = controller;
         EditorUtility.DisplayDialog("Character Animator Setup", "Done. " + controller.name + " was created and assigned.", "OK");
     }
 
-    private void RebuildController(AnimatorController controller, string characterPrefix, string controllerFolder)
+    private void RebuildCharacterController(AnimatorController controller, string characterPrefix, string controllerFolder)
     {
         controller.parameters = Array.Empty<AnimatorControllerParameter>();
         controller.AddParameter("Speed", AnimatorControllerParameterType.Float);
@@ -152,6 +182,34 @@ public class CharacterAnimatorControllerBuilder : EditorWindow
         AddReturnTransition(attackState, idleState);
         AddReturnTransition(digState, idleState);
         AddReturnTransition(buildState, idleState);
+
+        EditorUtility.SetDirty(controller);
+    }
+
+    private void RebuildMinionController(AnimatorController controller, string characterPrefix, string controllerFolder)
+    {
+        controller.parameters = Array.Empty<AnimatorControllerParameter>();
+        controller.AddParameter("Attack", AnimatorControllerParameterType.Trigger);
+
+        AnimatorStateMachine stateMachine = controller.layers[0].stateMachine;
+        foreach (ChildAnimatorState state in stateMachine.states)
+        {
+            stateMachine.RemoveState(state.state);
+        }
+
+        foreach (ChildAnimatorStateMachine childMachine in stateMachine.stateMachines)
+        {
+            stateMachine.RemoveStateMachine(childMachine.stateMachine);
+        }
+
+        AnimatorState walkState = CreateState(stateMachine, "Walk", runClip, new Vector3(240f, 100f, 0f), true, characterPrefix, controllerFolder);
+        AnimatorState attackState = CreateState(stateMachine, "Attack", attackClip, new Vector3(480f, 100f, 0f), false, characterPrefix, controllerFolder);
+
+        attackState.speed = AttackStateSpeed;
+        stateMachine.defaultState = walkState;
+
+        AddActionTransition(stateMachine, attackState, "Attack");
+        AddReturnTransition(attackState, walkState);
 
         EditorUtility.SetDirty(controller);
     }
@@ -212,7 +270,17 @@ public class CharacterAnimatorControllerBuilder : EditorWindow
 
     private static string GetControllerFolder(CharacterKind kind)
     {
-        return kind == CharacterKind.Cat ? CatControllerFolder : DogControllerFolder;
+        if (kind == CharacterKind.Cat)
+        {
+            return CatControllerFolder;
+        }
+
+        if (kind == CharacterKind.Dog)
+        {
+            return DogControllerFolder;
+        }
+
+        return MinionControllerFolder + "/" + GetCharacterPrefix(kind);
     }
 
     private static string GetControllerPath(CharacterKind kind)
@@ -222,7 +290,31 @@ public class CharacterAnimatorControllerBuilder : EditorWindow
 
     private static string GetCharacterPrefix(CharacterKind kind)
     {
-        return kind == CharacterKind.Cat ? "Cat" : "Dog";
+        switch (kind)
+        {
+            case CharacterKind.Cat:
+                return "Cat";
+            case CharacterKind.Dog:
+                return "Dog";
+            case CharacterKind.DogMeleeMinion:
+                return "DogMeleeMinion";
+            case CharacterKind.DogRangedMinion:
+                return "DogRangedMinion";
+            case CharacterKind.CatMeleeMinion:
+                return "CatMeleeMinion";
+            case CharacterKind.CatRangedMinion:
+                return "CatRangedMinion";
+            default:
+                return "Character";
+        }
+    }
+
+    private static bool IsMinion(CharacterKind kind)
+    {
+        return kind == CharacterKind.DogMeleeMinion
+            || kind == CharacterKind.DogRangedMinion
+            || kind == CharacterKind.CatMeleeMinion
+            || kind == CharacterKind.CatRangedMinion;
     }
 
     private static void EnsureFolder(string path)

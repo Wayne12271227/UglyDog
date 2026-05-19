@@ -43,8 +43,7 @@ public class ArcherTowerBuildZone : MonoBehaviour
     private BuildSiteBuildingType pendingType;
     private bool isBuilding;
     private float buildProgress;
-    private GameObject promptObject;
-    private TextMesh promptText;
+    private WorldSpaceHealthLabel promptLabel;
     private BuildSiteUI ui;
     private MaterialPropertyBlock dashedRangePropertyBlock;
     private MinionTeam ownerTeam;
@@ -435,15 +434,19 @@ public class ArcherTowerBuildZone : MonoBehaviour
             return;
         }
 
-        if (promptObject == null)
+        if (promptLabel == null)
         {
-            promptObject = new GameObject("Build Site Prompt");
-            promptText = promptObject.AddComponent<TextMesh>();
-            promptText.anchor = TextAnchor.MiddleCenter;
-            promptText.alignment = TextAlignment.Center;
-            promptText.characterSize = 0.14f;
-            promptText.fontSize = 32;
-            promptText.color = Color.white;
+            promptLabel = WorldSpaceHealthLabel.Create(
+                player.transform,
+                "Build Site Prompt",
+                promptLocalOffset,
+                30,
+                new Vector2(280f, 56f),
+                0.01f);
+        }
+        else if (promptLabel.transform.parent != player.transform)
+        {
+            promptLabel.AttachTo(player.transform, promptLocalOffset);
         }
 
         if (currentBuilding != null)
@@ -452,25 +455,23 @@ public class ArcherTowerBuildZone : MonoBehaviour
             return;
         }
 
-        promptObject.SetActive(true);
-        promptText.text = "\u6309 " + openKey + " \u958b\u555f\u5efa\u7bc9\u9078\u55ae";
-        promptObject.transform.position = player.transform.TransformPoint(promptLocalOffset);
-        FaceCamera(promptObject.transform);
+        promptLabel.gameObject.SetActive(true);
+        promptLabel.SetText("\u6309 " + openKey + " \u958b\u555f\u5efa\u7bc9\u9078\u55ae");
     }
 
     private void FlashPrompt(string message)
     {
-        if (promptText != null)
+        if (promptLabel != null)
         {
-            promptText.text = message;
+            promptLabel.SetText(message);
         }
     }
 
     private void HidePrompt()
     {
-        if (promptObject != null)
+        if (promptLabel != null)
         {
-            promptObject.SetActive(false);
+            promptLabel.gameObject.SetActive(false);
         }
     }
 

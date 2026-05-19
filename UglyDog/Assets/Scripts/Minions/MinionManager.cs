@@ -1,4 +1,7 @@
 using UnityEngine;
+#if UNITY_EDITOR
+using UnityEditor;
+#endif
 
 public class MinionManager : MonoBehaviour
 {
@@ -34,6 +37,12 @@ public class MinionManager : MonoBehaviour
     [SerializeField] private int baseHealth = 20;
     [SerializeField] private bool createSinglePlayerCatStandIn = true;
 
+    [Header("Cat Minion Prefabs")]
+    [SerializeField] private GameObject catMeleeVisualPrefab;
+    [SerializeField] private GameObject catRangedVisualPrefab;
+    [SerializeField] private float catMeleeVisualYawOffset = 180f;
+    [SerializeField] private float catRangedVisualYawOffset = 180f;
+
     private static Material whiteModelMaterial;
     private static Material dogTeamMaterial;
     private static Material catTeamMaterial;
@@ -42,6 +51,9 @@ public class MinionManager : MonoBehaviour
     private GameObject singlePlayerCatStandIn;
     private GameObject singlePlayerCatPrefab;
     private bool humanCatOpponentPresent;
+
+    private const string CatMeleeVisualPath = "Assets/prefab/cat_melee.prefab";
+    private const string CatRangedVisualPath = "Assets/prefab/cat_ranged.prefab";
 
     public static MinionManager EnsureInstance()
     {
@@ -221,13 +233,29 @@ public class MinionManager : MonoBehaviour
 
     private MinionUnit CreateMinion(MinionKind kind, MinionTeam team, Vector3 position, Transform goal, MinionBaseHealth enemyBase)
     {
+        GameObject visualPrefab = GetVisualPrefab(kind, team);
+        bool useVisualPrefab = visualPrefab != null;
         PrimitiveType primitive = kind == MinionKind.Melee ? PrimitiveType.Capsule : PrimitiveType.Cylinder;
-        GameObject minionObject = GameObject.CreatePrimitive(primitive);
+        GameObject minionObject = useVisualPrefab ? new GameObject(team + " " + kind + " Minion") : GameObject.CreatePrimitive(primitive);
         minionObject.name = team + " " + kind + " Minion";
         minionObject.transform.position = position;
-        minionObject.transform.localScale = kind == MinionKind.Melee
-            ? new Vector3(0.7f, 1.1f, 0.7f)
-            : new Vector3(0.65f, 0.9f, 0.65f);
+        minionObject.transform.localScale = Vector3.one;
+
+        if (useVisualPrefab)
+        {
+            CapsuleCollider capsule = minionObject.AddComponent<CapsuleCollider>();
+            capsule.radius = kind == MinionKind.Melee ? 0.35f : 0.32f;
+            capsule.height = kind == MinionKind.Melee ? 1.1f : 0.9f;
+            capsule.center = Vector3.up * capsule.height * 0.5f;
+            capsule.isTrigger = true;
+        }
+        else
+        {
+            minionObject.transform.localScale = kind == MinionKind.Melee
+                ? new Vector3(0.7f, 1.1f, 0.7f)
+                : new Vector3(0.65f, 0.9f, 0.65f);
+        }
+
         AlignBottomToGround(minionObject);
 
         Collider minionCollider = minionObject.GetComponent<Collider>();
@@ -240,6 +268,18 @@ public class MinionManager : MonoBehaviour
         if (renderer != null)
         {
             renderer.sharedMaterial = whiteModelMaterial;
+            renderer.enabled = !useVisualPrefab;
+        }
+
+        if (useVisualPrefab)
+        {
+            GameObject visualObject = Instantiate(visualPrefab, minionObject.transform);
+            visualObject.name = kind == MinionKind.Melee ? "cat_melee Visual" : "cat_ranged Visual";
+            visualObject.transform.localPosition = Vector3.zero;
+            visualObject.transform.localRotation = Quaternion.Euler(0f, GetVisualYawOffset(kind, team), 0f);
+            visualObject.transform.localScale = Vector3.one;
+            RemoveRuntimeComponentsFromVisual(visualObject);
+            AlignVisualBottomToRoot(visualObject.transform, minionObject);
         }
 
         Rigidbody body = minionObject.AddComponent<Rigidbody>();
@@ -260,13 +300,109 @@ public class MinionManager : MonoBehaviour
             targetSearchRadius,
             enemyBase);
 
-        CreateTeamMarker(minionObject.transform, team);
-        if (kind == MinionKind.Ranged)
+        if (!useVisualPrefab)
         {
-            CreateRangedMarker(minionObject.transform);
+            CreateTeamMarker(minionObject.transform, team);
+            if (kind == MinionKind.Ranged)
+            {
+                CreateRangedMarker(minionObject.transform);
+            }
         }
 
         return unit;
+    }
+
+    private GameObject GetVisualPrefab(MinionKind kind, MinionTeam team)
+    {
+        if (team != MinionTeam.Cat)
+        {
+            return null;
+        }
+
+        GameObject prefab = kind == MinionKind.Melee ? catMeleeVisualPrefab : catRangedVisualPrefab;
+#if UNITY_EDITOR
+        if (prefab == null)
+        {
+            string path = kind == MinionKind.Melee ? CatMeleeVisualPath : CatRangedVisualPath;
+            prefab = AssetDatabase.LoadAssetAtPath<GameObject>(path);
+        }
+#endif
+        return prefab;
+    }
+
+    private float GetVisualYawOffset(MinionKind kind, MinionTeam team)
+    {
+        if (team != MinionTeam.Cat)
+        {
+            return 0f;
+        }
+
+        return kind == MinionKind.Melee ? catMeleeVisualYawOffset : catRangedVisualYawOffset;
+    }
+
+    private static void AlignVisualBottomToRoot(Transform visualRoot, GameObject minionObject)
+    {
+        Bounds bounds;
+        if (!TryGetRendererBounds(visualRoot, out bounds))
+        {
+            return;
+        }
+
+        Collider rootCollider = minionObject.GetComponent<Collider>();
+        float rootBottom = rootCollider != null ? rootCollider.bounds.min.y : minionObject.transform.position.y;
+        Vector3 worldOffset = new Vector3(
+            minionObject.transform.position.x - bounds.center.x,
+            rootBottom - bounds.min.y,
+            minionObject.transform.position.z - bounds.center.z);
+        visualRoot.localPosition += minionObject.transform.InverseTransformVector(worldOffset);
+    }
+
+    private static bool TryGetRendererBounds(Transform root, out Bounds bounds)
+    {
+        Renderer[] renderers = root.GetComponentsInChildren<Renderer>(true);
+        bounds = new Bounds(root.position, Vector3.zero);
+        bool hasBounds = false;
+
+        for (int i = 0; i < renderers.Length; i++)
+        {
+            if (renderers[i] == null)
+            {
+                continue;
+            }
+
+            if (!hasBounds)
+            {
+                bounds = renderers[i].bounds;
+                hasBounds = true;
+            }
+            else
+            {
+                bounds.Encapsulate(renderers[i].bounds);
+            }
+        }
+
+        return hasBounds;
+    }
+
+    private static void RemoveRuntimeComponentsFromVisual(GameObject visualObject)
+    {
+        Collider[] colliders = visualObject.GetComponentsInChildren<Collider>(true);
+        for (int i = 0; i < colliders.Length; i++)
+        {
+            if (colliders[i] != null)
+            {
+                Destroy(colliders[i]);
+            }
+        }
+
+        Rigidbody[] bodies = visualObject.GetComponentsInChildren<Rigidbody>(true);
+        for (int i = 0; i < bodies.Length; i++)
+        {
+            if (bodies[i] != null)
+            {
+                Destroy(bodies[i]);
+            }
+        }
     }
 
     private void AlignBottomToGround(GameObject target)
@@ -343,17 +479,14 @@ public class MinionManager : MonoBehaviour
 
     private void CreateStandInLabel(Transform parent)
     {
-        GameObject labelObject = new GameObject("AI Cat Label");
-        labelObject.transform.SetParent(parent, false);
-        labelObject.transform.localPosition = new Vector3(0f, 1.5f, 0f);
-
-        TextMesh label = labelObject.AddComponent<TextMesh>();
-        label.text = "AI CAT";
-        label.anchor = TextAnchor.MiddleCenter;
-        label.alignment = TextAlignment.Center;
-        label.characterSize = 0.12f;
-        label.fontSize = 28;
-        label.color = Color.white;
+        WorldSpaceHealthLabel label = WorldSpaceHealthLabel.Create(
+            parent,
+            "AI Cat Label",
+            new Vector3(0f, 1.5f, 0f),
+            28,
+            new Vector2(150f, 44f),
+            0.01f);
+        label.SetText("AI CAT");
     }
 
     private void CreateRangedMarker(Transform parent)
