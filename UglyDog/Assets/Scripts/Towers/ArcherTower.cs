@@ -14,7 +14,7 @@ public class ArcherTower : MonoBehaviour
     [SerializeField] private Vector3 muzzleLocalPosition = new Vector3(0f, 2.2f, 0.35f);
 
     [Header("White Model")]
-    [SerializeField] private bool createWhiteModelOnAwake = true;
+    [SerializeField] private bool createWhiteModelOnAwake = false;
     [SerializeField] private Color modelColor = Color.white;
 
     private Transform head;

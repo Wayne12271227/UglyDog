@@ -35,6 +35,7 @@ public class MinionManager : MonoBehaviour
     [SerializeField] private float targetSearchRadius = 7f;
     [SerializeField] private Vector3 spawnOffset = new Vector3(0f, 0.1f, 1.6f);
     [SerializeField] private int baseHealth = 20;
+    [SerializeField] private Vector3 baseHealthLabelOffset = new Vector3(2.6f, 1.7f, 0f);
     [SerializeField] private bool createSinglePlayerCatStandIn = true;
 
     [Header("Cat Minion Prefabs")]
@@ -133,6 +134,15 @@ public class MinionManager : MonoBehaviour
         Transform goal = GetGoalPoint(team);
         Vector3 position = GetSpawnPosition(spawn, goal, team);
         return CreateMinion(kind, team, position, goal, GetEnemyBase(team));
+    }
+
+    public MinionUnit SummonAt(MinionKind kind, MinionTeam team, Vector3 position)
+    {
+        ResolveLanePoints();
+
+        Transform goal = GetGoalPoint(team);
+        Vector3 spawnPosition = ProjectToGround(position, null) + Vector3.up * spawnOffset.y;
+        return CreateMinion(kind, team, spawnPosition, goal, GetEnemyBase(team));
     }
 
     public void SetSinglePlayerCatPrefab(GameObject prefab)
@@ -594,6 +604,7 @@ public class MinionManager : MonoBehaviour
             health.Configure(team, baseHealth);
         }
 
+        health.SetLabelOffset(baseHealthLabelOffset);
         return health;
     }
 

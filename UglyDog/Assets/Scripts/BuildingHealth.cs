@@ -5,7 +5,7 @@ public class BuildingHealth : MonoBehaviour
 {
     [SerializeField] private int maxHealth = 20;
     [SerializeField] private int currentHealth = 20;
-    [SerializeField] private Vector3 labelOffset = new Vector3(0f, 2.4f, 0f);
+    [SerializeField] private Vector3 labelOffset = new Vector3(1.9f, 1.8f, 0f);
 
     private WorldSpaceHealthLabel healthLabel;
 

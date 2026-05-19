@@ -6,7 +6,7 @@ public class MinionBaseHealth : MonoBehaviour
     [SerializeField] private MinionTeam team = MinionTeam.Dog;
     [SerializeField] private int maxHealth = 20;
     [SerializeField] private int currentHealth = 20;
-    [SerializeField] private Vector3 labelOffset = new Vector3(0f, 2.2f, 0f);
+    [SerializeField] private Vector3 labelOffset = new Vector3(2.6f, 1.7f, 0f);
 
     private WorldSpaceHealthLabel healthLabel;
 
@@ -49,6 +49,15 @@ public class MinionBaseHealth : MonoBehaviour
         currentHealth = maxHealth;
         EnsureHealthLabel();
         RefreshLabel();
+    }
+
+    public void SetLabelOffset(Vector3 offset)
+    {
+        labelOffset = offset;
+        if (healthLabel != null)
+        {
+            healthLabel.AttachTo(transform, labelOffset);
+        }
     }
 
     public void TakeDamage(int amount)

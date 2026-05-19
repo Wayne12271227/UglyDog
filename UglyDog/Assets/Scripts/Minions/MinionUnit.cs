@@ -312,6 +312,7 @@ public class MinionUnit : MonoBehaviour
         }
 
         transform.position += direction * moveSpeed * Time.deltaTime;
+        attackAnimationPlaying = false;
         FaceDirection(direction);
         SnapToGround();
     }
@@ -352,7 +353,7 @@ public class MinionUnit : MonoBehaviour
         }
 
         attackAnimationPlaying = true;
-        resumeWalkTime = Time.time + attackAnimationLength;
+        resumeWalkTime = Mathf.Max(Time.time + attackAnimationLength, nextAttackTime - 0.05f);
     }
 
     private void PrepareAnimator()
