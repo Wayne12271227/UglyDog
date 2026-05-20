@@ -44,6 +44,12 @@ public class MinionManager : MonoBehaviour
     [SerializeField] private float catMeleeVisualYawOffset = 180f;
     [SerializeField] private float catRangedVisualYawOffset = 180f;
 
+    [Header("Dog Minion Prefabs")]
+    [SerializeField] private GameObject dogMeleeVisualPrefab;
+    [SerializeField] private GameObject dogRangedVisualPrefab;
+    [SerializeField] private float dogMeleeVisualYawOffset = 0f;
+    [SerializeField] private float dogRangedVisualYawOffset = 0f;
+
     private static Material whiteModelMaterial;
     private static Material dogTeamMaterial;
     private static Material catTeamMaterial;
@@ -55,6 +61,8 @@ public class MinionManager : MonoBehaviour
 
     private const string CatMeleeVisualPath = "Assets/prefab/cat_melee.prefab";
     private const string CatRangedVisualPath = "Assets/prefab/cat_ranged.prefab";
+    private const string DogMeleeVisualPath = "Assets/prefab/dog_melee.prefab";
+    private const string DogRangedVisualPath = "Assets/prefab/dog_ranged.prefab";
 
     public static MinionManager EnsureInstance()
     {
@@ -284,7 +292,7 @@ public class MinionManager : MonoBehaviour
         if (useVisualPrefab)
         {
             GameObject visualObject = Instantiate(visualPrefab, minionObject.transform);
-            visualObject.name = kind == MinionKind.Melee ? "cat_melee Visual" : "cat_ranged Visual";
+            visualObject.name = GetVisualName(kind, team);
             visualObject.transform.localPosition = Vector3.zero;
             visualObject.transform.localRotation = Quaternion.Euler(0f, GetVisualYawOffset(kind, team), 0f);
             visualObject.transform.localScale = Vector3.one;
@@ -324,16 +332,20 @@ public class MinionManager : MonoBehaviour
 
     private GameObject GetVisualPrefab(MinionKind kind, MinionTeam team)
     {
-        if (team != MinionTeam.Cat)
+        GameObject prefab = null;
+        if (team == MinionTeam.Cat)
         {
-            return null;
+            prefab = kind == MinionKind.Melee ? catMeleeVisualPrefab : catRangedVisualPrefab;
+        }
+        else if (team == MinionTeam.Dog)
+        {
+            prefab = kind == MinionKind.Melee ? dogMeleeVisualPrefab : dogRangedVisualPrefab;
         }
 
-        GameObject prefab = kind == MinionKind.Melee ? catMeleeVisualPrefab : catRangedVisualPrefab;
 #if UNITY_EDITOR
         if (prefab == null)
         {
-            string path = kind == MinionKind.Melee ? CatMeleeVisualPath : CatRangedVisualPath;
+            string path = GetVisualFallbackPath(kind, team);
             prefab = AssetDatabase.LoadAssetAtPath<GameObject>(path);
         }
 #endif
@@ -342,12 +354,29 @@ public class MinionManager : MonoBehaviour
 
     private float GetVisualYawOffset(MinionKind kind, MinionTeam team)
     {
-        if (team != MinionTeam.Cat)
+        if (team == MinionTeam.Cat)
         {
-            return 0f;
+            return kind == MinionKind.Melee ? catMeleeVisualYawOffset : catRangedVisualYawOffset;
         }
 
-        return kind == MinionKind.Melee ? catMeleeVisualYawOffset : catRangedVisualYawOffset;
+        return kind == MinionKind.Melee ? dogMeleeVisualYawOffset : dogRangedVisualYawOffset;
+    }
+
+    private static string GetVisualFallbackPath(MinionKind kind, MinionTeam team)
+    {
+        if (team == MinionTeam.Cat)
+        {
+            return kind == MinionKind.Melee ? CatMeleeVisualPath : CatRangedVisualPath;
+        }
+
+        return kind == MinionKind.Melee ? DogMeleeVisualPath : DogRangedVisualPath;
+    }
+
+    private static string GetVisualName(MinionKind kind, MinionTeam team)
+    {
+        string teamName = team == MinionTeam.Cat ? "cat" : "dog";
+        string kindName = kind == MinionKind.Melee ? "melee" : "ranged";
+        return teamName + "_" + kindName + " Visual";
     }
 
     private static void AlignVisualBottomToRoot(Transform visualRoot, GameObject minionObject)

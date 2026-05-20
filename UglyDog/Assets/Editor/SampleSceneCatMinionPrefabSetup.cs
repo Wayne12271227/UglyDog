@@ -10,8 +10,12 @@ public static class SampleSceneCatMinionPrefabSetup
     private const string RequestPath = "Temp/SetupSampleSceneCatMinionPrefabs.request";
     private const string CatMeleePrefabPath = "Assets/prefab/cat_melee.prefab";
     private const string CatRangedPrefabPath = "Assets/prefab/cat_ranged.prefab";
+    private const string DogMeleePrefabPath = "Assets/prefab/dog_melee.prefab";
+    private const string DogRangedPrefabPath = "Assets/prefab/dog_ranged.prefab";
     private const string CatMeleeModelPath = "Assets/low_poly_model/minion/cat_minion01/tripo_convert_3492f0fb-46be-4020-96b6-094a94d82626.fbx";
     private const string CatRangedModelPath = "Assets/low_poly_model/minion/cat_minion02/tripo_convert_741097ac-70c2-41ba-b2ca-ceb4316fb90c.fbx";
+    private const string DogMeleeModelPath = "Assets/low_poly_model/minion/dog_minion01/tripo_convert_93996eda-f136-4ee3-8509-00bca9fa6624.fbx";
+    private const string DogRangedModelPath = "Assets/low_poly_model/minion/dog_minion02/tripo_convert_50f72ffe-f509-42d3-9935-73a6a5ebf1d2.fbx";
 
     [InitializeOnLoadMethod]
     private static void AutoSetupWhenRequested()
@@ -54,23 +58,29 @@ public static class SampleSceneCatMinionPrefabSetup
         }
     }
 
-    [MenuItem("Tools/Minions/Setup Sample Scene Cat Minion Prefabs")]
+    [MenuItem("Tools/Minions/Setup Sample Scene Minion Prefabs")]
     public static void SetupSampleScene()
     {
         EditorSceneManager.OpenScene(ScenePath);
 
         GameObject catMeleePrefab = AssetDatabase.LoadAssetAtPath<GameObject>(CatMeleePrefabPath);
         GameObject catRangedPrefab = AssetDatabase.LoadAssetAtPath<GameObject>(CatRangedPrefabPath);
-        if (catMeleePrefab == null || catRangedPrefab == null)
+        GameObject dogMeleePrefab = AssetDatabase.LoadAssetAtPath<GameObject>(DogMeleePrefabPath);
+        GameObject dogRangedPrefab = AssetDatabase.LoadAssetAtPath<GameObject>(DogRangedPrefabPath);
+        if (catMeleePrefab == null || catRangedPrefab == null || dogMeleePrefab == null || dogRangedPrefab == null)
         {
-            Debug.LogError("Missing cat minion prefab. Expected cat_melee and cat_ranged under Assets/prefab.");
+            Debug.LogError("Missing minion prefab. Expected cat_melee, cat_ranged, dog_melee, and dog_ranged under Assets/prefab.");
             return;
         }
 
         EnsurePrefabAnimatorAvatar(CatMeleePrefabPath, CatMeleeModelPath);
         EnsurePrefabAnimatorAvatar(CatRangedPrefabPath, CatRangedModelPath);
+        EnsurePrefabAnimatorAvatar(DogMeleePrefabPath, DogMeleeModelPath);
+        EnsurePrefabAnimatorAvatar(DogRangedPrefabPath, DogRangedModelPath);
         EnsurePrefabControllerClips(CatMeleePrefabPath);
         EnsurePrefabControllerClips(CatRangedPrefabPath);
+        EnsurePrefabControllerClips(DogMeleePrefabPath);
+        EnsurePrefabControllerClips(DogRangedPrefabPath);
 
         MinionManager manager = Object.FindObjectOfType<MinionManager>();
         if (manager == null)
@@ -86,8 +96,12 @@ public static class SampleSceneCatMinionPrefabSetup
         SerializedObject serializedManager = new SerializedObject(manager);
         serializedManager.FindProperty("catMeleeVisualPrefab").objectReferenceValue = catMeleePrefab;
         serializedManager.FindProperty("catRangedVisualPrefab").objectReferenceValue = catRangedPrefab;
-        serializedManager.FindProperty("catMeleeVisualYawOffset").floatValue = 180f;
-        serializedManager.FindProperty("catRangedVisualYawOffset").floatValue = 180f;
+        serializedManager.FindProperty("catMeleeVisualYawOffset").floatValue = 90f;
+        serializedManager.FindProperty("catRangedVisualYawOffset").floatValue = 90f;
+        serializedManager.FindProperty("dogMeleeVisualPrefab").objectReferenceValue = dogMeleePrefab;
+        serializedManager.FindProperty("dogRangedVisualPrefab").objectReferenceValue = dogRangedPrefab;
+        serializedManager.FindProperty("dogMeleeVisualYawOffset").floatValue = 0f;
+        serializedManager.FindProperty("dogRangedVisualYawOffset").floatValue = 0f;
         serializedManager.ApplyModifiedPropertiesWithoutUndo();
 
         EditorUtility.SetDirty(manager);
@@ -96,7 +110,7 @@ public static class SampleSceneCatMinionPrefabSetup
         AssetDatabase.SaveAssets();
 
         Selection.activeObject = manager.gameObject;
-        Debug.Log("SampleScene now uses cat_melee and cat_ranged for cat minion visuals.");
+        Debug.Log("SampleScene now uses dog_melee, dog_ranged, cat_melee, and cat_ranged for minion visuals.");
     }
 
     private static void EnsurePrefabAnimatorAvatar(string prefabPath, string modelPath)
