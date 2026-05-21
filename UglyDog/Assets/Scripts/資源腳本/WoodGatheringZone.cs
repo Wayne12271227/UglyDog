@@ -56,7 +56,7 @@ public class WoodGatheringZone : MonoBehaviour
 
         if (detectedPlayer != null)
         {
-            detectedPlayer.PlayDig();
+            detectedPlayer.PlayDig(ResourceType.Wood, GetEffectiveTickInterval());
         }
 
         playerWasGathering = true;

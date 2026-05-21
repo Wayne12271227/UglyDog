@@ -124,6 +124,14 @@ public class ResourceManager : MonoBehaviour
         }
 
         SetAmount(type, GetAmount(type) + amount);
+        if (type == ResourceType.Coin)
+        {
+            CatPlayerController player = PreferredPlayerFinder.FindPreferredPlayer();
+            if (player != null)
+            {
+                player.PlayCoinGainSound();
+            }
+        }
     }
 
     public bool CanSpend(ResourceType type, int amount)

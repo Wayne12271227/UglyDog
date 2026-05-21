@@ -45,6 +45,30 @@ public class CatPlayerController : MonoBehaviour
     [SerializeField] private float attackAnimationSpeed = 2.5f;
     [SerializeField] private float attackAnimationSpeedDuration = 0.4f;
 
+    [Header("Audio")]
+    [SerializeField] private AudioSource actionAudioSource;
+    [SerializeField] private AudioClip woodDigActionClip;
+    [SerializeField] private AudioClip stoneDigActionClip;
+    [SerializeField] private AudioClip footstepClip;
+    [SerializeField] private AudioClip attackClip;
+    [SerializeField] private AudioClip buildClip;
+    [SerializeField] private AudioClip coinGainClip;
+    [SerializeField, Range(0f, 1f)] private float digActionVolume = 1f;
+    [SerializeField, Range(0f, 1f)] private float footstepVolume = 0.75f;
+    [SerializeField, Range(0f, 1f)] private float attackVolume = 1f;
+    [SerializeField, Range(0f, 1f)] private float buildVolume = 1f;
+    [SerializeField, Range(0f, 1f)] private float coinGainVolume = 1f;
+    [SerializeField, Range(0f, 1f)] private float digActionImpactNormalizedTime = 0.55f;
+    [SerializeField] private float digActionMinimumInterval = 0.12f;
+    [SerializeField] private float footstepInterval = 0.35f;
+    [SerializeField] private float buildSoundInterval = 0.55f;
+
+    [Header("Smart Dig Speed")]
+    [SerializeField] private bool syncDigSpeedToGatherInterval = true;
+    [SerializeField] private float baseDigCycleDuration = 0.5f;
+    [SerializeField] private float minSyncedDigAnimatorSpeed = 0.5f;
+    [SerializeField] private float maxSyncedDigAnimatorSpeed = 3f;
+
     private int speedHash;
     private int attackHash;
     private int digHash;
@@ -66,6 +90,13 @@ public class CatPlayerController : MonoBehaviour
     private float nextAttackTime;
     private float restoreAnimatorSpeedTime;
     private float defaultAnimatorSpeed = 1f;
+    private float nextDigActionSoundTime;
+    private float nextFootstepTime;
+    private float nextBuildSoundTime;
+    private ResourceType currentDigResourceType;
+    private bool hasCurrentDigResourceType;
+    private float currentDigCycleDuration;
+    private bool digImpactSoundArmed = true;
 
     private void Awake()
     {
@@ -78,6 +109,18 @@ public class CatPlayerController : MonoBehaviour
         {
             defaultAnimatorSpeed = animator.speed;
         }
+
+        if (actionAudioSource == null)
+        {
+            actionAudioSource = GetComponent<AudioSource>();
+        }
+
+        if (actionAudioSource == null)
+        {
+            actionAudioSource = gameObject.AddComponent<AudioSource>();
+        }
+
+        actionAudioSource.playOnAwake = false;
 
         capsuleCollider = GetComponent<CapsuleCollider>();
         playerRigidbody = GetComponent<Rigidbody>();
@@ -163,6 +206,7 @@ public class CatPlayerController : MonoBehaviour
 
         MovePlayer(moveDirection * GetEffectiveMoveSpeed() * deltaTime);
         SnapToGroundIfNeeded();
+        UpdateFootstepAudio(isWalking);
 
         UpdateAnimation(input.magnitude);
 
@@ -263,12 +307,15 @@ public class CatPlayerController : MonoBehaviour
 
         RestartRunStateIfNeeded(speedValue);
         RestartSustainedActionIfNeeded();
+        UpdateSyncedDigAnimatorSpeed();
+        UpdateDigImpactAudio();
     }
 
     public void PlayAttack()
     {
         sustainedActionStateName = null;
         SpeedUpAttackAnimation();
+        PlayOneShot(attackClip, attackVolume);
         PlayAction(attackHash, hasAttackTrigger, attackStateName);
     }
 
@@ -291,11 +338,30 @@ public class CatPlayerController : MonoBehaviour
         PlayAction(digHash, hasDigTrigger, digStateName);
     }
 
+    public void PlayDig(ResourceType resourceType)
+    {
+        currentDigResourceType = resourceType;
+        hasCurrentDigResourceType = true;
+        PlayDig();
+    }
+
+    public void PlayDig(ResourceType resourceType, float digCycleDuration)
+    {
+        currentDigCycleDuration = digCycleDuration;
+        PlayDig(resourceType);
+    }
+
     public void PlayBuild()
     {
         RequestNetworkAction(UglyDogNetworkAction.Build);
         sustainedActionStateName = buildStateName;
+        PlayBuildSoundIfReady();
         PlayAction(buildHash, hasBuildTrigger, buildStateName);
+    }
+
+    public void PlayCoinGainSound()
+    {
+        PlayOneShot(coinGainClip, coinGainVolume);
     }
 
     public bool HasMovementInput(float threshold = 0.05f)
@@ -314,6 +380,13 @@ public class CatPlayerController : MonoBehaviour
         ResetTriggerIfAvailable(digHash, hasDigTrigger);
         ResetTriggerIfAvailable(buildHash, hasBuildTrigger);
         sustainedActionStateName = null;
+        hasCurrentDigResourceType = false;
+        currentDigCycleDuration = 0f;
+        digImpactSoundArmed = true;
+        if (restoreAnimatorSpeedTime <= 0f)
+        {
+            animator.speed = defaultAnimatorSpeed;
+        }
         RequestNetworkAction(UglyDogNetworkAction.Stop);
 
         currentSpeedValue = GetCurrentInputMagnitude();
@@ -433,6 +506,118 @@ public class CatPlayerController : MonoBehaviour
         {
             CrossFadeToState(sustainedActionStateName, actionLoopBlendTime, true);
         }
+    }
+
+    private void UpdateFootstepAudio(bool isWalking)
+    {
+        if (!isWalking)
+        {
+            nextFootstepTime = 0f;
+            return;
+        }
+
+        if (Time.time < nextFootstepTime)
+        {
+            return;
+        }
+
+        nextFootstepTime = Time.time + footstepInterval;
+        PlayOneShot(footstepClip, footstepVolume);
+    }
+
+    private void PlayBuildSoundIfReady()
+    {
+        if (Time.time < nextBuildSoundTime)
+        {
+            return;
+        }
+
+        nextBuildSoundTime = Time.time + buildSoundInterval;
+        PlayOneShot(buildClip, buildVolume);
+    }
+
+    private void UpdateDigImpactAudio()
+    {
+        if (animator == null || !hasCurrentDigResourceType || string.IsNullOrEmpty(digStateName))
+        {
+            digImpactSoundArmed = true;
+            return;
+        }
+
+        AnimatorStateInfo currentState = animator.GetCurrentAnimatorStateInfo(0);
+        if (!currentState.IsName(digStateName))
+        {
+            digImpactSoundArmed = true;
+            return;
+        }
+
+        float normalizedTime = currentState.normalizedTime % 1f;
+        if (normalizedTime < digActionImpactNormalizedTime)
+        {
+            digImpactSoundArmed = true;
+            return;
+        }
+
+        if (!digImpactSoundArmed || Time.time < nextDigActionSoundTime)
+        {
+            return;
+        }
+
+        digImpactSoundArmed = false;
+        PlayDigActionSound(currentDigResourceType);
+    }
+
+    private void UpdateSyncedDigAnimatorSpeed()
+    {
+        if (!syncDigSpeedToGatherInterval || animator == null || !hasCurrentDigResourceType || currentDigCycleDuration <= 0f)
+        {
+            return;
+        }
+
+        AnimatorStateInfo currentState = animator.GetCurrentAnimatorStateInfo(0);
+        if (!currentState.IsName(digStateName))
+        {
+            return;
+        }
+
+        float speedMultiplier = baseDigCycleDuration / currentDigCycleDuration;
+        speedMultiplier = Mathf.Clamp(speedMultiplier, minSyncedDigAnimatorSpeed, maxSyncedDigAnimatorSpeed);
+        animator.speed = defaultAnimatorSpeed * speedMultiplier;
+    }
+
+    private void PlayDigActionSound(ResourceType resourceType)
+    {
+        if (Time.time < nextDigActionSoundTime)
+        {
+            return;
+        }
+
+        float smartMinimumInterval = digActionMinimumInterval;
+        if (currentDigCycleDuration > 0f)
+        {
+            smartMinimumInterval = Mathf.Min(smartMinimumInterval, Mathf.Max(0.01f, currentDigCycleDuration * 0.25f));
+        }
+
+        nextDigActionSoundTime = Time.time + smartMinimumInterval;
+        switch (resourceType)
+        {
+            case ResourceType.Wood:
+                PlayOneShot(woodDigActionClip, digActionVolume);
+                break;
+            case ResourceType.Stone:
+                PlayOneShot(stoneDigActionClip, digActionVolume);
+                break;
+        }
+    }
+
+    private void PlayOneShot(AudioClip clip, float volume)
+    {
+        if (clip == null || actionAudioSource == null || volume <= 0f)
+        {
+            return;
+        }
+
+        actionAudioSource.PlayOneShot(clip, volume);
     }
 
     private float GetCurrentInputMagnitude()
@@ -688,5 +873,15 @@ public class CatPlayerController : MonoBehaviour
                 hasBuildTrigger = true;
             }
         }
+    }
+
+    private void OnValidate()
+    {
+        digActionMinimumInterval = Mathf.Max(0.01f, digActionMinimumInterval);
+        footstepInterval = Mathf.Max(0.05f, footstepInterval);
+        buildSoundInterval = Mathf.Max(0.05f, buildSoundInterval);
+        baseDigCycleDuration = Mathf.Max(0.05f, baseDigCycleDuration);
+        minSyncedDigAnimatorSpeed = Mathf.Max(0.05f, minSyncedDigAnimatorSpeed);
+        maxSyncedDigAnimatorSpeed = Mathf.Max(minSyncedDigAnimatorSpeed, maxSyncedDigAnimatorSpeed);
     }
 }

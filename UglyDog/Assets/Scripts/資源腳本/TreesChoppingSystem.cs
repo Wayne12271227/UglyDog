@@ -97,7 +97,7 @@ public class TreesChoppingSystem : MonoBehaviour
 
             if (playDigAnimation)
             {
-                player.PlayDig();
+                player.PlayDig(ResourceType.Wood, GetEffectiveTickInterval());
             }
 
             if (Time.time >= nextGatherTime)

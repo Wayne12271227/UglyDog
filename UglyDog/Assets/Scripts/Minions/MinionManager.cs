@@ -53,6 +53,7 @@ public class MinionManager : MonoBehaviour
     private static Material whiteModelMaterial;
     private static Material dogTeamMaterial;
     private static Material catTeamMaterial;
+    private static Material minionOutlineMaterial;
     private MinionBaseHealth dogBase;
     private MinionBaseHealth catBase;
     private GameObject singlePlayerCatStandIn;
@@ -297,6 +298,7 @@ public class MinionManager : MonoBehaviour
             visualObject.transform.localRotation = Quaternion.Euler(0f, GetVisualYawOffset(kind, team), 0f);
             visualObject.transform.localScale = Vector3.one;
             RemoveRuntimeComponentsFromVisual(visualObject);
+            ApplyToonStyleToVisual(visualObject);
             AlignVisualBottomToRoot(visualObject.transform, minionObject);
         }
 
@@ -442,6 +444,54 @@ public class MinionManager : MonoBehaviour
                 Destroy(bodies[i]);
             }
         }
+    }
+
+    private static void ApplyToonStyleToVisual(GameObject visualObject)
+    {
+        if (visualObject == null)
+        {
+            return;
+        }
+
+        Material outline = GetMinionOutlineMaterial();
+        ToonCharacterSetup setup = visualObject.GetComponent<ToonCharacterSetup>();
+        if (setup == null)
+        {
+            setup = visualObject.AddComponent<ToonCharacterSetup>();
+        }
+
+        setup.Configure(visualObject.transform, outline, null, true, outline != null);
+    }
+
+    private static Material GetMinionOutlineMaterial()
+    {
+        if (minionOutlineMaterial != null)
+        {
+            return minionOutlineMaterial;
+        }
+
+        Shader outlineShader = Shader.Find("Custom/URPToonOutline");
+        if (outlineShader == null)
+        {
+            return null;
+        }
+
+        minionOutlineMaterial = new Material(outlineShader)
+        {
+            name = "Runtime Minion Toon Outline"
+        };
+
+        if (minionOutlineMaterial.HasProperty("_OutlineColor"))
+        {
+            minionOutlineMaterial.SetColor("_OutlineColor", new Color(0.14f, 0.08f, 0.06f, 1f));
+        }
+
+        if (minionOutlineMaterial.HasProperty("_OutlineWidth"))
+        {
+            minionOutlineMaterial.SetFloat("_OutlineWidth", 0.011f);
+        }
+
+        return minionOutlineMaterial;
     }
 
     private void AlignBottomToGround(GameObject target)

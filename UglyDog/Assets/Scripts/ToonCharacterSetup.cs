@@ -37,6 +37,22 @@ public class ToonCharacterSetup : MonoBehaviour
         QueueOrApplyToonStyle();
     }
 
+    public void Configure(
+        Transform newTargetRoot,
+        Material newOutlineMaterial,
+        Material newBaseToonMaterial = null,
+        bool newPreserveExistingMaterialTextures = true,
+        bool newEnableOutline = true)
+    {
+        targetRoot = newTargetRoot;
+        targetRootName = newTargetRoot != null ? newTargetRoot.name : string.Empty;
+        outlineMaterial = newOutlineMaterial;
+        baseToonMaterial = newBaseToonMaterial;
+        preserveExistingMaterialTextures = newPreserveExistingMaterialTextures;
+        enableOutline = newEnableOutline && outlineMaterial != null;
+        ApplyToonStyle();
+    }
+
     [ContextMenu("Apply Toon Style")]
     public void ApplyToonStyle()
     {

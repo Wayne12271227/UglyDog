@@ -97,7 +97,7 @@ public class StoneArea : MonoBehaviour
 
             if (playDigAnimation)
             {
-                player.PlayDig();
+                player.PlayDig(ResourceType.Stone, GetEffectiveTickInterval());
             }
 
             if (Time.time >= nextGatherTime)

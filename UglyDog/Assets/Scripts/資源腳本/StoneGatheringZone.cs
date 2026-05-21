@@ -56,7 +56,7 @@ public class StoneGatheringZone : MonoBehaviour
 
         if (detectedPlayer != null)
         {
-            detectedPlayer.PlayDig();
+            detectedPlayer.PlayDig(ResourceType.Stone, GetEffectiveTickInterval());
         }
 
         playerWasGathering = true;
