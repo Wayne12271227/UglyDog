@@ -306,16 +306,23 @@ public class MinionManager : MonoBehaviour
         body.isKinematic = true;
         body.useGravity = false;
 
+        PlayerUpgradeManager upgrades = PlayerUpgradeManager.EnsureInstance();
+        int effectiveHealth = GetEffectiveHealth(kind, team, upgrades);
+        int effectiveDamage = GetEffectiveAttackDamage(kind, team, upgrades);
+        int effectiveBuildingDamage = GetEffectiveBuildingDamage(kind);
+        float effectiveAttackRange = GetEffectiveAttackRange(kind);
+
         MinionCombatant combatant = minionObject.AddComponent<MinionCombatant>();
-        combatant.Configure(team, kind == MinionKind.Melee ? meleeHealth : rangedHealth);
+        combatant.Configure(team, effectiveHealth);
 
         MinionUnit unit = minionObject.AddComponent<MinionUnit>();
         unit.Configure(
             kind,
             goal,
             kind == MinionKind.Melee ? meleeMoveSpeed : rangedMoveSpeed,
-            kind == MinionKind.Melee ? meleeAttackRange : rangedAttackRange,
-            kind == MinionKind.Melee ? meleeDamage : rangedDamage,
+            effectiveAttackRange,
+            effectiveDamage,
+            effectiveBuildingDamage,
             kind == MinionKind.Melee ? meleeAttackCooldown : rangedAttackCooldown,
             targetSearchRadius,
             enemyBase);
@@ -330,6 +337,30 @@ public class MinionManager : MonoBehaviour
         }
 
         return unit;
+    }
+
+    private int GetEffectiveHealth(MinionKind kind, MinionTeam team, PlayerUpgradeManager upgrades)
+    {
+        int baseHealthValue = kind == MinionKind.Melee ? meleeHealth : rangedHealth;
+        int bonus = kind == MinionKind.Melee && upgrades != null ? upgrades.GetMeleeTrainingHealthBonus(team) : 0;
+        return Mathf.Max(1, baseHealthValue + bonus);
+    }
+
+    private int GetEffectiveAttackDamage(MinionKind kind, MinionTeam team, PlayerUpgradeManager upgrades)
+    {
+        int baseDamage = kind == MinionKind.Melee ? meleeDamage : rangedDamage;
+        int bonus = kind == MinionKind.Ranged && upgrades != null ? upgrades.GetRangedTrainingDamageBonus(team) : 0;
+        return Mathf.Max(1, baseDamage + bonus);
+    }
+
+    private int GetEffectiveBuildingDamage(MinionKind kind)
+    {
+        return Mathf.Max(1, kind == MinionKind.Melee ? meleeDamage : rangedDamage);
+    }
+
+    private float GetEffectiveAttackRange(MinionKind kind)
+    {
+        return Mathf.Max(0.2f, kind == MinionKind.Melee ? meleeAttackRange : rangedAttackRange);
     }
 
     private GameObject GetVisualPrefab(MinionKind kind, MinionTeam team)
@@ -458,9 +489,11 @@ public class MinionManager : MonoBehaviour
         if (setup == null)
         {
             setup = visualObject.AddComponent<ToonCharacterSetup>();
+            setup.Configure(visualObject.transform, outline, null, true, outline != null);
+            return;
         }
 
-        setup.Configure(visualObject.transform, outline, null, true, outline != null);
+        setup.EnsureConfiguration(visualObject.transform, outline);
     }
 
     private static Material GetMinionOutlineMaterial()

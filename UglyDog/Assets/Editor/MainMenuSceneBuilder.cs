@@ -15,7 +15,7 @@ public static class MainMenuSceneBuilder
 {
     private const string ScenePath = "Assets/Scenes/MainMenu.unity";
     private const string GameScenePath = "Assets/Scenes/SampleScene.unity";
-    private const string MenuImagePath = "Assets/image/menuWithoutCharacter.png";
+    private const string MenuImagePath = "Assets/image2D/menuImage.png";
     private const string CatPrefabPath = "Assets/prefab/CAT.prefab";
     private const string DogPrefabPath = "Assets/prefab/DOG.prefab";
     private const string MaterialsFolder = "Assets/ToonURP/Materials";
@@ -50,7 +50,7 @@ public static class MainMenuSceneBuilder
         Texture2D backgroundTexture = LoadMenuTexture();
         if (backgroundTexture == null)
         {
-            EditorUtility.DisplayDialog("Build Main Menu Scene", "Could not load Assets/image/menuWithoutCharacter.png.", "OK");
+            EditorUtility.DisplayDialog("Build Main Menu Scene", "Could not load " + MenuImagePath + ".", "OK");
             return;
         }
 

@@ -4,6 +4,7 @@ using UnityEngine;
 public static class MinionToonPrefabSetup
 {
     private const string AutoApplyRequestPath = "Temp/ApplyMinionToonPrefabs.request";
+    private const string AutoApplyRequestFileName = "ApplyMinionToonPrefabs.request";
     private const string ToonShaderName = "Custom/ToonLitOutline";
     private const string MaterialsFolder = "Assets/ToonURP/Materials";
     private const string DefaultOutlineMaterialPath = MaterialsFolder + "/DefaultToonOutline.mat";
@@ -28,13 +29,29 @@ public static class MinionToonPrefabSetup
 
     private static void RunWhenRequested()
     {
-        if (!System.IO.File.Exists(AutoApplyRequestPath))
+        string requestPath = GetAutoApplyRequestPath();
+        if (!System.IO.File.Exists(requestPath) && !System.IO.File.Exists(AutoApplyRequestPath))
         {
             return;
         }
 
-        System.IO.File.Delete(AutoApplyRequestPath);
+        if (System.IO.File.Exists(requestPath))
+        {
+            System.IO.File.Delete(requestPath);
+        }
+
+        if (System.IO.File.Exists(AutoApplyRequestPath))
+        {
+            System.IO.File.Delete(AutoApplyRequestPath);
+        }
+
         ApplyToonToMinionPrefabs();
+    }
+
+    private static string GetAutoApplyRequestPath()
+    {
+        string projectRoot = System.IO.Directory.GetParent(Application.dataPath).FullName;
+        return System.IO.Path.Combine(projectRoot, "Temp", AutoApplyRequestFileName);
     }
 
     [MenuItem("Tools/Minions/Apply Toon To Minion Prefabs")]
@@ -82,20 +99,24 @@ public static class MinionToonPrefabSetup
             SerializedObject serializedSetup = new SerializedObject(setup);
             serializedSetup.FindProperty("targetRootName").stringValue = prefabRoot.name;
             serializedSetup.FindProperty("targetRoot").objectReferenceValue = prefabRoot.transform;
-            serializedSetup.FindProperty("baseToonMaterial").objectReferenceValue = null;
-            serializedSetup.FindProperty("toonShaderName").stringValue = ToonShaderName;
-            serializedSetup.FindProperty("outlineMaterial").objectReferenceValue = outlineMaterial;
-            serializedSetup.FindProperty("enableOutline").boolValue = outlineMaterial != null;
+            SerializedProperty toonShaderName = serializedSetup.FindProperty("toonShaderName");
+            if (string.IsNullOrWhiteSpace(toonShaderName.stringValue))
+            {
+                toonShaderName.stringValue = ToonShaderName;
+            }
+
+            SerializedProperty setupOutlineMaterial = serializedSetup.FindProperty("outlineMaterial");
+            if (setupOutlineMaterial.objectReferenceValue == null)
+            {
+                setupOutlineMaterial.objectReferenceValue = outlineMaterial;
+            }
+
+            if (setupOutlineMaterial.objectReferenceValue != null)
+            {
+                serializedSetup.FindProperty("enableOutline").boolValue = true;
+            }
+
             serializedSetup.FindProperty("preserveExistingMaterialTextures").boolValue = true;
-            serializedSetup.FindProperty("baseColor").colorValue = Color.white;
-            serializedSetup.FindProperty("shadowColor").colorValue = new Color(0.72f, 0.62f, 0.58f, 1f);
-            serializedSetup.FindProperty("shadowThreshold").floatValue = 0.5f;
-            serializedSetup.FindProperty("shadowSmoothness").floatValue = 0.05f;
-            serializedSetup.FindProperty("rimColor").colorValue = new Color(1f, 0.95f, 0.9f, 1f);
-            serializedSetup.FindProperty("rimPower").floatValue = 3f;
-            serializedSetup.FindProperty("rimStrength").floatValue = 0.2f;
-            serializedSetup.FindProperty("outlineColor").colorValue = new Color(0.14f, 0.08f, 0.06f, 1f);
-            serializedSetup.FindProperty("outlineWidth").floatValue = 0.011f;
             serializedSetup.ApplyModifiedPropertiesWithoutUndo();
 
             setup.ApplyToonStyle();

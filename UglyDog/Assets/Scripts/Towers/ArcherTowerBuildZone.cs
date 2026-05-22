@@ -21,22 +21,25 @@ public class ArcherTowerBuildZone : MonoBehaviour
         public Vector3 localPosition;
         public Vector3 localEulerAngles;
         public Vector3 localScale = Vector3.one;
+        public bool usePrefabColliders = true;
     }
 
     [Header("Build Site")]
     [SerializeField] private KeyCode openKey = KeyCode.E;
     [SerializeField] private float buildDuration = 4f;
     [SerializeField] private int buildingHealth = 60;
+    [SerializeField] private float builderCompletionClearance = 0.7f;
+    [SerializeField] private bool useSimpleGameplayCollider = true;
     [SerializeField] private Transform buildAnchor;
     [SerializeField] private Vector3 buildLocalOffset = Vector3.zero;
 
     [Header("Building Visual Prefabs")]
     [SerializeField] private BuildingVisualPrefab[] buildingVisualPrefabs =
     {
-        new BuildingVisualPrefab { type = BuildSiteBuildingType.ArcherTower, localScale = Vector3.one },
-        new BuildingVisualPrefab { type = BuildSiteBuildingType.AutoLumber, localScale = Vector3.one },
-        new BuildingVisualPrefab { type = BuildSiteBuildingType.AutoQuarry, localScale = Vector3.one },
-        new BuildingVisualPrefab { type = BuildSiteBuildingType.Barracks, localScale = Vector3.one }
+        new BuildingVisualPrefab { type = BuildSiteBuildingType.ArcherTower, localScale = Vector3.one, usePrefabColliders = true },
+        new BuildingVisualPrefab { type = BuildSiteBuildingType.AutoLumber, localScale = Vector3.one, usePrefabColliders = true },
+        new BuildingVisualPrefab { type = BuildSiteBuildingType.AutoQuarry, localScale = Vector3.one, usePrefabColliders = true },
+        new BuildingVisualPrefab { type = BuildSiteBuildingType.Barracks, localScale = Vector3.one, usePrefabColliders = true }
     };
 
     [Header("Archer Tower")]
@@ -57,6 +60,7 @@ public class ArcherTowerBuildZone : MonoBehaviour
 
     [Header("Detection")]
     [SerializeField] private LayerMask detectionLayers = ~0;
+    [SerializeField] private float horizontalZoneEdgePadding = 0.05f;
     [SerializeField] private Vector3 promptLocalOffset = new Vector3(0f, 2f, 0f);
     [SerializeField] private string occupiedPromptText = "\u9700\u5148\u6467\u6bc0\u73fe\u6709\u5efa\u7bc9";
 
@@ -82,6 +86,8 @@ public class ArcherTowerBuildZone : MonoBehaviour
 
     private void Awake()
     {
+        OnValidate();
+
         zoneCollider = GetComponent<Collider>();
         zoneCollider.isTrigger = true;
         CacheDashedRangeRenderersIfNeeded();
@@ -92,6 +98,8 @@ public class ArcherTowerBuildZone : MonoBehaviour
     {
         buildDuration = Mathf.Max(0.1f, buildDuration);
         buildingHealth = Mathf.Max(1, buildingHealth);
+        builderCompletionClearance = Mathf.Clamp(builderCompletionClearance, 0.1f, 1f);
+        horizontalZoneEdgePadding = Mathf.Max(0f, horizontalZoneEdgePadding);
         barracksSummonInterval = Mathf.Max(1f, barracksSummonInterval);
         EnsureVisualPrefabSlots();
     }
@@ -116,7 +124,7 @@ public class ArcherTowerBuildZone : MonoBehaviour
         for (int i = 0; i < requiredCount; i++)
         {
             BuildSiteBuildingType type = (BuildSiteBuildingType)values.GetValue(i);
-            normalized[i] = FindVisualPrefabSlot(existing, type) ?? new BuildingVisualPrefab { type = type };
+            normalized[i] = FindVisualPrefabSlot(existing, type) ?? new BuildingVisualPrefab { type = type, usePrefabColliders = true };
             if (normalized[i].localScale == Vector3.zero)
             {
                 normalized[i].localScale = Vector3.one;
@@ -284,7 +292,6 @@ public class ArcherTowerBuildZone : MonoBehaviour
             : FindPlayerInsideZone();
         if (builder == null)
         {
-            activeBuilder = null;
             HidePrompt();
             HideBuildUI();
             if (isBuilding)
@@ -292,6 +299,7 @@ public class ArcherTowerBuildZone : MonoBehaviour
                 CancelBuild();
             }
 
+            activeBuilder = null;
             return;
         }
 
@@ -313,13 +321,12 @@ public class ArcherTowerBuildZone : MonoBehaviour
     private void OnTriggerEnter(Collider other)
     {
         CatPlayerController player = GetPlayer(other);
-        if (player == null)
+        if (player == null || !IsPlayerInsideZone(player))
         {
             return;
         }
 
         activeBuilder = player;
-        ShowPrompt(player);
     }
 
     private void OnTriggerExit(Collider other)
@@ -362,7 +369,7 @@ public class ArcherTowerBuildZone : MonoBehaviour
 
     private void UpdateBuild(CatPlayerController builder)
     {
-        if (builder == null)
+        if (builder == null || !IsPlayerInsideZone(builder))
         {
             CancelBuild();
             return;
@@ -390,7 +397,9 @@ public class ArcherTowerBuildZone : MonoBehaviour
         }
 
         MinionTeam team = GetPlayerTeam(builder);
+        MoveBuilderOutsideBuildFootprint(builder, pendingType);
         CreateBuilding(pendingType, team);
+        MoveBuilderOutsideCurrentBuilding(builder);
         isBuilding = false;
         buildProgress = 0f;
         builder.StopAction();
@@ -453,27 +462,27 @@ public class ArcherTowerBuildZone : MonoBehaviour
         currentTeamBuilding = buildingObject.AddComponent<TeamBuilding>();
         currentTeamBuilding.Configure(team);
 
-        BoxCollider collider = buildingObject.AddComponent<BoxCollider>();
-        collider.size = GetFootprint(type);
-        collider.center = new Vector3(0f, collider.size.y * 0.5f, 0f);
+        BoxCollider fallbackCollider = buildingObject.AddComponent<BoxCollider>();
+        fallbackCollider.size = GetFootprint(type);
+        fallbackCollider.center = new Vector3(0f, fallbackCollider.size.y * 0.5f, 0f);
 
         if (type == BuildSiteBuildingType.ArcherTower)
         {
             ArcherTower tower = buildingObject.AddComponent<ArcherTower>();
             tower.Configure(team, towerAttackRange, towerShotsPerSecond, towerDamage, towerProjectileSpeed);
-            CreateBuildingVisual(buildingObject.transform, type);
+            CreateBuildingVisual(buildingObject.transform, type, fallbackCollider);
         }
         else if (type == BuildSiteBuildingType.Barracks)
         {
             BarracksBuilding barracks = buildingObject.AddComponent<BarracksBuilding>();
             barracks.Configure(team, barracksSummonInterval);
-            CreateBuildingVisual(buildingObject.transform, type);
+            CreateBuildingVisual(buildingObject.transform, type, fallbackCollider);
         }
         else
         {
             AutoResourceBuilding producer = buildingObject.AddComponent<AutoResourceBuilding>();
             producer.Configure(type == BuildSiteBuildingType.AutoQuarry ? ResourceType.Stone : ResourceType.Wood, 1, 5f);
-            CreateBuildingVisual(buildingObject.transform, type);
+            CreateBuildingVisual(buildingObject.transform, type, fallbackCollider);
         }
 
         SetOwner(team);
@@ -495,6 +504,173 @@ public class ArcherTowerBuildZone : MonoBehaviour
     private Vector3 GetBuildPosition()
     {
         return buildAnchor != null ? buildAnchor.position : transform.TransformPoint(buildLocalOffset);
+    }
+
+    private void MoveBuilderOutsideBuildFootprint(CatPlayerController builder, BuildSiteBuildingType type)
+    {
+        if (builder == null)
+        {
+            return;
+        }
+
+        Vector3 footprint = GetFootprint(type);
+        Vector3 buildPosition = GetBuildPosition();
+        Quaternion buildRotation = Quaternion.Euler(0f, transform.eulerAngles.y, 0f);
+        Vector3 localOffset = Quaternion.Inverse(buildRotation) * (builder.transform.position - buildPosition);
+
+        float halfX = footprint.x * 0.5f + builderCompletionClearance;
+        float halfZ = footprint.z * 0.5f + builderCompletionClearance;
+        bool insideX = Mathf.Abs(localOffset.x) < halfX;
+        bool insideZ = Mathf.Abs(localOffset.z) < halfZ;
+        if (!insideX || !insideZ)
+        {
+            return;
+        }
+
+        float pushX = halfX - Mathf.Abs(localOffset.x);
+        float pushZ = halfZ - Mathf.Abs(localOffset.z);
+        Vector3 localDirection;
+        float distance;
+        if (pushX < pushZ)
+        {
+            localDirection = new Vector3(localOffset.x >= 0f ? 1f : -1f, 0f, 0f);
+            distance = pushX;
+        }
+        else
+        {
+            localDirection = new Vector3(0f, 0f, localOffset.z >= 0f ? 1f : -1f);
+            distance = pushZ;
+        }
+
+        localOffset += localDirection * (distance + builderCompletionClearance);
+        Vector3 resolvedPosition = buildPosition + buildRotation * localOffset;
+        resolvedPosition.y = builder.transform.position.y;
+        builder.TeleportToGroundedPosition(resolvedPosition);
+    }
+
+    private void MoveBuilderOutsideCurrentBuilding(CatPlayerController builder)
+    {
+        if (builder == null || currentBuilding == null || !TryGetBuildingColliderBounds(currentBuilding, out Bounds bounds))
+        {
+            return;
+        }
+
+        Vector3 position = builder.transform.position;
+        float safetyMargin = builderCompletionClearance + 0.6f;
+        bool insideX = position.x > bounds.min.x - safetyMargin && position.x < bounds.max.x + safetyMargin;
+        bool insideZ = position.z > bounds.min.z - safetyMargin && position.z < bounds.max.z + safetyMargin;
+        if (!insideX || !insideZ)
+        {
+            return;
+        }
+
+        Vector3 exitDirection = GetBuilderExitDirection(builder, bounds);
+        float safeHalfX = bounds.extents.x + safetyMargin;
+        float safeHalfZ = bounds.extents.z + safetyMargin;
+        float distanceToXEdge = Mathf.Abs(exitDirection.x) > 0.001f
+            ? safeHalfX / Mathf.Abs(exitDirection.x)
+            : float.PositiveInfinity;
+        float distanceToZEdge = Mathf.Abs(exitDirection.z) > 0.001f
+            ? safeHalfZ / Mathf.Abs(exitDirection.z)
+            : float.PositiveInfinity;
+        float exitDistance = Mathf.Min(distanceToXEdge, distanceToZEdge) + builderCompletionClearance;
+        Vector3 resolvedPosition = bounds.center + exitDirection * exitDistance;
+        resolvedPosition.y = position.y;
+
+        builder.TeleportToGroundedPosition(resolvedPosition);
+    }
+
+    private void MoveBuilderOutsideBuildZone(CatPlayerController builder)
+    {
+        if (builder == null || zoneCollider == null)
+        {
+            return;
+        }
+
+        Bounds bounds = zoneCollider.bounds;
+        Vector3 position = builder.transform.position;
+        bool insideX = position.x > bounds.min.x - builderCompletionClearance && position.x < bounds.max.x + builderCompletionClearance;
+        bool insideZ = position.z > bounds.min.z - builderCompletionClearance && position.z < bounds.max.z + builderCompletionClearance;
+        if (!insideX || !insideZ)
+        {
+            return;
+        }
+
+        Vector3 exitDirection = position - GetBuildPosition();
+        exitDirection.y = 0f;
+        if (exitDirection.sqrMagnitude < 0.001f)
+        {
+            exitDirection = position - bounds.center;
+            exitDirection.y = 0f;
+        }
+
+        if (exitDirection.sqrMagnitude < 0.001f)
+        {
+            exitDirection = -transform.forward;
+            exitDirection.y = 0f;
+        }
+
+        exitDirection = exitDirection.sqrMagnitude > 0.001f ? exitDirection.normalized : Vector3.back;
+        float safetyMargin = builderCompletionClearance + 0.8f;
+        float safeHalfX = bounds.extents.x + safetyMargin;
+        float safeHalfZ = bounds.extents.z + safetyMargin;
+        float distanceToXEdge = Mathf.Abs(exitDirection.x) > 0.001f
+            ? safeHalfX / Mathf.Abs(exitDirection.x)
+            : float.PositiveInfinity;
+        float distanceToZEdge = Mathf.Abs(exitDirection.z) > 0.001f
+            ? safeHalfZ / Mathf.Abs(exitDirection.z)
+            : float.PositiveInfinity;
+        float exitDistance = Mathf.Min(distanceToXEdge, distanceToZEdge);
+        Vector3 resolvedPosition = bounds.center + exitDirection * exitDistance;
+        resolvedPosition.y = position.y;
+
+        builder.TeleportToGroundedPosition(resolvedPosition);
+    }
+
+    private Vector3 GetBuilderExitDirection(CatPlayerController builder, Bounds bounds)
+    {
+        Vector3 direction = builder.transform.position - bounds.center;
+        direction.y = 0f;
+        if (direction.sqrMagnitude < 0.001f)
+        {
+            direction = builder.transform.position - GetBuildPosition();
+            direction.y = 0f;
+        }
+
+        if (direction.sqrMagnitude < 0.001f)
+        {
+            direction = -transform.forward;
+            direction.y = 0f;
+        }
+
+        return direction.sqrMagnitude > 0.001f ? direction.normalized : Vector3.back;
+    }
+
+    private static bool TryGetBuildingColliderBounds(GameObject building, out Bounds bounds)
+    {
+        bounds = default;
+        Collider[] colliders = building.GetComponentsInChildren<Collider>(true);
+        bool found = false;
+        for (int i = 0; i < colliders.Length; i++)
+        {
+            Collider collider = colliders[i];
+            if (collider == null || !collider.enabled || collider.isTrigger)
+            {
+                continue;
+            }
+
+            if (!found)
+            {
+                bounds = collider.bounds;
+                found = true;
+            }
+            else
+            {
+                bounds.Encapsulate(collider.bounds);
+            }
+        }
+
+        return found;
     }
 
     private void SetOwner(MinionTeam team)
@@ -623,7 +799,7 @@ public class ArcherTowerBuildZone : MonoBehaviour
             }
 
             CatPlayerController player = GetPlayer(hit);
-            if (player != null)
+            if (player != null && IsPlayerInsideZone(player))
             {
                 return player;
             }
@@ -649,8 +825,21 @@ public class ArcherTowerBuildZone : MonoBehaviour
             return false;
         }
 
-        Vector3 closestPoint = zoneCollider.ClosestPoint(player.transform.position);
-        return (closestPoint - player.transform.position).sqrMagnitude <= 0.0001f;
+        return IsPointInsideHorizontalZone(player.transform.position);
+    }
+
+    private bool IsPointInsideHorizontalZone(Vector3 position)
+    {
+        if (zoneCollider == null)
+        {
+            return false;
+        }
+
+        Bounds bounds = zoneCollider.bounds;
+        Vector3 center = bounds.center;
+        float radius = Mathf.Max(0.05f, Mathf.Min(bounds.extents.x, bounds.extents.z) - horizontalZoneEdgePadding);
+        Vector2 offset = new Vector2(position.x - center.x, position.z - center.z);
+        return offset.sqrMagnitude <= radius * radius;
     }
 
     private static MinionTeam GetPlayerTeam(CatPlayerController player)
@@ -773,7 +962,7 @@ public class ArcherTowerBuildZone : MonoBehaviour
         return ownerTeam == MinionTeam.Cat ? catColor : dogColor;
     }
 
-    private bool CreateBuildingVisual(Transform parent, BuildSiteBuildingType type)
+    private bool CreateBuildingVisual(Transform parent, BuildSiteBuildingType type, Collider fallbackCollider)
     {
         BuildingVisualPrefab visual = GetBuildingVisualPrefab(type);
         if (visual == null || visual.prefab == null)
@@ -791,8 +980,124 @@ public class ArcherTowerBuildZone : MonoBehaviour
         visualObject.transform.localPosition = visual.localPosition;
         visualObject.transform.localRotation = prefabLocalRotation * Quaternion.Euler(visual.localEulerAngles);
         visualObject.transform.localScale = Vector3.Scale(prefabLocalScale, scaleMultiplier);
-        DisableVisualColliders(visualObject);
+        Collider[] visualColliders = visualObject.GetComponentsInChildren<Collider>(true);
+        if (!useSimpleGameplayCollider && visual.usePrefabColliders && visualColliders.Length == 0)
+        {
+            AddMeshCollidersFromVisualMeshes(visualObject);
+            visualColliders = visualObject.GetComponentsInChildren<Collider>(true);
+        }
+
+        if (!useSimpleGameplayCollider && visual.usePrefabColliders && visualColliders.Length > 0)
+        {
+            if (fallbackCollider != null)
+            {
+                fallbackCollider.enabled = false;
+            }
+
+            SetVisualCollidersEnabled(visualColliders, true);
+        }
+        else
+        {
+            if (fallbackCollider != null)
+            {
+                fallbackCollider.enabled = true;
+                FitColliderToPrefabColliderBounds(fallbackCollider as BoxCollider, visualColliders);
+            }
+
+            RemoveVisualColliders(visualColliders);
+        }
+
         return true;
+    }
+
+    private static void FitColliderToPrefabColliderBounds(BoxCollider collider, Collider[] visualColliders)
+    {
+        if (collider == null || visualColliders == null || visualColliders.Length == 0)
+        {
+            return;
+        }
+
+        if (!TryGetColliderLocalBounds(collider.transform, visualColliders, out Bounds localBounds))
+        {
+            return;
+        }
+
+        collider.center = localBounds.center;
+        collider.size = new Vector3(
+            Mathf.Max(0.1f, localBounds.size.x),
+            Mathf.Max(0.5f, localBounds.size.y),
+            Mathf.Max(0.1f, localBounds.size.z));
+    }
+
+    private static bool TryGetColliderLocalBounds(Transform root, Collider[] colliders, out Bounds localBounds)
+    {
+        localBounds = default;
+        bool found = false;
+        for (int i = 0; i < colliders.Length; i++)
+        {
+            Collider collider = colliders[i];
+            if (collider == null || !collider.enabled || collider.isTrigger)
+            {
+                continue;
+            }
+
+            EncapsulateWorldBoundsAsLocal(root, collider.bounds, ref localBounds, ref found);
+        }
+
+        return found;
+    }
+
+    private static void EncapsulateWorldBoundsAsLocal(Transform root, Bounds worldBounds, ref Bounds localBounds, ref bool found)
+    {
+        Vector3 min = worldBounds.min;
+        Vector3 max = worldBounds.max;
+        Vector3[] corners =
+        {
+            new Vector3(min.x, min.y, min.z),
+            new Vector3(min.x, min.y, max.z),
+            new Vector3(min.x, max.y, min.z),
+            new Vector3(min.x, max.y, max.z),
+            new Vector3(max.x, min.y, min.z),
+            new Vector3(max.x, min.y, max.z),
+            new Vector3(max.x, max.y, min.z),
+            new Vector3(max.x, max.y, max.z)
+        };
+
+        for (int cornerIndex = 0; cornerIndex < corners.Length; cornerIndex++)
+        {
+            Vector3 localPoint = root.InverseTransformPoint(corners[cornerIndex]);
+            if (!found)
+            {
+                localBounds = new Bounds(localPoint, Vector3.zero);
+                found = true;
+            }
+            else
+            {
+                localBounds.Encapsulate(localPoint);
+            }
+        }
+    }
+
+    private static void AddMeshCollidersFromVisualMeshes(GameObject visualObject)
+    {
+        MeshFilter[] meshFilters = visualObject.GetComponentsInChildren<MeshFilter>(true);
+        for (int i = 0; i < meshFilters.Length; i++)
+        {
+            MeshFilter meshFilter = meshFilters[i];
+            if (meshFilter == null || meshFilter.sharedMesh == null)
+            {
+                continue;
+            }
+
+            MeshCollider collider = meshFilter.GetComponent<MeshCollider>();
+            if (collider == null)
+            {
+                collider = meshFilter.gameObject.AddComponent<MeshCollider>();
+            }
+
+            collider.sharedMesh = meshFilter.sharedMesh;
+            collider.convex = false;
+        }
     }
 
     private BuildingVisualPrefab GetBuildingVisualPrefab(BuildSiteBuildingType type)
@@ -824,12 +1129,32 @@ public class ArcherTowerBuildZone : MonoBehaviour
         return null;
     }
 
-    private static void DisableVisualColliders(GameObject visualObject)
+    private static void SetVisualCollidersEnabled(Collider[] colliders, bool enabled)
     {
-        Collider[] colliders = visualObject.GetComponentsInChildren<Collider>(true);
         for (int i = 0; i < colliders.Length; i++)
         {
-            colliders[i].enabled = false;
+            colliders[i].enabled = enabled;
+        }
+    }
+
+    private static void RemoveVisualColliders(Collider[] colliders)
+    {
+        for (int i = 0; i < colliders.Length; i++)
+        {
+            Collider collider = colliders[i];
+            if (collider == null)
+            {
+                continue;
+            }
+
+            if (Application.isPlaying)
+            {
+                Object.Destroy(collider);
+            }
+            else
+            {
+                Object.DestroyImmediate(collider);
+            }
         }
     }
 

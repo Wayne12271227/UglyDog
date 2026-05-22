@@ -9,12 +9,23 @@ public class MinionUnit : MonoBehaviour
     [SerializeField] private float targetSearchRadius = 7f;
     [SerializeField] private float attackRange = 1.25f;
     [SerializeField] private int attackDamage = 4;
+    [SerializeField] private int buildingAttackDamage = 4;
     [SerializeField] private float attackCooldown = 1f;
     [SerializeField] private float goalStopDistance = 1.8f;
     [SerializeField] private float groundProbeHeight = 3f;
     [SerializeField] private float groundSnapDistance = 6f;
     [SerializeField] private float playerSeparationRadius = 0.95f;
     [SerializeField] private float playerSeparationStrength = 4f;
+    [SerializeField] private LayerMask collisionLayers = ~0;
+    [SerializeField] private float collisionSkin = 0.02f;
+    [SerializeField, Range(0f, 1f)] private float walkableCollisionNormalY = 0.25f;
+    [SerializeField] private bool resolveCollisionPenetration = true;
+    [SerializeField] private int penetrationResolveIterations = 1;
+    [SerializeField] private float penetrationSkin = 0.005f;
+    [SerializeField] private float maxPenetrationCorrection = 0.05f;
+    [SerializeField] private float obstacleAvoidanceDistance = 1.4f;
+    [SerializeField] private float obstacleAvoidanceAngle = 55f;
+    [SerializeField, Range(0f, 1f)] private float obstacleAvoidanceBlend = 0.75f;
     [SerializeField] private LayerMask searchLayers = ~0;
     [SerializeField] private Animator animator;
     [SerializeField] private string attackTrigger = "Attack";
@@ -33,13 +44,19 @@ public class MinionUnit : MonoBehaviour
     private int walkStateHash;
     private int attackStateHash;
     private bool attackAnimationPlaying;
+    private CapsuleCollider capsuleCollider;
+    private Collider selfCollider;
 
     public MinionKind Kind => kind;
     public MinionTeam Team => combatant != null ? combatant.Team : MinionTeam.Dog;
 
     private void Awake()
     {
+        OnValidate();
+
         combatant = GetComponent<MinionCombatant>();
+        capsuleCollider = GetComponent<CapsuleCollider>();
+        selfCollider = GetComponent<Collider>();
         if (animator == null)
         {
             animator = GetComponentInChildren<Animator>();
@@ -121,6 +138,7 @@ public class MinionUnit : MonoBehaviour
         float newMoveSpeed,
         float newAttackRange,
         int newAttackDamage,
+        int newBuildingAttackDamage,
         float newAttackCooldown,
         float newSearchRadius,
         MinionBaseHealth newEnemyBase)
@@ -131,6 +149,7 @@ public class MinionUnit : MonoBehaviour
         moveSpeed = Mathf.Max(0.1f, newMoveSpeed);
         attackRange = Mathf.Max(0.2f, newAttackRange);
         attackDamage = Mathf.Max(1, newAttackDamage);
+        buildingAttackDamage = Mathf.Max(1, newBuildingAttackDamage);
         attackCooldown = Mathf.Max(0.1f, newAttackCooldown);
         targetSearchRadius = Mathf.Max(attackRange, newSearchRadius);
     }
@@ -262,7 +281,7 @@ public class MinionUnit : MonoBehaviour
         }
         else
         {
-            health.TakeDamage(attackDamage);
+            health.TakeDamage(buildingAttackDamage);
         }
     }
 
@@ -279,7 +298,7 @@ public class MinionUnit : MonoBehaviour
             return false;
         }
 
-        hitBuilding.Health.TakeDamage(attackDamage);
+        hitBuilding.Health.TakeDamage(buildingAttackDamage);
         nextAttackTime = Time.time + attackCooldown;
         PlayAttackAnimation();
         return true;
@@ -311,9 +330,10 @@ public class MinionUnit : MonoBehaviour
             return;
         }
 
-        transform.position += direction * moveSpeed * Time.deltaTime;
+        Vector3 moveDirection = GetObstacleAvoidedDirection(direction.normalized);
+        MoveWithCollision(moveDirection * moveSpeed * Time.deltaTime);
         attackAnimationPlaying = false;
-        FaceDirection(direction);
+        FaceDirection(moveDirection);
         SnapToGround();
     }
 
@@ -325,8 +345,320 @@ public class MinionUnit : MonoBehaviour
             return;
         }
 
-        transform.position += direction.normalized * distance;
+        MoveWithCollision(direction.normalized * distance);
         SnapToGround();
+    }
+
+    private Vector3 GetObstacleAvoidedDirection(Vector3 desiredDirection)
+    {
+        desiredDirection.y = 0f;
+        if (desiredDirection.sqrMagnitude <= 0.001f || capsuleCollider == null)
+        {
+            return desiredDirection;
+        }
+
+        desiredDirection.Normalize();
+        if (!HasAvoidanceObstacle(desiredDirection))
+        {
+            return desiredDirection;
+        }
+
+        Vector3 leftDirection = Quaternion.Euler(0f, -obstacleAvoidanceAngle, 0f) * desiredDirection;
+        Vector3 rightDirection = Quaternion.Euler(0f, obstacleAvoidanceAngle, 0f) * desiredDirection;
+        float leftClearance = GetObstacleClearance(leftDirection);
+        float rightClearance = GetObstacleClearance(rightDirection);
+        Vector3 avoidanceDirection = rightClearance > leftClearance ? rightDirection : leftDirection;
+
+        if (Mathf.Abs(rightClearance - leftClearance) < 0.05f && GetInstanceID() % 2 == 0)
+        {
+            avoidanceDirection = rightDirection;
+        }
+
+        return Vector3.Slerp(desiredDirection, avoidanceDirection.normalized, obstacleAvoidanceBlend).normalized;
+    }
+
+    private bool HasAvoidanceObstacle(Vector3 direction)
+    {
+        return GetNearestAvoidanceHitDistance(direction, obstacleAvoidanceDistance, out _);
+    }
+
+    private float GetObstacleClearance(Vector3 direction)
+    {
+        if (GetNearestAvoidanceHitDistance(direction, obstacleAvoidanceDistance, out float distance))
+        {
+            return distance;
+        }
+
+        return obstacleAvoidanceDistance;
+    }
+
+    private bool GetNearestAvoidanceHitDistance(Vector3 direction, float distance, out float nearestDistance)
+    {
+        nearestDistance = float.PositiveInfinity;
+        GetCapsuleWorldPoints(out Vector3 point1, out Vector3 point2, out float radius);
+        RaycastHit[] hits = Physics.CapsuleCastAll(point1, point2, radius + collisionSkin, direction, distance, collisionLayers, QueryTriggerInteraction.Ignore);
+        bool found = false;
+        for (int i = 0; i < hits.Length; i++)
+        {
+            Collider hitCollider = hits[i].collider;
+            if (!IsAvoidanceObstacle(hitCollider))
+            {
+                continue;
+            }
+
+            if (hits[i].distance < nearestDistance)
+            {
+                found = true;
+                nearestDistance = hits[i].distance;
+            }
+        }
+
+        return found;
+    }
+
+    private bool IsAvoidanceObstacle(Collider other)
+    {
+        if (other == null || other.transform.IsChildOf(transform) || other.isTrigger)
+        {
+            return false;
+        }
+
+        if (IsGroundLikeCollider(other) || IsBuildingCollider(other))
+        {
+            return false;
+        }
+
+        if (other.GetComponentInParent<MinionCombatant>() != null
+            || other.GetComponentInParent<CatPlayerController>() != null
+            || other.GetComponentInParent<MinionBaseHealth>() != null)
+        {
+            return false;
+        }
+
+        return true;
+    }
+
+    private void MoveWithCollision(Vector3 offset)
+    {
+        Vector3 horizontalOffset = new Vector3(offset.x, 0f, offset.z);
+        if (horizontalOffset.sqrMagnitude > 0.000001f)
+        {
+            horizontalOffset = GetBlockedHorizontalOffset(horizontalOffset);
+        }
+
+        transform.position += horizontalOffset + Vector3.up * offset.y;
+        ResolveCollisionPenetration();
+    }
+
+    private Vector3 GetBlockedHorizontalOffset(Vector3 horizontalOffset)
+    {
+        if (capsuleCollider == null)
+        {
+            return horizontalOffset;
+        }
+
+        Vector3 direction = horizontalOffset.normalized;
+        float distance = horizontalOffset.magnitude;
+        GetCapsuleWorldPoints(out Vector3 point1, out Vector3 point2, out float radius);
+        RaycastHit[] hits = Physics.CapsuleCastAll(point1, point2, radius, direction, distance + collisionSkin, collisionLayers, QueryTriggerInteraction.Ignore);
+        float nearestDistance = float.PositiveInfinity;
+
+        for (int i = 0; i < hits.Length; i++)
+        {
+            Collider hitCollider = hits[i].collider;
+            if (hitCollider == null || hitCollider.transform.IsChildOf(transform))
+            {
+                continue;
+            }
+
+            if (IsEscapingBuildingCollider(hitCollider, horizontalOffset))
+            {
+                continue;
+            }
+
+            if (ShouldIgnoreHorizontalCollision(hitCollider, hits[i].normal))
+            {
+                continue;
+            }
+
+            nearestDistance = Mathf.Min(nearestDistance, hits[i].distance);
+        }
+
+        if (float.IsPositiveInfinity(nearestDistance))
+        {
+            return horizontalOffset;
+        }
+
+        float allowedDistance = Mathf.Max(0f, nearestDistance - collisionSkin);
+        return direction * Mathf.Min(distance, allowedDistance);
+    }
+
+    private void ResolveCollisionPenetration()
+    {
+        if (!resolveCollisionPenetration || capsuleCollider == null)
+        {
+            return;
+        }
+
+        int iterations = Mathf.Max(1, penetrationResolveIterations);
+        for (int i = 0; i < iterations; i++)
+        {
+            if (!TryResolveSinglePenetration())
+            {
+                return;
+            }
+        }
+    }
+
+    private bool TryResolveSinglePenetration()
+    {
+        GetCapsuleWorldPoints(out Vector3 point1, out Vector3 point2, out float radius);
+        Collider[] overlaps = Physics.OverlapCapsule(point1, point2, radius + penetrationSkin, collisionLayers, QueryTriggerInteraction.Ignore);
+        Vector3 bestDirection = Vector3.zero;
+        float bestDistance = 0f;
+
+        for (int i = 0; i < overlaps.Length; i++)
+        {
+            Collider other = overlaps[i];
+            if (other == null || other.transform.IsChildOf(transform))
+            {
+                continue;
+            }
+
+            if (!Physics.ComputePenetration(
+                    capsuleCollider,
+                    transform.position,
+                    transform.rotation,
+                    other,
+                    other.transform.position,
+                    other.transform.rotation,
+                    out Vector3 direction,
+                    out float distance))
+            {
+                continue;
+            }
+
+            if (distance <= 0f || direction.y > walkableCollisionNormalY || IsGroundLikeCollider(other) || IsBuildingCollider(other))
+            {
+                continue;
+            }
+
+            direction.y = 0f;
+            if (direction.sqrMagnitude <= 0.0001f)
+            {
+                continue;
+            }
+
+            if (distance > bestDistance)
+            {
+                bestDistance = distance;
+                bestDirection = direction.normalized;
+            }
+        }
+
+        if (bestDistance <= 0f || bestDirection.sqrMagnitude <= 0.0001f)
+        {
+            return false;
+        }
+
+        float correctionDistance = Mathf.Min(bestDistance, maxPenetrationCorrection);
+        transform.position += bestDirection * correctionDistance;
+        return true;
+    }
+
+    private bool ShouldIgnoreHorizontalCollision(Collider other, Vector3 normal)
+    {
+        if (IsGroundLikeCollider(other))
+        {
+            return true;
+        }
+
+        if (normal.y > walkableCollisionNormalY)
+        {
+            return true;
+        }
+
+        return false;
+    }
+
+    private bool IsEscapingBuildingCollider(Collider other, Vector3 horizontalOffset)
+    {
+        if (!IsBuildingCollider(other) || horizontalOffset.sqrMagnitude <= 0.000001f)
+        {
+            return false;
+        }
+
+        bool isOverlapping = Physics.ComputePenetration(
+                capsuleCollider,
+                transform.position,
+                transform.rotation,
+                other,
+                other.transform.position,
+                other.transform.rotation,
+                out _,
+                out float separationDistance)
+            && separationDistance > 0f;
+        if (!isOverlapping)
+        {
+            return false;
+        }
+
+        Vector3 outward = transform.position - other.bounds.center;
+        outward.y = 0f;
+        if (outward.sqrMagnitude <= 0.0001f)
+        {
+            return false;
+        }
+
+        return Vector3.Dot(horizontalOffset.normalized, outward.normalized) > 0.05f;
+    }
+
+    private static bool IsBuildingCollider(Collider other)
+    {
+        return other != null
+            && (other.GetComponentInParent<TeamBuilding>() != null
+                || other.GetComponentInParent<BuildingHealth>() != null);
+    }
+
+    private static bool IsGroundLikeCollider(Collider other)
+    {
+        if (other == null)
+        {
+            return false;
+        }
+
+        if (IsBuildingCollider(other))
+        {
+            return false;
+        }
+
+        string layerName = LayerMask.LayerToName(other.gameObject.layer).ToLowerInvariant();
+        if (ContainsGroundKeyword(layerName))
+        {
+            return true;
+        }
+
+        Transform current = other.transform;
+        while (current != null)
+        {
+            if (ContainsGroundKeyword(current.name.ToLowerInvariant()))
+            {
+                return true;
+            }
+
+            current = current.parent;
+        }
+
+        Bounds bounds = other.bounds;
+        return bounds.size.x > 15f && bounds.size.z > 15f && bounds.size.y < 4f;
+    }
+
+    private static bool ContainsGroundKeyword(string value)
+    {
+        return value.Contains("ground")
+            || value.Contains("floor")
+            || value.Contains("grass")
+            || value.Contains("terrain");
     }
 
     private void PlayAttackAnimation()
@@ -483,6 +815,16 @@ public class MinionUnit : MonoBehaviour
                 continue;
             }
 
+            if (IsBuildingCollider(hitCollider))
+            {
+                continue;
+            }
+
+            if (!IsGroundLikeCollider(hitCollider))
+            {
+                continue;
+            }
+
             if (hits[i].distance < bestDistance)
             {
                 foundGround = true;
@@ -493,9 +835,9 @@ public class MinionUnit : MonoBehaviour
 
         if (foundGround)
         {
-            Collider selfCollider = GetComponent<Collider>();
             float centerToBottom = selfCollider != null ? transform.position.y - selfCollider.bounds.min.y : 0f;
             transform.position = new Vector3(transform.position.x, bestPoint.y + centerToBottom + 0.02f, transform.position.z);
+            ResolveCollisionPenetration();
         }
     }
 
@@ -529,8 +871,21 @@ public class MinionUnit : MonoBehaviour
             return;
         }
 
-        transform.position += push.normalized * playerSeparationStrength * Time.deltaTime;
+        MoveWithCollision(push.normalized * playerSeparationStrength * Time.deltaTime);
         SnapToGround();
+    }
+
+    private void GetCapsuleWorldPoints(out Vector3 point1, out Vector3 point2, out float radius)
+    {
+        Vector3 worldCenter = transform.TransformPoint(capsuleCollider.center);
+        float scaleX = Mathf.Abs(transform.lossyScale.x);
+        float scaleY = Mathf.Abs(transform.lossyScale.y);
+        float scaleZ = Mathf.Abs(transform.lossyScale.z);
+        radius = capsuleCollider.radius * Mathf.Max(scaleX, scaleZ);
+        float height = Mathf.Max(capsuleCollider.height * scaleY, radius * 2f);
+        float halfSegment = Mathf.Max(0f, height * 0.5f - radius);
+        point1 = worldCenter + Vector3.up * halfSegment;
+        point2 = worldCenter - Vector3.up * halfSegment;
     }
 
     private MinionCombatant FindNearestEnemyMinion()
@@ -661,5 +1016,27 @@ public class MinionUnit : MonoBehaviour
         }
 
         return false;
+    }
+
+    private void OnValidate()
+    {
+        moveSpeed = Mathf.Max(0.1f, moveSpeed);
+        turnSpeed = Mathf.Max(0f, turnSpeed);
+        targetSearchRadius = Mathf.Max(0.1f, targetSearchRadius);
+        attackRange = Mathf.Max(0.1f, attackRange);
+        buildingAttackDamage = Mathf.Max(1, buildingAttackDamage);
+        attackCooldown = Mathf.Max(0.05f, attackCooldown);
+        groundProbeHeight = Mathf.Max(0.1f, groundProbeHeight);
+        groundSnapDistance = Mathf.Max(0.1f, groundSnapDistance);
+        playerSeparationRadius = Mathf.Max(0f, playerSeparationRadius);
+        playerSeparationStrength = Mathf.Max(0f, playerSeparationStrength);
+        collisionSkin = Mathf.Max(0.001f, collisionSkin);
+        walkableCollisionNormalY = Mathf.Clamp01(walkableCollisionNormalY);
+        penetrationResolveIterations = Mathf.Clamp(penetrationResolveIterations, 1, 2);
+        penetrationSkin = Mathf.Clamp(penetrationSkin, 0f, 0.02f);
+        maxPenetrationCorrection = Mathf.Clamp(maxPenetrationCorrection, 0.01f, 0.1f);
+        obstacleAvoidanceDistance = Mathf.Max(0.2f, obstacleAvoidanceDistance);
+        obstacleAvoidanceAngle = Mathf.Clamp(obstacleAvoidanceAngle, 15f, 85f);
+        obstacleAvoidanceBlend = Mathf.Clamp01(obstacleAvoidanceBlend);
     }
 }

@@ -22,10 +22,12 @@ public class UpgradeShopUI : MonoBehaviour
     [SerializeField] private Text stoneText;
     [SerializeField] private UpgradeCard moveSpeedCard = new UpgradeCard { rootName = "MoveSpeedCard" };
     [SerializeField] private UpgradeCard gatherSpeedCard = new UpgradeCard { rootName = "GatherSpeedCard" };
+    [SerializeField] private UpgradeCard meleeTrainingCard = new UpgradeCard { rootName = "MeleeTrainingCard" };
+    [SerializeField] private UpgradeCard rangedTrainingCard = new UpgradeCard { rootName = "RangedTrainingCard" };
 
     [Header("Button Colors")]
-    [SerializeField] private Color buttonEnabledColor = new Color(1f, 0.56f, 0.29f, 1f);
-    [SerializeField] private Color buttonDisabledColor = new Color(0.45f, 0.45f, 0.45f, 1f);
+    [SerializeField] private Color buttonEnabledColor = Color.white;
+    [SerializeField] private Color buttonDisabledColor = new Color(0.55f, 0.55f, 0.55f, 1f);
 
     private UpgradeShopZone sourceZone;
     private Canvas canvas;
@@ -215,6 +217,18 @@ public class UpgradeShopUI : MonoBehaviour
         Refresh();
     }
 
+    public void BuyMeleeTraining()
+    {
+        PlayerUpgradeManager.EnsureInstance().TryUpgrade(PlayerUpgradeType.MeleeTraining, GetSourceTeam());
+        Refresh();
+    }
+
+    public void BuyRangedTraining()
+    {
+        PlayerUpgradeManager.EnsureInstance().TryUpgrade(PlayerUpgradeType.RangedTraining, GetSourceTeam());
+        Refresh();
+    }
+
     private void Initialize()
     {
         if (initialized)
@@ -237,6 +251,8 @@ public class UpgradeShopUI : MonoBehaviour
         stoneText = stoneText != null ? stoneText : FindComponentInChildrenByName<Text>(transform, stoneTextName);
         moveSpeedCard.Resolve(transform);
         gatherSpeedCard.Resolve(transform);
+        meleeTrainingCard.Resolve(transform);
+        rangedTrainingCard.Resolve(transform);
     }
 
     private void WireButtons()
@@ -259,6 +275,17 @@ public class UpgradeShopUI : MonoBehaviour
             gatherSpeedCard.upgradeButton.onClick.AddListener(BuyGatherSpeed);
         }
 
+        if (meleeTrainingCard.upgradeButton != null)
+        {
+            meleeTrainingCard.upgradeButton.onClick.RemoveListener(BuyMeleeTraining);
+            meleeTrainingCard.upgradeButton.onClick.AddListener(BuyMeleeTraining);
+        }
+
+        if (rangedTrainingCard.upgradeButton != null)
+        {
+            rangedTrainingCard.upgradeButton.onClick.RemoveListener(BuyRangedTraining);
+            rangedTrainingCard.upgradeButton.onClick.AddListener(BuyRangedTraining);
+        }
     }
 
     private void Subscribe()
@@ -305,6 +332,8 @@ public class UpgradeShopUI : MonoBehaviour
 
         RefreshMoveSpeed(upgrades, resources);
         RefreshGatherSpeed(upgrades, resources);
+        RefreshMeleeTraining(upgrades, resources);
+        RefreshRangedTraining(upgrades, resources);
     }
 
     private void RefreshMoveSpeed(PlayerUpgradeManager upgrades, ResourceManager resources)
@@ -340,6 +369,46 @@ public class UpgradeShopUI : MonoBehaviour
             level,
             maxLevel,
             DescribePercent(level, maxLevel, 15, "\u63a1\u96c6"),
+            cost,
+            isMax,
+            canAfford);
+    }
+
+    private void RefreshMeleeTraining(PlayerUpgradeManager upgrades, ResourceManager resources)
+    {
+        MinionTeam team = GetSourceTeam();
+        int level = upgrades.GetLevel(PlayerUpgradeType.MeleeTraining, team);
+        int maxLevel = upgrades.GetMaxLevel(PlayerUpgradeType.MeleeTraining);
+        int cost = upgrades.GetNextCost(PlayerUpgradeType.MeleeTraining, team);
+        bool isMax = upgrades.IsMaxLevel(PlayerUpgradeType.MeleeTraining, team);
+        bool canAfford = resources != null && resources.CanSpend(ResourceType.Coin, cost);
+
+        RefreshCard(
+            meleeTrainingCard,
+            "\u8fd1\u6230\u8a13\u7df4",
+            level,
+            maxLevel,
+            DescribeFlatBonus(level, maxLevel, 10, "\u8840\u91cf"),
+            cost,
+            isMax,
+            canAfford);
+    }
+
+    private void RefreshRangedTraining(PlayerUpgradeManager upgrades, ResourceManager resources)
+    {
+        MinionTeam team = GetSourceTeam();
+        int level = upgrades.GetLevel(PlayerUpgradeType.RangedTraining, team);
+        int maxLevel = upgrades.GetMaxLevel(PlayerUpgradeType.RangedTraining);
+        int cost = upgrades.GetNextCost(PlayerUpgradeType.RangedTraining, team);
+        bool isMax = upgrades.IsMaxLevel(PlayerUpgradeType.RangedTraining, team);
+        bool canAfford = resources != null && resources.CanSpend(ResourceType.Coin, cost);
+
+        RefreshCard(
+            rangedTrainingCard,
+            "\u9060\u7a0b\u8a13\u7df4",
+            level,
+            maxLevel,
+            DescribeFlatBonus(level, maxLevel, 4, "\u653b\u64ca"),
             cost,
             isMax,
             canAfford);
@@ -390,7 +459,7 @@ public class UpgradeShopUI : MonoBehaviour
             }
             else if (!canAfford)
             {
-                card.upgradeButtonText.text = "\u91d1\u5e63\u4e0d\u8db3";
+                card.upgradeButtonText.text = $"\u91d1\u5e63\u4e0d\u8db3\n\u9700\u8981{cost}\u91d1\u5e63";
             }
             else
             {
@@ -409,6 +478,37 @@ public class UpgradeShopUI : MonoBehaviour
 
         int nextPercent = (level + 1) * percentPerLevel;
         return $"{label} {currentPercent}%\u2192<color=#89E35B>{nextPercent}%</color>";
+    }
+
+    private string DescribeDualPercent(int level, int maxLevel, int firstPercentPerLevel, string firstLabel, int secondPercentPerLevel, string secondLabel)
+    {
+        int currentFirst = level * firstPercentPerLevel;
+        int currentSecond = level * secondPercentPerLevel;
+        if (level >= maxLevel)
+        {
+            return $"{firstLabel} +{currentFirst}%\n{secondLabel} +{currentSecond}%";
+        }
+
+        int nextFirst = (level + 1) * firstPercentPerLevel;
+        int nextSecond = (level + 1) * secondPercentPerLevel;
+        return $"{firstLabel} {currentFirst}%\u2192<color=#89E35B>{nextFirst}%</color>\n{secondLabel} {currentSecond}%\u2192<color=#89E35B>{nextSecond}%</color>";
+    }
+
+    private string DescribeFlatBonus(int level, int maxLevel, int amountPerLevel, string label)
+    {
+        int currentAmount = level * amountPerLevel;
+        if (level >= maxLevel)
+        {
+            return $"{label} +{currentAmount}";
+        }
+
+        int nextAmount = (level + 1) * amountPerLevel;
+        return $"{label} +{currentAmount}\u2192<color=#89E35B>+{nextAmount}</color>";
+    }
+
+    private MinionTeam GetSourceTeam()
+    {
+        return sourceZone != null ? sourceZone.ShopTeam : MinionTeam.Dog;
     }
 
     private int GetResourceAmount(ResourceManager resources, ResourceType type)

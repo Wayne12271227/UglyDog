@@ -559,6 +559,8 @@ public class UpgradeShopZone : MonoBehaviour
             + "\n2 " + manager.GetDisplayName(MinionKind.Ranged) + " -" + manager.GetCost(MinionKind.Ranged) + " \u91d1\u5e63";
     }
 
+    public MinionTeam ShopTeam => GetShopTeam();
+
     private MinionTeam GetShopTeam()
     {
         string lowerName = GetHierarchyName(transform).ToLowerInvariant();

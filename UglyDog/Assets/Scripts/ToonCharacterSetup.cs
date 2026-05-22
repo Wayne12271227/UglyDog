@@ -53,6 +53,27 @@ public class ToonCharacterSetup : MonoBehaviour
         ApplyToonStyle();
     }
 
+    public void EnsureConfiguration(Transform fallbackTargetRoot, Material fallbackOutlineMaterial)
+    {
+        if (targetRoot == null)
+        {
+            targetRoot = fallbackTargetRoot;
+        }
+
+        if (string.IsNullOrWhiteSpace(targetRootName) && targetRoot != null)
+        {
+            targetRootName = targetRoot.name;
+        }
+
+        if (outlineMaterial == null)
+        {
+            outlineMaterial = fallbackOutlineMaterial;
+        }
+
+        enableOutline = enableOutline && outlineMaterial != null;
+        ApplyToonStyle();
+    }
+
     [ContextMenu("Apply Toon Style")]
     public void ApplyToonStyle()
     {

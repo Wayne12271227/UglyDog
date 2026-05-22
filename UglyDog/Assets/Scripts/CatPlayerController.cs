@@ -8,13 +8,22 @@ public class CatPlayerController : MonoBehaviour
     [SerializeField] private float turnSpeed = 12f;
     [SerializeField] private bool moveRelativeToCamera = true;
     [SerializeField] private float modelForwardOffsetY = -90f;
+    [SerializeField] private LayerMask collisionLayers = ~0;
+    [SerializeField] private float collisionSkin = 0.03f;
+    [SerializeField, Range(0f, 1f)] private float walkableCollisionNormalY = 0.25f;
+    [SerializeField] private bool resolveCollisionPenetration = true;
+    [SerializeField] private int penetrationResolveIterations = 1;
+    [SerializeField] private float penetrationSkin = 0.005f;
+    [SerializeField] private float maxPenetrationCorrection = 0.06f;
 
     [Header("Grounding")]
     [SerializeField] private bool snapToGround = true;
+    [SerializeField] private bool autoAlignCapsuleToGround = true;
     [SerializeField] private LayerMask groundLayers = ~0;
     [SerializeField] private float groundProbeHeight = 3f;
     [SerializeField] private float maxGroundSnapDistance = 6f;
     [SerializeField] private float groundSkin = 0.01f;
+    [SerializeField] private float maxGroundStepUp = 1.2f;
 
     [Header("Animation")]
     [SerializeField] private Animator animator;
@@ -93,6 +102,7 @@ public class CatPlayerController : MonoBehaviour
     private float nextDigActionSoundTime;
     private float nextFootstepTime;
     private float nextBuildSoundTime;
+    private float buildSoundEndTime;
     private ResourceType currentDigResourceType;
     private bool hasCurrentDigResourceType;
     private float currentDigCycleDuration;
@@ -100,6 +110,8 @@ public class CatPlayerController : MonoBehaviour
 
     private void Awake()
     {
+        OnValidate();
+
         if (animator == null)
         {
             animator = GetComponentInChildren<Animator>();
@@ -133,6 +145,7 @@ public class CatPlayerController : MonoBehaviour
         }
 
         ConfigureRigidbodyForTopDown();
+        ConfigureCapsuleForTopDown();
         CacheAnimatorParameters();
     }
 
@@ -278,11 +291,230 @@ public class CatPlayerController : MonoBehaviour
 
     private void MovePlayer(Vector3 offset)
     {
+        Vector3 horizontalOffset = new Vector3(offset.x, 0f, offset.z);
+        if (horizontalOffset.sqrMagnitude > 0.000001f)
+        {
+            horizontalOffset = GetBlockedHorizontalOffset(horizontalOffset);
+        }
+
+        offset = horizontalOffset + Vector3.up * offset.y;
         transform.position += offset;
+        ResolveCollisionPenetration();
         if (playerRigidbody != null && playerRigidbody.isKinematic)
         {
             playerRigidbody.position = transform.position;
         }
+    }
+
+    private Vector3 GetBlockedHorizontalOffset(Vector3 horizontalOffset)
+    {
+        if (capsuleCollider == null)
+        {
+            return horizontalOffset;
+        }
+
+        Vector3 direction = horizontalOffset.normalized;
+        float distance = horizontalOffset.magnitude;
+        GetCapsuleWorldPoints(out Vector3 point1, out Vector3 point2, out float radius);
+
+        RaycastHit[] hits = Physics.CapsuleCastAll(point1, point2, radius, direction, distance + collisionSkin, collisionLayers, QueryTriggerInteraction.Ignore);
+        float nearestDistance = float.PositiveInfinity;
+        for (int i = 0; i < hits.Length; i++)
+        {
+            Collider hitCollider = hits[i].collider;
+            if (hitCollider == null || hitCollider.transform.IsChildOf(transform))
+            {
+                continue;
+            }
+
+            if (IsEscapingBuildingCollider(hitCollider, horizontalOffset))
+            {
+                continue;
+            }
+
+            if (ShouldIgnoreHorizontalCollision(hitCollider, hits[i].normal))
+            {
+                continue;
+            }
+
+            nearestDistance = Mathf.Min(nearestDistance, hits[i].distance);
+        }
+
+        if (float.IsPositiveInfinity(nearestDistance))
+        {
+            return horizontalOffset;
+        }
+
+        float allowedDistance = Mathf.Max(0f, nearestDistance - collisionSkin);
+        return direction * Mathf.Min(distance, allowedDistance);
+    }
+
+    private void ResolveCollisionPenetration()
+    {
+        if (!resolveCollisionPenetration || capsuleCollider == null)
+        {
+            return;
+        }
+
+        int iterations = Mathf.Max(1, penetrationResolveIterations);
+        for (int i = 0; i < iterations; i++)
+        {
+            if (!TryResolveSinglePenetration())
+            {
+                return;
+            }
+        }
+    }
+
+    private bool TryResolveSinglePenetration()
+    {
+        GetCapsuleWorldPoints(out Vector3 point1, out Vector3 point2, out float radius);
+        Collider[] overlaps = Physics.OverlapCapsule(point1, point2, radius + penetrationSkin, collisionLayers, QueryTriggerInteraction.Ignore);
+        Vector3 bestDirection = Vector3.zero;
+        float bestDistance = 0f;
+
+        for (int i = 0; i < overlaps.Length; i++)
+        {
+            Collider other = overlaps[i];
+            if (other == null || other.transform.IsChildOf(transform))
+            {
+                continue;
+            }
+
+            if (!Physics.ComputePenetration(
+                    capsuleCollider,
+                    transform.position,
+                    transform.rotation,
+                    other,
+                    other.transform.position,
+                    other.transform.rotation,
+                    out Vector3 direction,
+                    out float distance))
+            {
+                continue;
+            }
+
+            if (distance <= 0f || direction.y > walkableCollisionNormalY || IsGroundLikeCollider(other) || IsBuildingCollider(other))
+            {
+                continue;
+            }
+
+            direction.y = 0f;
+            if (direction.sqrMagnitude <= 0.0001f)
+            {
+                continue;
+            }
+
+            if (distance > bestDistance)
+            {
+                bestDistance = distance;
+                bestDirection = direction.normalized;
+            }
+        }
+
+        if (bestDistance <= 0f || bestDirection.sqrMagnitude <= 0.0001f)
+        {
+            return false;
+        }
+
+        float correctionDistance = Mathf.Min(bestDistance, maxPenetrationCorrection);
+        transform.position += bestDirection * correctionDistance;
+        return true;
+    }
+
+    private bool ShouldIgnoreHorizontalCollision(Collider other, Vector3 normal)
+    {
+        if (IsGroundLikeCollider(other))
+        {
+            return true;
+        }
+
+        if (normal.y > walkableCollisionNormalY)
+        {
+            return true;
+        }
+
+        return false;
+    }
+
+    private bool IsEscapingBuildingCollider(Collider other, Vector3 horizontalOffset)
+    {
+        if (!IsBuildingCollider(other) || horizontalOffset.sqrMagnitude <= 0.000001f)
+        {
+            return false;
+        }
+
+        bool isOverlapping = Physics.ComputePenetration(
+                capsuleCollider,
+                transform.position,
+                transform.rotation,
+                other,
+                other.transform.position,
+                other.transform.rotation,
+                out _,
+                out float separationDistance)
+            && separationDistance > 0f;
+        if (!isOverlapping)
+        {
+            return false;
+        }
+
+        Vector3 outward = transform.position - other.bounds.center;
+        outward.y = 0f;
+        if (outward.sqrMagnitude <= 0.0001f)
+        {
+            return false;
+        }
+
+        return Vector3.Dot(horizontalOffset.normalized, outward.normalized) > 0.05f;
+    }
+
+    private static bool IsBuildingCollider(Collider other)
+    {
+        return other != null
+            && (other.GetComponentInParent<TeamBuilding>() != null
+                || other.GetComponentInParent<BuildingHealth>() != null);
+    }
+
+    private static bool IsGroundLikeCollider(Collider other)
+    {
+        if (other == null)
+        {
+            return false;
+        }
+
+        if (IsBuildingCollider(other))
+        {
+            return false;
+        }
+
+        string layerName = LayerMask.LayerToName(other.gameObject.layer).ToLowerInvariant();
+        if (ContainsGroundKeyword(layerName))
+        {
+            return true;
+        }
+
+        Transform current = other.transform;
+        while (current != null)
+        {
+            if (ContainsGroundKeyword(current.name.ToLowerInvariant()))
+            {
+                return true;
+            }
+
+            current = current.parent;
+        }
+
+        Bounds bounds = other.bounds;
+        return bounds.size.x > 15f && bounds.size.z > 15f && bounds.size.y < 4f;
+    }
+
+    private static bool ContainsGroundKeyword(string value)
+    {
+        return value.Contains("ground")
+            || value.Contains("floor")
+            || value.Contains("grass")
+            || value.Contains("terrain");
     }
 
     private void UpdateAnimation(float speedValue)
@@ -331,6 +563,23 @@ public class CatPlayerController : MonoBehaviour
         SnapToGroundIfNeeded();
     }
 
+    public void TeleportToGroundedPosition(Vector3 position)
+    {
+        transform.position = position;
+        ResolveCollisionPenetration();
+        if (playerRigidbody != null)
+        {
+            playerRigidbody.position = transform.position;
+        }
+
+        SnapToGroundIfNeeded();
+        ResolveCollisionPenetration();
+        if (playerRigidbody != null)
+        {
+            playerRigidbody.position = transform.position;
+        }
+    }
+
     public void PlayDig()
     {
         RequestNetworkAction(UglyDogNetworkAction.Dig);
@@ -342,6 +591,12 @@ public class CatPlayerController : MonoBehaviour
     {
         currentDigResourceType = resourceType;
         hasCurrentDigResourceType = true;
+
+        if (digActionImpactNormalizedTime <= 0f)
+        {
+            PlayDigActionSound(resourceType);
+        }
+
         PlayDig();
     }
 
@@ -371,6 +626,8 @@ public class CatPlayerController : MonoBehaviour
 
     public void StopAction()
     {
+        StopBuildSound();
+
         if (animator == null)
         {
             return;
@@ -532,8 +789,31 @@ public class CatPlayerController : MonoBehaviour
             return;
         }
 
-        nextBuildSoundTime = Time.time + buildSoundInterval;
+        float buildSoundCooldown = buildSoundInterval;
+        if (buildClip != null)
+        {
+            buildSoundCooldown = Mathf.Max(buildSoundCooldown, buildClip.length);
+            buildSoundEndTime = Time.time + buildClip.length;
+        }
+        else
+        {
+            buildSoundEndTime = Time.time;
+        }
+
+        nextBuildSoundTime = Time.time + buildSoundCooldown;
         PlayOneShot(buildClip, buildVolume);
+    }
+
+    private void StopBuildSound()
+    {
+        if (actionAudioSource == null || Time.time >= buildSoundEndTime)
+        {
+            return;
+        }
+
+        actionAudioSource.Stop();
+        buildSoundEndTime = 0f;
+        nextBuildSoundTime = 0f;
     }
 
     private void UpdateDigImpactAudio()
@@ -552,6 +832,12 @@ public class CatPlayerController : MonoBehaviour
         }
 
         float normalizedTime = currentState.normalizedTime % 1f;
+        if (digActionImpactNormalizedTime <= 0f)
+        {
+            digImpactSoundArmed = false;
+            return;
+        }
+
         if (normalizedTime < digActionImpactNormalizedTime)
         {
             digImpactSoundArmed = true;
@@ -785,8 +1071,25 @@ public class CatPlayerController : MonoBehaviour
         }
 
         playerRigidbody.useGravity = false;
+        playerRigidbody.isKinematic = true;
         playerRigidbody.constraints |= RigidbodyConstraints.FreezeRotation;
         playerRigidbody.constraints |= RigidbodyConstraints.FreezePositionY;
+    }
+
+    private void ConfigureCapsuleForTopDown()
+    {
+        if (!autoAlignCapsuleToGround || capsuleCollider == null)
+        {
+            return;
+        }
+
+        Vector3 center = capsuleCollider.center;
+        float expectedCenterY = capsuleCollider.height * 0.5f;
+        if (center.y < expectedCenterY * 0.5f)
+        {
+            center.y = expectedCenterY;
+            capsuleCollider.center = center;
+        }
     }
 
     private void SnapToGroundIfNeeded()
@@ -807,6 +1110,22 @@ public class CatPlayerController : MonoBehaviour
         {
             Collider hitCollider = hits[i].collider;
             if (hitCollider == null || hitCollider.transform.IsChildOf(transform) || hits[i].normal.y < 0.5f)
+            {
+                continue;
+            }
+
+            if (IsBuildingCollider(hitCollider))
+            {
+                continue;
+            }
+
+            if (!IsGroundLikeCollider(hitCollider))
+            {
+                continue;
+            }
+
+            float stepUp = hits[i].point.y + groundSkin - GetCapsuleBottomWorldY();
+            if (stepUp > maxGroundStepUp)
             {
                 continue;
             }
@@ -837,6 +1156,19 @@ public class CatPlayerController : MonoBehaviour
         Vector3 worldCenter = transform.TransformPoint(capsuleCollider.center);
         float scaleY = Mathf.Abs(transform.lossyScale.y);
         return worldCenter.y - capsuleCollider.height * scaleY * 0.5f;
+    }
+
+    private void GetCapsuleWorldPoints(out Vector3 point1, out Vector3 point2, out float radius)
+    {
+        Vector3 worldCenter = transform.TransformPoint(capsuleCollider.center);
+        float scaleX = Mathf.Abs(transform.lossyScale.x);
+        float scaleY = Mathf.Abs(transform.lossyScale.y);
+        float scaleZ = Mathf.Abs(transform.lossyScale.z);
+        radius = capsuleCollider.radius * Mathf.Max(scaleX, scaleZ);
+        float height = Mathf.Max(capsuleCollider.height * scaleY, radius * 2f);
+        float halfSegment = Mathf.Max(0f, height * 0.5f - radius);
+        point1 = worldCenter + Vector3.up * halfSegment;
+        point2 = worldCenter - Vector3.up * halfSegment;
     }
 
     private void CacheAnimatorParameters()
@@ -880,6 +1212,12 @@ public class CatPlayerController : MonoBehaviour
         digActionMinimumInterval = Mathf.Max(0.01f, digActionMinimumInterval);
         footstepInterval = Mathf.Max(0.05f, footstepInterval);
         buildSoundInterval = Mathf.Max(0.05f, buildSoundInterval);
+        collisionSkin = Mathf.Max(0.001f, collisionSkin);
+        walkableCollisionNormalY = Mathf.Clamp01(walkableCollisionNormalY);
+        penetrationResolveIterations = Mathf.Clamp(penetrationResolveIterations, 1, 2);
+        penetrationSkin = Mathf.Clamp(penetrationSkin, 0f, 0.02f);
+        maxPenetrationCorrection = Mathf.Clamp(maxPenetrationCorrection, 0.01f, 0.1f);
+        maxGroundStepUp = Mathf.Clamp(maxGroundStepUp, 0.8f, 2f);
         baseDigCycleDuration = Mathf.Max(0.05f, baseDigCycleDuration);
         minSyncedDigAnimatorSpeed = Mathf.Max(0.05f, minSyncedDigAnimatorSpeed);
         maxSyncedDigAnimatorSpeed = Mathf.Max(minSyncedDigAnimatorSpeed, maxSyncedDigAnimatorSpeed);
