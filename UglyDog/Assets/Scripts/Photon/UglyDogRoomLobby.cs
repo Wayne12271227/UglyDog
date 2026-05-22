@@ -12,6 +12,7 @@ public class UglyDogRoomLobby : MonoBehaviour, INetworkRunnerCallbacks
 {
     private const int MaxPlayersPerRoom = 2;
     private const string MainMenuSceneName = "MainMenu";
+    private const int LobbyFontSize = 30;
     private const float SpawnRangeMargin = 0.65f;
     private const float SpawnForwardWeight = 0.55f;
 
@@ -54,7 +55,7 @@ public class UglyDogRoomLobby : MonoBehaviour, INetworkRunnerCallbacks
         BuildUi();
         busy = true;
         lobbyReady = false;
-        SetStatus("Connecting to Photon lobby...");
+        SetStatus("正在連線到 Photon 大廳...");
         RefreshUi();
 
         runner = gameObject.AddComponent<NetworkRunner>();
@@ -73,14 +74,14 @@ public class UglyDogRoomLobby : MonoBehaviour, INetworkRunnerCallbacks
         {
             busy = false;
             lobbyReady = false;
-            SetStatus($"Lobby connection failed: {result.ShutdownReason}");
+            SetStatus($"Photon 大廳連線失敗：{result.ShutdownReason}");
             RefreshUi();
             return;
         }
 
         busy = false;
         lobbyReady = true;
-        SetStatus("Choose a room or create a new one.");
+        SetStatus("選擇房間或建立新房間。");
         RefreshUi();
     }
 
@@ -101,7 +102,7 @@ public class UglyDogRoomLobby : MonoBehaviour, INetworkRunnerCallbacks
     public void CreateEditorPreviewUi()
     {
         BuildUi();
-        SetStatus("Choose a room or create a new one.");
+        SetStatus("選擇房間或建立新房間。");
         RefreshUi();
     }
 #endif
@@ -137,12 +138,12 @@ public class UglyDogRoomLobby : MonoBehaviour, INetworkRunnerCallbacks
         int playerCount = runner.ActivePlayers.Count();
         if (playerCount < 1)
         {
-            SetStatus("No player is in the room yet.");
+            SetStatus("房間裡還沒有玩家。");
             return;
         }
 
         gameStarted = true;
-        SetStatus("Loading game...");
+        SetStatus("正在載入遊戲...");
         RefreshUi();
         runner.LoadScene(gameSceneName, LoadSceneMode.Single, LocalPhysicsMode.None, true);
     }
@@ -156,7 +157,7 @@ public class UglyDogRoomLobby : MonoBehaviour, INetworkRunnerCallbacks
 
         isLeaving = true;
         busy = true;
-        SetStatus("Returning to main menu...");
+        SetStatus("正在返回主選單...");
         RefreshUi();
 
         NetworkRunner leavingRunner = runner;
@@ -202,7 +203,7 @@ public class UglyDogRoomLobby : MonoBehaviour, INetworkRunnerCallbacks
     {
         UglyDogNetworkInput data = new UglyDogNetworkInput();
 
-        if (gameStarted && !UpgradeShopUI.BlocksPlayerInput && !BuildingPlacementController.BlocksPlayerInput)
+        if (gameStarted && !UpgradeShopUI.BlocksPlayerInput && !BuildShopUI.BlocksPlayerInput && !BuildingPlacementController.BlocksPlayerInput)
         {
             data.Move = new Vector2(Input.GetAxisRaw("Horizontal"), Input.GetAxisRaw("Vertical"));
             data.Move = Vector2.ClampMagnitude(data.Move, 1f);
@@ -269,7 +270,7 @@ public class UglyDogRoomLobby : MonoBehaviour, INetworkRunnerCallbacks
     private async System.Threading.Tasks.Task StartRoom(GameMode mode, string roomName)
     {
         busy = true;
-        SetStatus(mode == GameMode.Host ? $"Creating {roomName}..." : $"Joining {roomName}...");
+        SetStatus(mode == GameMode.Host ? $"正在建立房間 {roomName}..." : $"正在加入房間 {roomName}...");
         RefreshUi();
 
         StartGameResult result = await runner.StartGame(new StartGameArgs
@@ -291,12 +292,12 @@ public class UglyDogRoomLobby : MonoBehaviour, INetworkRunnerCallbacks
 
         if (!result.Ok)
         {
-            SetStatus($"Room failed: {result.ShutdownReason}");
+            SetStatus($"房間操作失敗：{result.ShutdownReason}");
             RefreshUi();
             return;
         }
 
-        SetStatus(runner.IsServer ? "Room created. You can start now or wait for player 2." : "Joined room. Waiting for host to start.");
+        SetStatus(runner.IsServer ? "房間已建立。可以開始遊戲，或等待第二位玩家。" : "已加入房間。等待房主開始遊戲。");
         RefreshUi();
     }
 
@@ -305,7 +306,7 @@ public class UglyDogRoomLobby : MonoBehaviour, INetworkRunnerCallbacks
         NetworkObject prefab = GetPrefabForPlayer(networkRunner, player);
         if (prefab == null)
         {
-            Debug.LogError("UglyDogRoomLobby needs NetworkObject player prefabs.");
+            Debug.LogError("UglyDogRoomLobby 需要 NetworkObject 玩家 prefab。");
             return;
         }
 
@@ -752,30 +753,31 @@ public class UglyDogRoomLobby : MonoBehaviour, INetworkRunnerCallbacks
         canvasObject.transform.SetParent(transform, false);
         canvas = canvasObject.AddComponent<Canvas>();
         canvas.renderMode = RenderMode.ScreenSpaceOverlay;
-        canvasObject.AddComponent<CanvasScaler>().uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
+        CanvasScaler scaler = canvasObject.AddComponent<CanvasScaler>();
+        scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
+        scaler.referenceResolution = new Vector2(1920f, 1080f);
+        scaler.matchWidthOrHeight = 0.5f;
         canvasObject.AddComponent<GraphicRaycaster>();
-
-        Image background = canvasObject.AddComponent<Image>();
-        background.color = new Color(0.08f, 0.09f, 0.11f, 0.96f);
+        ConfigureCanvasBackground(canvasObject);
 
         RectTransform root = CreatePanel(canvasObject.transform, "Panel", new Vector2(760f, 620f), new Vector2(0.5f, 0.5f));
         root.anchoredPosition = Vector2.zero;
 
-        titleText = CreateText(root, "Title", "Room Lobby", 34, TextAnchor.MiddleCenter);
+        titleText = CreateText(root, "Title", "房間大廳", LobbyFontSize, TextAnchor.MiddleCenter);
         titleText.rectTransform.anchoredPosition = new Vector2(0f, 250f);
         titleText.rectTransform.sizeDelta = new Vector2(700f, 60f);
 
-        statusText = CreateText(root, "Status", string.Empty, 18, TextAnchor.MiddleCenter);
+        statusText = CreateText(root, "Status", string.Empty, LobbyFontSize, TextAnchor.MiddleCenter);
         statusText.rectTransform.anchoredPosition = new Vector2(0f, 200f);
-        statusText.rectTransform.sizeDelta = new Vector2(700f, 42f);
+        statusText.rectTransform.sizeDelta = new Vector2(700f, 54f);
 
         roomListRoot = CreatePanel(root, "Room List", new Vector2(700f, 300f), new Vector2(0.5f, 0.5f));
         roomListRoot.anchoredPosition = new Vector2(0f, 20f);
 
-        refreshButton = CreateButton(root, "Refresh Button", "Refresh", new Vector2(-245f, -180f), RefreshRooms);
-        createRoomButton = CreateButton(root, "Create Room Button", "Create Room", new Vector2(0f, -180f), CreateRoom);
-        startGameButton = CreateButton(root, "Start Game Button", "Start Game", new Vector2(245f, -180f), StartGame);
-        leaveButton = CreateTopLeftButton(canvasObject.transform, "Back Button", "Back", LeaveRoom);
+        refreshButton = CreateButton(root, "Refresh Button", "更新", new Vector2(-245f, -180f), RefreshRooms);
+        createRoomButton = CreateButton(root, "Create Room Button", "建立房間", new Vector2(0f, -180f), CreateRoom);
+        startGameButton = CreateButton(root, "Start Game Button", "開始遊戲", new Vector2(245f, -180f), StartGame);
+        leaveButton = CreateTopLeftButton(canvasObject.transform, "Back Button", "返回", LeaveRoom);
     }
 
     private bool BindExistingUi(GameObject canvasObject)
@@ -795,6 +797,9 @@ public class UglyDogRoomLobby : MonoBehaviour, INetworkRunnerCallbacks
             return false;
         }
 
+        ConfigureCanvasBackground(canvasObject);
+        ApplyChineseLobbyLabels();
+        ApplyLobbyTextSizing(canvasObject.transform);
         refreshButton.onClick.RemoveAllListeners();
         refreshButton.onClick.AddListener(RefreshRooms);
         createRoomButton.onClick.RemoveAllListeners();
@@ -805,6 +810,51 @@ public class UglyDogRoomLobby : MonoBehaviour, INetworkRunnerCallbacks
         leaveButton.onClick.AddListener(LeaveRoom);
         PinBackButtonToTopLeft();
         return true;
+    }
+
+    private void ApplyChineseLobbyLabels()
+    {
+        if (titleText != null)
+        {
+            titleText.text = "房間大廳";
+        }
+
+        SetButtonLabel(refreshButton, "更新");
+        SetButtonLabel(createRoomButton, "建立房間");
+        SetButtonLabel(startGameButton, "開始遊戲");
+        SetButtonLabel(leaveButton, "返回");
+    }
+
+    private static void SetButtonLabel(Button button, string label)
+    {
+        if (button == null)
+        {
+            return;
+        }
+
+        Text text = button.GetComponentInChildren<Text>(true);
+        if (text != null)
+        {
+            text.text = label;
+        }
+    }
+
+    private static void ConfigureCanvasBackground(GameObject canvasObject)
+    {
+        Image background = canvasObject.GetComponent<Image>();
+        if (background != null)
+        {
+            background.color = Color.clear;
+            background.raycastTarget = false;
+        }
+    }
+
+    private static void ApplyLobbyTextSizing(Transform root)
+    {
+        foreach (Text text in root.GetComponentsInChildren<Text>(true))
+        {
+            text.fontSize = LobbyFontSize;
+        }
     }
 
     private static T FindChildComponent<T>(Transform root, string childName) where T : Component
@@ -863,8 +913,9 @@ public class UglyDogRoomLobby : MonoBehaviour, INetworkRunnerCallbacks
         Button button = buttonObject.AddComponent<Button>();
         button.targetGraphic = image;
         button.onClick.AddListener(action);
+        buttonObject.AddComponent<ButtonHoverTint>();
 
-        Text text = CreateText(buttonObject.transform, "Text", label, 19, TextAnchor.MiddleCenter);
+        Text text = CreateText(buttonObject.transform, "Text", label, LobbyFontSize, TextAnchor.MiddleCenter);
         RectTransform textRect = text.rectTransform;
         textRect.anchorMin = Vector2.zero;
         textRect.anchorMax = Vector2.one;
@@ -921,18 +972,18 @@ public class UglyDogRoomLobby : MonoBehaviour, INetworkRunnerCallbacks
 
         if (!lobbyReady && !inRoom)
         {
-            AddRoomListText("Connecting...", 30f, 22);
+            AddRoomListText("連線中...", 30f, LobbyFontSize);
         }
         else if (inRoom)
         {
             int playerCount = runner != null ? runner.ActivePlayers.Count() : 0;
-            AddRoomListText($"Current room: {runner.SessionInfo.Name}", 70f, 22);
-            AddRoomListText($"Players: {playerCount}/{MaxPlayersPerRoom}", 20f, 20);
-            AddRoomListText(runner != null && runner.IsServer ? "You are host." : "Waiting for host.", -30f, 18);
+            AddRoomListText($"目前房間：{runner.SessionInfo.Name}", 70f, LobbyFontSize);
+            AddRoomListText($"玩家：{playerCount}/{MaxPlayersPerRoom}", 20f, LobbyFontSize);
+            AddRoomListText(runner != null && runner.IsServer ? "你是房主。" : "等待房主開始。", -30f, LobbyFontSize);
         }
         else if (sessions.Count == 0)
         {
-            AddRoomListText("No open rooms yet.", 30f, 22);
+            AddRoomListText("目前沒有可加入的房間。", 30f, LobbyFontSize);
         }
         else
         {

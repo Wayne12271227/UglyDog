@@ -64,6 +64,9 @@ public class ArcherTowerBuildZone : MonoBehaviour
     [SerializeField] private Vector3 promptLocalOffset = new Vector3(0f, 2f, 0f);
     [SerializeField] private string occupiedPromptText = "\u9700\u5148\u6467\u6bc0\u73fe\u6709\u5efa\u7bc9";
 
+    [Header("Build Shop UI")]
+    [SerializeField] private GameObject buildShopPrefab;
+
     private Collider zoneCollider;
     private CatPlayerController activeBuilder;
     private GameObject currentBuilding;
@@ -72,7 +75,7 @@ public class ArcherTowerBuildZone : MonoBehaviour
     private bool isBuilding;
     private float buildProgress;
     private WorldSpaceHealthLabel promptLabel;
-    private BuildSiteUI ui;
+    private BuildShopUI ui;
     private MaterialPropertyBlock dashedRangePropertyBlock;
     private MinionTeam ownerTeam;
     private bool hasOwner;
@@ -102,7 +105,12 @@ public class ArcherTowerBuildZone : MonoBehaviour
         horizontalZoneEdgePadding = Mathf.Max(0f, horizontalZoneEdgePadding);
         barracksSummonInterval = Mathf.Max(1f, barracksSummonInterval);
         EnsureVisualPrefabSlots();
+#if UNITY_EDITOR
+        AutoAssignBuildShopPrefabIfMissing();
+#endif
     }
+
+    public bool HasCurrentBuilding => currentBuilding != null;
 
     private void EnsureVisualPrefabSlots()
     {
@@ -283,6 +291,29 @@ public class ArcherTowerBuildZone : MonoBehaviour
 
         return false;
     }
+
+    private void AutoAssignBuildShopPrefabIfMissing()
+    {
+        if (buildShopPrefab != null)
+        {
+            return;
+        }
+
+        string[] guids = UnityEditor.AssetDatabase.FindAssets("buildCanvas t:Prefab", new[] { "Assets/prefab" });
+        for (int i = 0; i < guids.Length; i++)
+        {
+            string path = UnityEditor.AssetDatabase.GUIDToAssetPath(guids[i]);
+            GameObject prefab = UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>(path);
+            if (prefab == null || !prefab.name.ToLowerInvariant().Contains("buildcanvas"))
+            {
+                continue;
+            }
+
+            buildShopPrefab = prefab;
+            UnityEditor.EditorUtility.SetDirty(this);
+            return;
+        }
+    }
 #endif
 
     private void Update()
@@ -367,6 +398,35 @@ public class ArcherTowerBuildZone : MonoBehaviour
         FlashPrompt(GetBuildCountdownText());
     }
 
+    public bool TryBeginBuildFromUI(BuildSiteBuildingType type, out string failureMessage)
+    {
+        failureMessage = string.Empty;
+
+        if (activeBuilder == null)
+        {
+            failureMessage = "\u9700\u8981\u7ad9\u5728\u5efa\u7bc9\u5340";
+            FlashPrompt(failureMessage);
+            return false;
+        }
+
+        if (currentBuilding != null)
+        {
+            failureMessage = occupiedPromptText;
+            FlashPrompt(failureMessage);
+            return false;
+        }
+
+        if (!CanAfford(type))
+        {
+            failureMessage = GetMissingCostText(type);
+            FlashPrompt("\u8cc7\u6e90\u4e0d\u8db3\uff1a" + failureMessage);
+            return false;
+        }
+
+        BeginBuild(type);
+        return true;
+    }
+
     private void UpdateBuild(CatPlayerController builder)
     {
         if (builder == null || !IsPlayerInsideZone(builder))
@@ -426,7 +486,10 @@ public class ArcherTowerBuildZone : MonoBehaviour
         }
 
         EnsureBuildUI();
-        ui.Open(this, builder);
+        if (ui != null)
+        {
+            ui.Open(this);
+        }
     }
 
     private void HideBuildUI()
@@ -444,8 +507,34 @@ public class ArcherTowerBuildZone : MonoBehaviour
             return;
         }
 
-        GameObject uiObject = new GameObject("Build Site UI");
-        ui = uiObject.AddComponent<BuildSiteUI>();
+        ui = FindObjectOfType<BuildShopUI>(true);
+        if (ui != null)
+        {
+            return;
+        }
+
+        if (buildShopPrefab == null)
+        {
+            Debug.LogWarning("Build zone needs the build shop prefab assigned.");
+            return;
+        }
+
+        GameObject uiObject = Instantiate(buildShopPrefab);
+        uiObject.name = buildShopPrefab.name + " Instance";
+        if (buildShopPrefab != null)
+        {
+            UpgradeShopUI wrongShop = uiObject.GetComponent<UpgradeShopUI>();
+            if (wrongShop != null)
+            {
+                Destroy(wrongShop);
+            }
+        }
+
+        ui = uiObject.GetComponent<BuildShopUI>();
+        if (ui == null)
+        {
+            ui = uiObject.AddComponent<BuildShopUI>();
+        }
     }
 
     private void CreateBuilding(BuildSiteBuildingType type, MinionTeam team)
@@ -688,6 +777,20 @@ public class ArcherTowerBuildZone : MonoBehaviour
             && resources.CanSpend(ResourceType.Stone, GetStoneCost(type));
     }
 
+    public string GetMissingCostText(BuildSiteBuildingType type)
+    {
+        ResourceManager resources = ResourceManager.Instance;
+        int coins = resources != null ? resources.Coins : 0;
+        int wood = resources != null ? resources.Wood : 0;
+        int stone = resources != null ? resources.Stone : 0;
+
+        string text = string.Empty;
+        AppendMissingCost(ref text, "\u91d1\u5e63", GetCoinCost(type), coins);
+        AppendMissingCost(ref text, "\u6728\u982d", GetWoodCost(type), wood);
+        AppendMissingCost(ref text, "\u77f3\u982d", GetStoneCost(type), stone);
+        return string.IsNullOrEmpty(text) ? GetCostText(type) : text;
+    }
+
     private bool SpendCost(BuildSiteBuildingType type)
     {
         if (!CanAfford(type))
@@ -754,6 +857,38 @@ public class ArcherTowerBuildZone : MonoBehaviour
     public static int GetStoneCost(BuildSiteBuildingType type)
     {
         return type == BuildSiteBuildingType.AutoQuarry ? 25 : 0;
+    }
+
+    public static string GetCostText(BuildSiteBuildingType type)
+    {
+        string text = GetCoinCost(type) + "\u91d1\u5e63";
+        if (GetWoodCost(type) > 0)
+        {
+            text += " / " + GetWoodCost(type) + "\u6728\u982d";
+        }
+
+        if (GetStoneCost(type) > 0)
+        {
+            text += " / " + GetStoneCost(type) + "\u77f3\u982d";
+        }
+
+        return text;
+    }
+
+    private static void AppendMissingCost(ref string text, string label, int required, int current)
+    {
+        int missing = Mathf.Max(0, required - current);
+        if (missing <= 0)
+        {
+            return;
+        }
+
+        if (!string.IsNullOrEmpty(text))
+        {
+            text += " / ";
+        }
+
+        text += missing + label;
     }
 
     private static Vector3 GetFootprint(BuildSiteBuildingType type)

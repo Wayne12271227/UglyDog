@@ -17,6 +17,7 @@ public class MainMenuController : MonoBehaviour
         EnsureCanvasCanReceiveClicks();
         DisableDecorativeRaycasts();
         WireMenuButtons();
+        EnsureButtonHoverTints();
     }
 
     public void StartGame()
@@ -80,6 +81,17 @@ public class MainMenuController : MonoBehaviour
         {
             image.raycastTarget = true;
             button.targetGraphic = image;
+        }
+    }
+
+    private void EnsureButtonHoverTints()
+    {
+        foreach (Button button in GetComponentsInChildren<Button>(true))
+        {
+            if (button.GetComponent<ButtonHoverTint>() == null)
+            {
+                button.gameObject.AddComponent<ButtonHoverTint>();
+            }
         }
     }
 

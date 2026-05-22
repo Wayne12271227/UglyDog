@@ -12,7 +12,7 @@ GameObject:
   - component: {fileID: 5924504469343605083}
   - component: {fileID: 7433851479282138562}
   m_Layer: 5
-  m_Name: GatherSpeedCard
+  m_Name: campCard
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -205,7 +205,7 @@ MonoBehaviour:
     m_PersistentCalls:
       m_Calls:
       - m_Target: {fileID: 4728998030960366602}
-        m_TargetAssemblyTypeName: UpgradeShopUI, Assembly-CSharp
+        m_TargetAssemblyTypeName: BuildShopUI, Assembly-CSharp
         m_MethodName: CloseShop
         m_Mode: 1
         m_Arguments:
@@ -294,7 +294,7 @@ MonoBehaviour:
     m_HorizontalOverflow: 0
     m_VerticalOverflow: 0
     m_LineSpacing: 1
-  m_Text: "\u5347\u7D1A\n100\u91D1\u5E63"
+  m_Text: "\u5EFA\u9020\n150\u91D1\u5E63"
 --- !u!1 &885448964421617420
 GameObject:
   m_ObjectHideFlags: 0
@@ -373,7 +373,7 @@ MonoBehaviour:
     m_HorizontalOverflow: 0
     m_VerticalOverflow: 0
     m_LineSpacing: 1
-  m_Text: "\u63A1\u96C6\u901F\u5EA6"
+  m_Text: "\u81EA\u52D5\u63A1\u77F3\u6A5F"
 --- !u!1 &1098552475775155107
 GameObject:
   m_ObjectHideFlags: 0
@@ -558,8 +558,8 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
-  m_AnchoredPosition: {x: 0, y: -112}
-  m_SizeDelta: {x: 300, y: 72}
+  m_AnchoredPosition: {x: 0, y: -36}
+  m_SizeDelta: {x: 300, y: 144}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!222 &4005236501536539349
 CanvasRenderer:
@@ -602,7 +602,7 @@ MonoBehaviour:
     m_HorizontalOverflow: 0
     m_VerticalOverflow: 0
     m_LineSpacing: 1
-  m_Text: "\u8DD1\u901F 0%\u2192<color=#89E35B>10%</color>"
+  m_Text: "\u653B\u64CA\u8DEF\u5F91\u4E0A\u7684\u6575\u4EBA"
 --- !u!1 &2959982332432135711
 GameObject:
   m_ObjectHideFlags: 0
@@ -695,7 +695,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!224 &5828527347746464809
 RectTransform:
   m_ObjectHideFlags: 0
@@ -730,7 +730,7 @@ MonoBehaviour:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 3174295178015922760}
-  m_Enabled: 1
+  m_Enabled: 0
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 5f7201a12d95ffc409449d95f23cf332, type: 3}
   m_Name: 
@@ -771,7 +771,7 @@ GameObject:
   - component: {fileID: 1732091857765797859}
   - component: {fileID: 4728998030960366602}
   m_Layer: 5
-  m_Name: ShopCanvas
+  m_Name: buildCanvas 1
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -876,7 +876,7 @@ MonoBehaviour:
   m_GameObject: {fileID: 3238712592747628095}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 5784a576f161e8e4daf83d112ef218fe, type: 3}
+  m_Script: {fileID: 11500000, guid: 7c41c8b04fd57eb458bd811fea2be476, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
   closeKey: 27
@@ -1018,7 +1018,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!224 &337605765058742707
 RectTransform:
   m_ObjectHideFlags: 0
@@ -1053,7 +1053,7 @@ MonoBehaviour:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 3551263463198712018}
-  m_Enabled: 1
+  m_Enabled: 0
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 5f7201a12d95ffc409449d95f23cf332, type: 3}
   m_Name: 
@@ -1400,7 +1400,7 @@ MonoBehaviour:
     m_HorizontalOverflow: 0
     m_VerticalOverflow: 0
     m_LineSpacing: 1
-  m_Text: "\u5347\u7D1A\n100\u91D1\u5E63"
+  m_Text: "\u5EFA\u9020\n50\u91D1\u5E63 / 25\u77F3\u982D"
 --- !u!1 &4013907221644400475
 GameObject:
   m_ObjectHideFlags: 0
@@ -1629,7 +1629,7 @@ MonoBehaviour:
     m_HorizontalOverflow: 0
     m_VerticalOverflow: 0
     m_LineSpacing: 1
-  m_Text: "\u5347\u7D1A\n100\u91D1\u5E63"
+  m_Text: "\u5EFA\u9020\n50\u91D1\u5E63 / 25\u6728\u982D"
 --- !u!1 &5449645242039368423
 GameObject:
   m_ObjectHideFlags: 0
@@ -1840,7 +1840,7 @@ GameObject:
   - component: {fileID: 6742928066297230609}
   - component: {fileID: 6978563905126116964}
   m_Layer: 5
-  m_Name: MeleeTrainingCard
+  m_Name: woodCard
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -2064,8 +2064,8 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
-  m_AnchoredPosition: {x: 0, y: -112}
-  m_SizeDelta: {x: 300, y: 72}
+  m_AnchoredPosition: {x: 0, y: -36}
+  m_SizeDelta: {x: 300, y: 144}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!222 &1895004675992351174
 CanvasRenderer:
@@ -2108,7 +2108,7 @@ MonoBehaviour:
     m_HorizontalOverflow: 0
     m_VerticalOverflow: 0
     m_LineSpacing: 1
-  m_Text: "\u63A1\u96C6 0%\u2192<color=#89E35B>15%</color>"
+  m_Text: "\u6BCF 5 \u79D2 +1\u6728\u982D"
 --- !u!1 &6926741592419068297
 GameObject:
   m_ObjectHideFlags: 0
@@ -2187,7 +2187,7 @@ MonoBehaviour:
     m_HorizontalOverflow: 0
     m_VerticalOverflow: 0
     m_LineSpacing: 1
-  m_Text: "\u63A1\u96C6\u901F\u5EA6"
+  m_Text: "\u5175\u71DF"
 --- !u!1 &6993323891501148995
 GameObject:
   m_ObjectHideFlags: 0
@@ -2200,7 +2200,7 @@ GameObject:
   - component: {fileID: 3109636600457164695}
   - component: {fileID: 7531412064203541703}
   m_Layer: 5
-  m_Name: MoveSpeedCard
+  m_Name: towerCard
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -2440,7 +2440,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!224 &7024177655234668244
 RectTransform:
   m_ObjectHideFlags: 0
@@ -2475,7 +2475,7 @@ MonoBehaviour:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 7633168241196091406}
-  m_Enabled: 1
+  m_Enabled: 0
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 5f7201a12d95ffc409449d95f23cf332, type: 3}
   m_Name: 
@@ -2655,7 +2655,7 @@ MonoBehaviour:
     m_HorizontalOverflow: 0
     m_VerticalOverflow: 0
     m_LineSpacing: 1
-  m_Text: "\u5347\u7D1A\n50\u91D1\u5E63"
+  m_Text: "\u5EFA\u9020\n100\u91D1\u5E63"
 --- !u!1 &8375645190836854658
 GameObject:
   m_ObjectHideFlags: 0
@@ -2668,7 +2668,7 @@ GameObject:
   - component: {fileID: 1488501825161286558}
   - component: {fileID: 1921777920500355038}
   m_Layer: 5
-  m_Name: RangedTrainingCard
+  m_Name: stoneCard
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -2771,8 +2771,8 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
-  m_AnchoredPosition: {x: 0, y: -112}
-  m_SizeDelta: {x: 300, y: 72}
+  m_AnchoredPosition: {x: 0, y: -36}
+  m_SizeDelta: {x: 300, y: 144}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!222 &2967807198060524590
 CanvasRenderer:
@@ -2815,7 +2815,7 @@ MonoBehaviour:
     m_HorizontalOverflow: 0
     m_VerticalOverflow: 0
     m_LineSpacing: 1
-  m_Text: "\u63A1\u96C6 0%\u2192<color=#89E35B>15%</color>"
+  m_Text: "\u6BCF 5 \u79D2 +1\u77F3\u982D"
 --- !u!1 &8479546045387677661
 GameObject:
   m_ObjectHideFlags: 0
@@ -2881,8 +2881,8 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
-  m_AnchoredPosition: {x: 0, y: -112}
-  m_SizeDelta: {x: 300, y: 72}
+  m_AnchoredPosition: {x: 0, y: -36}
+  m_SizeDelta: {x: 300, y: 144}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!222 &7059772359528810347
 CanvasRenderer:
@@ -2925,7 +2925,7 @@ MonoBehaviour:
     m_HorizontalOverflow: 0
     m_VerticalOverflow: 0
     m_LineSpacing: 1
-  m_Text: "\u63A1\u96C6 0%\u2192<color=#89E35B>15%</color>"
+  m_Text: "\u6BCF 12 \u79D2\u53EC\u559A 1 \u96BB \u9032\u6230\u5C0F\u5175"
 --- !u!1 &8797832062912179048
 GameObject:
   m_ObjectHideFlags: 0
@@ -3004,7 +3004,7 @@ MonoBehaviour:
     m_HorizontalOverflow: 0
     m_VerticalOverflow: 0
     m_LineSpacing: 1
-  m_Text: "\u79FB\u52D5\u901F\u5EA6"
+  m_Text: "\u5F13\u7BAD\u5854"
 --- !u!1 &8864565746335552553
 GameObject:
   m_ObjectHideFlags: 0
@@ -3106,7 +3106,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!224 &2443783220922591698
 RectTransform:
   m_ObjectHideFlags: 0
@@ -3141,7 +3141,7 @@ MonoBehaviour:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 8943821487530763253}
-  m_Enabled: 1
+  m_Enabled: 0
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 5f7201a12d95ffc409449d95f23cf332, type: 3}
   m_Name: 
@@ -3367,4 +3367,4 @@ MonoBehaviour:
     m_HorizontalOverflow: 0
     m_VerticalOverflow: 0
     m_LineSpacing: 1
-  m_Text: "\u63A1\u96C6\u901F\u5EA6"
+  m_Text: "\u81EA\u52D5\u4F10\u6728\u6A5F"

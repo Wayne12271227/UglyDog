@@ -80,7 +80,7 @@ public class UglyDogFusionLauncher : MonoBehaviour, INetworkRunnerCallbacks
     {
         UglyDogNetworkInput data = new UglyDogNetworkInput();
 
-        if (!UpgradeShopUI.BlocksPlayerInput && !BuildingPlacementController.BlocksPlayerInput)
+        if (!UpgradeShopUI.BlocksPlayerInput && !BuildShopUI.BlocksPlayerInput && !BuildingPlacementController.BlocksPlayerInput)
         {
             data.Move = new Vector2(Input.GetAxisRaw("Horizontal"), Input.GetAxisRaw("Vertical"));
             data.Move = Vector2.ClampMagnitude(data.Move, 1f);

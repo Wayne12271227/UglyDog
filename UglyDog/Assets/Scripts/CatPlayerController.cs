@@ -162,7 +162,7 @@ public class CatPlayerController : MonoBehaviour
             return;
         }
 
-        if (UpgradeShopUI.BlocksPlayerInput)
+        if (UpgradeShopUI.BlocksPlayerInput || BuildShopUI.BlocksPlayerInput)
         {
             UpdateAnimation(0f);
             return;
