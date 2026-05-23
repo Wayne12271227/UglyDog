@@ -203,7 +203,11 @@ public class UglyDogRoomLobby : MonoBehaviour, INetworkRunnerCallbacks
     {
         UglyDogNetworkInput data = new UglyDogNetworkInput();
 
-        if (gameStarted && !UpgradeShopUI.BlocksPlayerInput && !BuildShopUI.BlocksPlayerInput && !BuildingPlacementController.BlocksPlayerInput)
+        if (gameStarted
+            && !UpgradeShopUI.BlocksPlayerInput
+            && !BuildShopUI.BlocksPlayerInput
+            && !BuildingPlacementController.BlocksPlayerInput
+            && !SettingsPanelUI.BlocksPlayerInput)
         {
             data.Move = new Vector2(Input.GetAxisRaw("Horizontal"), Input.GetAxisRaw("Vertical"));
             data.Move = Vector2.ClampMagnitude(data.Move, 1f);
@@ -799,7 +803,6 @@ public class UglyDogRoomLobby : MonoBehaviour, INetworkRunnerCallbacks
 
         ConfigureCanvasBackground(canvasObject);
         ApplyChineseLobbyLabels();
-        ApplyLobbyTextSizing(canvasObject.transform);
         refreshButton.onClick.RemoveAllListeners();
         refreshButton.onClick.AddListener(RefreshRooms);
         createRoomButton.onClick.RemoveAllListeners();
@@ -808,7 +811,7 @@ public class UglyDogRoomLobby : MonoBehaviour, INetworkRunnerCallbacks
         startGameButton.onClick.AddListener(StartGame);
         leaveButton.onClick.RemoveAllListeners();
         leaveButton.onClick.AddListener(LeaveRoom);
-        PinBackButtonToTopLeft();
+        PinBackButtonToTopLeft(false);
         return true;
     }
 
@@ -929,11 +932,11 @@ public class UglyDogRoomLobby : MonoBehaviour, INetworkRunnerCallbacks
     {
         Button button = CreateButton(parent, name, label, Vector2.zero, action);
         leaveButton = button;
-        PinBackButtonToTopLeft();
+        PinBackButtonToTopLeft(true);
         return button;
     }
 
-    private void PinBackButtonToTopLeft()
+    private void PinBackButtonToTopLeft(bool applyDefaultSize)
     {
         if (canvas == null || leaveButton == null)
         {
@@ -946,7 +949,11 @@ public class UglyDogRoomLobby : MonoBehaviour, INetworkRunnerCallbacks
         rect.anchorMin = new Vector2(0f, 1f);
         rect.anchorMax = new Vector2(0f, 1f);
         rect.pivot = new Vector2(0f, 1f);
-        rect.sizeDelta = new Vector2(150f, 44f);
+        if (applyDefaultSize)
+        {
+            rect.sizeDelta = new Vector2(150f, 44f);
+        }
+
         rect.anchoredPosition = new Vector2(24f, -24f);
     }
 

@@ -2,10 +2,16 @@ using UnityEngine;
 
 public static class PreferredPlayerFinder
 {
-    public const string PreferredPlayerName = "DOG";
+    public const string PreferredPlayerName = "CAT";
 
     public static CatPlayerController FindPreferredPlayer()
     {
+        CatPlayerController cat = FindPlayer(MinionTeam.Cat);
+        if (cat != null)
+        {
+            return cat;
+        }
+
         CatPlayerController dog = FindPlayer(MinionTeam.Dog);
         if (dog != null)
         {

@@ -4,7 +4,7 @@ public class MinionVisualAnimator : MonoBehaviour
 {
     [SerializeField] private Transform visualRoot;
     [SerializeField] private float walkCycleSpeed = 8f;
-    [SerializeField] private float walkBobHeight = 0.07f;
+    [SerializeField] private float walkBobHeight = 0f;
     [SerializeField] private float walkPitchDegrees = 5f;
     [SerializeField] private float walkRollDegrees = 7f;
     [SerializeField] private float attackDuration = 0.28f;
@@ -26,6 +26,18 @@ public class MinionVisualAnimator : MonoBehaviour
     {
         visualRoot = root;
         CaptureBasePose();
+    }
+
+    public void SetBaseLocalPosition(Vector3 localPosition)
+    {
+        if (visualRoot == null)
+        {
+            return;
+        }
+
+        baseLocalPosition = localPosition;
+        visualRoot.localPosition = localPosition;
+        initialized = true;
     }
 
     public void SetMoving(bool moving, float normalizedSpeed = 1f)
@@ -75,7 +87,7 @@ public class MinionVisualAnimator : MonoBehaviour
         moveBlend = Mathf.MoveTowards(moveBlend, targetMoveBlend, delta * 8f);
         walkPhase += delta * walkCycleSpeed * Mathf.Lerp(0.65f, 1.35f, speedBlend) * Mathf.Max(0.15f, moveBlend);
 
-        float bob = Mathf.Abs(Mathf.Sin(walkPhase)) * walkBobHeight * moveBlend;
+        float bob = Mathf.Sin(walkPhase) * walkBobHeight * moveBlend;
         float pitch = Mathf.Sin(walkPhase) * walkPitchDegrees * moveBlend;
         float roll = Mathf.Cos(walkPhase * 0.5f) * walkRollDegrees * moveBlend;
 

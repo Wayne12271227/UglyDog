@@ -342,6 +342,11 @@ public class ArcherTowerBuildZone : MonoBehaviour
             return;
         }
 
+        if (SettingsPanelUI.BlocksPlayerInput)
+        {
+            return;
+        }
+
         ShowPrompt(builder);
         if (Input.GetKeyDown(openKey))
         {
@@ -496,7 +501,7 @@ public class ArcherTowerBuildZone : MonoBehaviour
     {
         if (ui != null)
         {
-            ui.Close();
+            ui.CloseIfOpenedBy(this);
         }
     }
 
@@ -570,7 +575,7 @@ public class ArcherTowerBuildZone : MonoBehaviour
         else
         {
             AutoResourceBuilding producer = buildingObject.AddComponent<AutoResourceBuilding>();
-            producer.Configure(type == BuildSiteBuildingType.AutoQuarry ? ResourceType.Stone : ResourceType.Wood, 1, 5f);
+            producer.Configure(type == BuildSiteBuildingType.AutoQuarry ? ResourceType.Stone : ResourceType.Wood, 1, 2f);
             CreateBuildingVisual(buildingObject.transform, type, fallbackCollider);
         }
 
@@ -829,9 +834,9 @@ public class ArcherTowerBuildZone : MonoBehaviour
             case BuildSiteBuildingType.ArcherTower:
                 return "\u653b\u64ca\u8def\u5f91\u4e0a\u7684\u6575\u65b9\u58eb\u5175";
             case BuildSiteBuildingType.AutoLumber:
-                return "\u6bcf 5 \u79d2 +1 \u6728\u982d";
+                return "\u6bcf 2 \u79d2 +1 \u6728\u982d";
             case BuildSiteBuildingType.AutoQuarry:
-                return "\u6bcf 5 \u79d2 +1 \u77f3\u982d";
+                return "\u6bcf 2 \u79d2 +1 \u77f3\u982d";
             case BuildSiteBuildingType.Barracks:
                 return "\u6bcf 12 \u79d2\u53ec\u559a 1 \u96bb\u8fd1\u6230\u5c0f\u5175";
             default:

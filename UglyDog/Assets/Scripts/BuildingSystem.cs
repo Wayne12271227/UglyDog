@@ -57,9 +57,9 @@ public static class BuildingSystem
         switch (type)
         {
             case BuildingType.AutoLumberCamp:
-                return "每 5 秒 +1 木頭";
+                return "\u6bcf 2 \u79d2 +1 \u6728\u982d";
             case BuildingType.AutoQuarry:
-                return "每 5 秒 +1 石頭";
+                return "\u6bcf 2 \u79d2 +1 \u77f3\u982d";
             default:
                 return string.Empty;
         }
@@ -100,7 +100,7 @@ public static class BuildingSystem
         health.Configure(DefaultBuildingHealth);
 
         AutoResourceBuilding producer = root.AddComponent<AutoResourceBuilding>();
-        producer.Configure(GetProducedResource(type), 1, 5f);
+        producer.Configure(GetProducedResource(type), 1, 2f);
 
         BoxCollider collider = root.AddComponent<BoxCollider>();
         Vector3 footprint = GetFootprintSize(type);

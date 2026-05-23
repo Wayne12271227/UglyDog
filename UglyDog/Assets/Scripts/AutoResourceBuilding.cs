@@ -5,7 +5,7 @@ public class AutoResourceBuilding : MonoBehaviour
 {
     [SerializeField] private ResourceType resourceType = ResourceType.Wood;
     [SerializeField] private int amountPerTick = 1;
-    [SerializeField] private float tickInterval = 5f;
+    [SerializeField] private float tickInterval = 2f;
 
     private BuildingHealth health;
     private float nextTickTime;

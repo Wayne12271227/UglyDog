@@ -23,7 +23,11 @@ public class MinionShopZone : MonoBehaviour
 
     private void Update()
     {
-        if (!Application.isPlaying || BuildingPlacementController.BlocksPlayerInput || UpgradeShopUI.BlocksPlayerInput || BuildShopUI.BlocksPlayerInput)
+        if (!Application.isPlaying
+            || BuildingPlacementController.BlocksPlayerInput
+            || UpgradeShopUI.BlocksPlayerInput
+            || BuildShopUI.BlocksPlayerInput
+            || SettingsPanelUI.BlocksPlayerInput)
         {
             HidePrompt();
             return;

@@ -162,7 +162,7 @@ public class CatPlayerController : MonoBehaviour
             return;
         }
 
-        if (UpgradeShopUI.BlocksPlayerInput || BuildShopUI.BlocksPlayerInput)
+        if (UpgradeShopUI.BlocksPlayerInput || BuildShopUI.BlocksPlayerInput || SettingsPanelUI.BlocksPlayerInput)
         {
             UpdateAnimation(0f);
             return;
@@ -903,7 +903,7 @@ public class CatPlayerController : MonoBehaviour
             return;
         }
 
-        actionAudioSource.PlayOneShot(clip, volume);
+        actionAudioSource.PlayOneShot(clip, volume * GameAudioSettings.SfxVolume);
     }
 
     private float GetCurrentInputMagnitude()

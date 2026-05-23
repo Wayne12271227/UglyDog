@@ -1000,8 +1000,8 @@ MonoBehaviour:
   digActionVolume: 0.341
   footstepVolume: 0.432
   attackVolume: 1
-  buildVolume: 1
-  coinGainVolume: 1
+  buildVolume: 0.691
+  coinGainVolume: 0.729
   digActionImpactNormalizedTime: 0.222
   digActionMinimumInterval: 0.12
   footstepInterval: 0.35

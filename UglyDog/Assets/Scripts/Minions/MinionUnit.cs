@@ -14,6 +14,7 @@ public class MinionUnit : MonoBehaviour
     [SerializeField] private float goalStopDistance = 1.8f;
     [SerializeField] private float groundProbeHeight = 3f;
     [SerializeField] private float groundSnapDistance = 6f;
+    [SerializeField] private float groundSkin = 0.005f;
     [SerializeField] private float playerSeparationRadius = 0.95f;
     [SerializeField] private float playerSeparationStrength = 4f;
     [SerializeField] private LayerMask collisionLayers = ~0;
@@ -67,7 +68,7 @@ public class MinionUnit : MonoBehaviour
 
     private void Update()
     {
-        if (combatant == null || combatant.IsDead)
+        if (combatant == null || combatant.IsDead || (MinionManager.Instance != null && MinionManager.Instance.IsGameEnded))
         {
             return;
         }
@@ -109,7 +110,7 @@ public class MinionUnit : MonoBehaviour
     {
         if (!TryMeleeHitBuilding(other))
         {
-            TryMeleeHitBase(other);
+            TryEnterEnemyBase(other);
         }
     }
 
@@ -122,7 +123,7 @@ public class MinionUnit : MonoBehaviour
 
         if (!TryMeleeHitBuilding(collision.collider))
         {
-            TryMeleeHitBase(collision.collider);
+            TryEnterEnemyBase(collision.collider);
         }
     }
 
@@ -195,42 +196,21 @@ public class MinionUnit : MonoBehaviour
         Vector3 offset = enemyBase.transform.position - transform.position;
         offset.y = 0f;
 
-        if (kind == MinionKind.Melee)
-        {
-            if (!IsInsideEnemyBaseRange() && !FindOverlappingEnemyBase())
-            {
-                return false;
-            }
-
-            PlayAttackAnimation();
-            FaceDirectionImmediate(offset);
-            enemyBase.TakeDamage(attackDamage);
-            Destroy(gameObject);
-            return true;
-        }
-
-        float attackDistance = GetAttackRangeForBase(enemyBase);
-        if (offset.sqrMagnitude > attackDistance * attackDistance)
+        if (!IsInsideEnemyBaseRange() && !FindOverlappingEnemyBase())
         {
             return false;
         }
 
-        FaceDirectionImmediate(offset);
-        if (Time.time < nextAttackTime)
-        {
-            KeepAnimatorMoving();
-            return true;
-        }
-
-        nextAttackTime = Time.time + attackCooldown;
         PlayAttackAnimation();
-        MinionProjectile.Spawn(transform.position + Vector3.up * 0.9f, enemyBase, attackDamage, Team);
+        FaceDirectionImmediate(offset);
+        enemyBase.TakeDamage(attackDamage);
+        Destroy(gameObject);
         return true;
     }
 
-    private bool TryMeleeHitBase(Collider other)
+    private bool TryEnterEnemyBase(Collider other)
     {
-        if (kind != MinionKind.Melee || other == null || enemyBase == null || enemyBase.IsDestroyed)
+        if (other == null || enemyBase == null || enemyBase.IsDestroyed)
         {
             return false;
         }
@@ -835,10 +815,26 @@ public class MinionUnit : MonoBehaviour
 
         if (foundGround)
         {
-            float centerToBottom = selfCollider != null ? transform.position.y - selfCollider.bounds.min.y : 0f;
-            transform.position = new Vector3(transform.position.x, bestPoint.y + centerToBottom + 0.02f, transform.position.z);
+            float offsetY = bestPoint.y + groundSkin - GetBottomWorldY();
+            if (Mathf.Abs(offsetY) > 0.001f)
+            {
+                transform.position += Vector3.up * offsetY;
+            }
+
             ResolveCollisionPenetration();
         }
+    }
+
+    private float GetBottomWorldY()
+    {
+        if (capsuleCollider != null)
+        {
+            Vector3 worldCenter = transform.TransformPoint(capsuleCollider.center);
+            float scaleY = Mathf.Abs(transform.lossyScale.y);
+            return worldCenter.y - capsuleCollider.height * scaleY * 0.5f;
+        }
+
+        return selfCollider != null ? selfCollider.bounds.min.y : transform.position.y;
     }
 
     private void ResolvePlayerOverlap()
@@ -969,17 +965,6 @@ public class MinionUnit : MonoBehaviour
         return attackRange + Mathf.Max(collider.bounds.extents.x, collider.bounds.extents.z);
     }
 
-    private float GetAttackRangeForBase(MinionBaseHealth targetBase)
-    {
-        Collider collider = targetBase != null ? targetBase.GetComponentInChildren<Collider>() : null;
-        if (collider == null)
-        {
-            return attackRange;
-        }
-
-        return attackRange + Mathf.Max(collider.bounds.extents.x, collider.bounds.extents.z);
-    }
-
     private float GetAttackRangeForBuilding(BuildingHealth targetBuilding)
     {
         Collider collider = targetBuilding != null ? targetBuilding.GetComponentInChildren<Collider>() : null;
@@ -1028,6 +1013,7 @@ public class MinionUnit : MonoBehaviour
         attackCooldown = Mathf.Max(0.05f, attackCooldown);
         groundProbeHeight = Mathf.Max(0.1f, groundProbeHeight);
         groundSnapDistance = Mathf.Max(0.1f, groundSnapDistance);
+        groundSkin = Mathf.Max(0f, groundSkin);
         playerSeparationRadius = Mathf.Max(0f, playerSeparationRadius);
         playerSeparationStrength = Mathf.Max(0f, playerSeparationStrength);
         collisionSkin = Mathf.Max(0.001f, collisionSkin);

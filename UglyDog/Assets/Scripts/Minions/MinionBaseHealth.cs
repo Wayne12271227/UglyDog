@@ -4,8 +4,8 @@ using UnityEngine;
 public class MinionBaseHealth : MonoBehaviour
 {
     [SerializeField] private MinionTeam team = MinionTeam.Dog;
-    [SerializeField] private int maxHealth = 20;
-    [SerializeField] private int currentHealth = 20;
+    [SerializeField] private int maxHealth = 100;
+    [SerializeField] private int currentHealth = 100;
     [SerializeField] private Vector3 labelOffset = new Vector3(2.6f, 1.7f, 0f);
 
     private WorldSpaceHealthLabel healthLabel;

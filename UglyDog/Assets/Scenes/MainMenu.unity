@@ -388,7 +388,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   m_Material: {fileID: 0}
-  m_Color: {r: 0.16, g: 0.11, b: 0.07, a: 1}
+  m_Color: {r: 1, g: 1, b: 1, a: 1}
   m_RaycastTarget: 1
   m_RaycastPadding: {x: 0, y: 0, z: 0, w: 0}
   m_Maskable: 1
@@ -983,6 +983,21 @@ MonoBehaviour:
   startButtonName: Start Button
   settingsButtonName: 'setting Button '
   exitButtonName: Exit Button
+  settingsPanelPrefab: {fileID: 1326505042727859952, guid: b050d7e3faf207646bc2697f6ce23213, type: 3}
+  birdAmbienceClip: {fileID: 8300000, guid: 0c771509d985fe44d879ef882dd2b366, type: 3}
+  birdAmbienceVolume: 0.279
+  birdAmbienceSource: {fileID: 0}
+  waterAmbienceClip: {fileID: 8300000, guid: 81d9b05513f282749b4bca859f2473c2, type: 3}
+  waterAmbienceVolume: 0.498
+  waterAmbienceSource: {fileID: 0}
+  playIntroDropAnimation: 1
+  logoObjectName: LOGO
+  menuBackdropName: Button Backdrop
+  logoDropOffset: 4.5
+  logoDropDuration: 1
+  menuDropOffset: 760
+  menuDropDelay: 0.22
+  menuDropDuration: 0.95
 --- !u!114 &376613836
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1252,7 +1267,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   m_Material: {fileID: 0}
-  m_Color: {r: 0.16, g: 0.11, b: 0.07, a: 1}
+  m_Color: {r: 1, g: 1, b: 1, a: 1}
   m_RaycastTarget: 1
   m_RaycastPadding: {x: 0, y: 0, z: 0, w: 0}
   m_Maskable: 1
@@ -1768,7 +1783,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   m_Material: {fileID: 0}
-  m_Color: {r: 0.16, g: 0.11, b: 0.07, a: 1}
+  m_Color: {r: 1, g: 1, b: 1, a: 1}
   m_RaycastTarget: 1
   m_RaycastPadding: {x: 0, y: 0, z: 0, w: 0}
   m_Maskable: 1

@@ -112,7 +112,7 @@ public class UpgradeShopZone : MonoBehaviour
             return;
         }
 
-        if (BuildingPlacementController.BlocksPlayerInput || BuildShopUI.BlocksPlayerInput)
+        if (BuildingPlacementController.BlocksPlayerInput || BuildShopUI.BlocksPlayerInput || SettingsPanelUI.BlocksPlayerInput)
         {
             HidePrompt();
             return;
@@ -499,7 +499,7 @@ public class UpgradeShopZone : MonoBehaviour
             return;
         }
 
-        if (UpgradeShopUI.BlocksPlayerInput || BuildShopUI.BlocksPlayerInput)
+        if (UpgradeShopUI.BlocksPlayerInput || BuildShopUI.BlocksPlayerInput || SettingsPanelUI.BlocksPlayerInput)
         {
             HidePrompt();
             return;

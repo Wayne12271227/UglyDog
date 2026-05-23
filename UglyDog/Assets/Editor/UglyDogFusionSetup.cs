@@ -7,8 +7,8 @@ using UnityEngine;
 
 public static class UglyDogFusionSetup
 {
-    private const string DogPrefabPath = "Assets/prefab/DOG.prefab";
-    private const string CatPrefabPath = "Assets/prefab/CAT.prefab";
+    private const string DogPrefabPath = "Assets/prefab/character/DOG.prefab";
+    private const string CatPrefabPath = "Assets/prefab/character/CAT2 1.prefab";
     private const string FusionPrefabLabel = "FusionPrefab";
     private const string PendingSetupRequestPath = "Temp/UglyDogFusionSetup.request";
 

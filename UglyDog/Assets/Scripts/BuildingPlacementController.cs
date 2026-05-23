@@ -61,6 +61,11 @@ public class BuildingPlacementController : MonoBehaviour
             return;
         }
 
+        if (SettingsPanelUI.BlocksPlayerInput)
+        {
+            return;
+        }
+
         UpdatePreview();
         UpdatePrompt();
 

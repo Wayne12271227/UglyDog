@@ -13,8 +13,8 @@ public static class UglyDogRoomLobbySceneBuilder
     private const string MainMenuScenePath = "Assets/Scenes/MainMenu.unity";
     private const string GameScenePath = "Assets/Scenes/SampleScene.unity";
     private const string MenuImagePath = "Assets/image2D/menuImage.png";
-    private const string DogPrefabPath = "Assets/prefab/DOG.prefab";
-    private const string CatPrefabPath = "Assets/prefab/CAT.prefab";
+    private const string DogPrefabPath = "Assets/prefab/character/DOG.prefab";
+    private const string CatPrefabPath = "Assets/prefab/character/CAT2 1.prefab";
     private const string MaterialsFolder = "Assets/ToonURP/Materials";
     private const string BackgroundMaterialPath = MaterialsFolder + "/MenuBackgroundUnlit.mat";
     private const string ContactShadowMaterialPath = MaterialsFolder + "/MenuContactShadow.mat";

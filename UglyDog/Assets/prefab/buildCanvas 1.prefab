@@ -882,48 +882,46 @@ MonoBehaviour:
   closeKey: 27
   closeButtonName: EscButton
   closeButton: {fileID: 3984635295264406371}
-  coinTextName: CoinNum
-  woodTextName: WoodNum
-  stoneTextName: StoneNum
-  coinText: {fileID: 0}
-  woodText: {fileID: 0}
-  stoneText: {fileID: 0}
-  moveSpeedCard:
-    rootName: MoveSpeedCard
-    root: {fileID: 6993323891501148995}
-    titleText: {fileID: 3789750598822924291}
-    levelText: {fileID: 2423192185843924395}
-    descriptionText: {fileID: 4388845607348276718}
-    upgradeButton: {fileID: 8654086108264002675}
-    upgradeButtonImage: {fileID: 5146630868984789463}
-    upgradeButtonText: {fileID: 3750485709785374659}
-  gatherSpeedCard:
-    rootName: GatherSpeedCard
-    root: {fileID: 29698517322368413}
-    titleText: {fileID: 5743223752891768814}
-    levelText: {fileID: 3915771420430791924}
-    descriptionText: {fileID: 6150376055103618468}
-    upgradeButton: {fileID: 863208014834253316}
-    upgradeButtonImage: {fileID: 2235224937717151152}
-    upgradeButtonText: {fileID: 3459394687919319272}
-  meleeTrainingCard:
-    rootName: MeleeTrainingCard
+  towerCard:
+    rootName: towerCard
+    type: 0
     root: {fileID: 0}
     titleText: {fileID: 0}
     levelText: {fileID: 0}
     descriptionText: {fileID: 0}
-    upgradeButton: {fileID: 0}
-    upgradeButtonImage: {fileID: 0}
-    upgradeButtonText: {fileID: 0}
-  rangedTrainingCard:
-    rootName: RangedTrainingCard
+    buildButton: {fileID: 0}
+    buildButtonImage: {fileID: 0}
+    buildButtonText: {fileID: 0}
+  campCard:
+    rootName: campCard
+    type: 3
     root: {fileID: 0}
     titleText: {fileID: 0}
     levelText: {fileID: 0}
     descriptionText: {fileID: 0}
-    upgradeButton: {fileID: 0}
-    upgradeButtonImage: {fileID: 0}
-    upgradeButtonText: {fileID: 0}
+    buildButton: {fileID: 0}
+    buildButtonImage: {fileID: 0}
+    buildButtonText: {fileID: 0}
+  woodCard:
+    rootName: woodCard
+    type: 1
+    root: {fileID: 0}
+    titleText: {fileID: 0}
+    levelText: {fileID: 0}
+    descriptionText: {fileID: 0}
+    buildButton: {fileID: 0}
+    buildButtonImage: {fileID: 0}
+    buildButtonText: {fileID: 0}
+  stoneCard:
+    rootName: stoneCard
+    type: 2
+    root: {fileID: 0}
+    titleText: {fileID: 0}
+    levelText: {fileID: 0}
+    descriptionText: {fileID: 0}
+    buildButton: {fileID: 0}
+    buildButtonImage: {fileID: 0}
+    buildButtonText: {fileID: 0}
   buttonEnabledColor: {r: 1, g: 1, b: 1, a: 1}
   buttonDisabledColor: {r: 0.55, g: 0.55, b: 0.55, a: 1}
 --- !u!1 &3260157721750392473
