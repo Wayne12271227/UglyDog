@@ -48,6 +48,39 @@ public static class PreferredPlayerFinder
         return fallback;
     }
 
+    public static CatPlayerController FindPreferredPlayer(System.Predicate<CatPlayerController> predicate)
+    {
+        CatPlayerController[] candidates = Object.FindObjectsOfType<CatPlayerController>();
+        CatPlayerController preferred = null;
+        CatPlayerController fallback = null;
+
+        for (int i = 0; i < candidates.Length; i++)
+        {
+            CatPlayerController candidate = candidates[i];
+            if (!IsUsable(candidate) || (predicate != null && !predicate(candidate)))
+            {
+                continue;
+            }
+
+            if (candidate.HasRunningNetworkInputAuthority())
+            {
+                return candidate;
+            }
+
+            if (preferred == null && IsPreferredPlayer(candidate))
+            {
+                preferred = candidate;
+            }
+
+            if (fallback == null)
+            {
+                fallback = candidate;
+            }
+        }
+
+        return preferred != null ? preferred : fallback;
+    }
+
     public static CatPlayerController FindPlayer(MinionTeam team)
     {
         CatPlayerController[] candidates = Object.FindObjectsOfType<CatPlayerController>();

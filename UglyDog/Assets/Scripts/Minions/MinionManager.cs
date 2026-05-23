@@ -84,6 +84,8 @@ public class MinionManager : MonoBehaviour
     private const string CatVictoryPrefabPath = "Assets/prefab/character/CAT2 1.prefab";
     private const string VictoryResultPrefabPath = "Assets/prefab/VictoryResultCanvas.prefab";
     private const string MainMenuSceneName = "MainMenu";
+    private const int VictoryPreviewLayer = 31;
+    private const int VictoryPreviewMask = 1 << VictoryPreviewLayer;
 
     public static MinionManager EnsureInstance()
     {
@@ -1030,6 +1032,7 @@ public class MinionManager : MonoBehaviour
         resultCharacterInstance.transform.localPosition = Vector3.zero;
         resultCharacterInstance.transform.localRotation = Quaternion.Euler(0f, 180f, 0f);
         resultCharacterInstance.transform.localScale = Vector3.one;
+        ApplyLayerRecursively(resultCharacterInstance, VictoryPreviewLayer);
         PrepareVictoryCharacter(resultCharacterInstance);
         FitVictoryCharacter(resultCharacterInstance.transform);
 
@@ -1053,9 +1056,11 @@ public class MinionManager : MonoBehaviour
         };
 
         resultCharacterStage = new GameObject("Victory Character Stage");
+        resultCharacterStage.layer = VictoryPreviewLayer;
         resultCharacterStage.transform.position = new Vector3(0f, -200f, 0f);
 
         GameObject cameraObject = new GameObject("Victory Character Camera", typeof(Camera));
+        cameraObject.layer = VictoryPreviewLayer;
         cameraObject.transform.SetParent(resultCharacterStage.transform, false);
         cameraObject.transform.localPosition = new Vector3(0f, 1.35f, -4.2f);
         cameraObject.transform.localRotation = Quaternion.Euler(12f, 0f, 0f);
@@ -1063,19 +1068,24 @@ public class MinionManager : MonoBehaviour
         Camera camera = cameraObject.GetComponent<Camera>();
         camera.clearFlags = CameraClearFlags.SolidColor;
         camera.backgroundColor = new Color(0f, 0f, 0f, 0f);
+        camera.cullingMask = VictoryPreviewMask;
         camera.targetTexture = resultCharacterTexture;
         camera.fieldOfView = 32f;
         camera.nearClipPlane = 0.05f;
         camera.farClipPlane = 30f;
+        camera.allowHDR = false;
+        camera.allowMSAA = true;
 
         GameObject lightObject = new GameObject("Victory Character Light", typeof(Light));
+        lightObject.layer = VictoryPreviewLayer;
         lightObject.transform.SetParent(resultCharacterStage.transform, false);
         lightObject.transform.localPosition = new Vector3(-1.8f, 3.1f, -2.6f);
         lightObject.transform.localRotation = Quaternion.Euler(52f, 28f, 0f);
 
         Light light = lightObject.GetComponent<Light>();
         light.type = LightType.Directional;
-        light.intensity = 2.6f;
+        light.intensity = 1.35f;
+        light.cullingMask = VictoryPreviewMask;
     }
 
     private void DestroyResultCharacterStage()
@@ -1139,6 +1149,20 @@ public class MinionManager : MonoBehaviour
             {
                 behaviours[i].enabled = false;
             }
+        }
+    }
+
+    private static void ApplyLayerRecursively(GameObject target, int layer)
+    {
+        if (target == null)
+        {
+            return;
+        }
+
+        Transform[] transforms = target.GetComponentsInChildren<Transform>(true);
+        for (int i = 0; i < transforms.Length; i++)
+        {
+            transforms[i].gameObject.layer = layer;
         }
     }
 

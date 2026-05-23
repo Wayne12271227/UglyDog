@@ -83,8 +83,8 @@ public class TreesChoppingSystem : MonoBehaviour
             }
         }
 
-        FindPlayerIfNeeded();
         FindInteractionAreaIfNeeded();
+        FindPlayerIfNeeded();
 
         bool playerInRange = player != null && IsPlayerInsideInteractionArea(player.transform.position);
         bool playerCanGather = playerInRange && CanGatherNow(player);
@@ -494,7 +494,13 @@ public class TreesChoppingSystem : MonoBehaviour
 
     private void FindPlayerIfNeeded()
     {
-        if (!autoFindPlayer || player != null)
+        if (!autoFindPlayer)
+        {
+            return;
+        }
+
+        bool currentPlayerInRange = player != null && IsPlayerInsideInteractionArea(player.transform.position);
+        if (currentPlayerInRange)
         {
             return;
         }
@@ -505,7 +511,17 @@ public class TreesChoppingSystem : MonoBehaviour
         }
 
         nextPlayerSearchTime = Time.time + 1f;
-        player = FindPreferredPlayer();
+        CatPlayerController inRangePlayer = PreferredPlayerFinder.FindPreferredPlayer(candidate => IsPlayerInsideInteractionArea(candidate.transform.position));
+        if (inRangePlayer != null)
+        {
+            player = inRangePlayer;
+            return;
+        }
+
+        if (player == null)
+        {
+            player = FindPreferredPlayer();
+        }
     }
 
     private CatPlayerController FindPreferredPlayer()
