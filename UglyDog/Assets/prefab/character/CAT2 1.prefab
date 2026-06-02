@@ -8277,13 +8277,24 @@ MonoBehaviour:
   turnSpeed: 12
   moveRelativeToCamera: 1
   modelForwardOffsetY: 90
+  collisionLayers:
+    serializedVersion: 2
+    m_Bits: 4294967295
+  collisionSkin: 0.03
+  walkableCollisionNormalY: 0.45
+  resolveCollisionPenetration: 1
+  penetrationResolveIterations: 2
+  penetrationSkin: 0.01
+  maxPenetrationCorrection: 0.1
   snapToGround: 1
+  autoAlignCapsuleToGround: 1
   groundLayers:
     serializedVersion: 2
     m_Bits: 4294967295
   groundProbeHeight: 3
   maxGroundSnapDistance: 6
   groundSkin: 0.01
+  maxGroundStepUp: 0.8
   animator: {fileID: 3337623710558594523}
   attackKey: 106
   speedParameter: Speed
@@ -8309,6 +8320,26 @@ MonoBehaviour:
   attackCooldown: 5
   attackAnimationSpeed: 2.5
   attackAnimationSpeedDuration: 0.4
+  actionAudioSource: {fileID: 0}
+  woodDigActionClip: {fileID: 0}
+  stoneDigActionClip: {fileID: 0}
+  footstepClip: {fileID: 0}
+  attackClip: {fileID: 0}
+  buildClip: {fileID: 0}
+  coinGainClip: {fileID: 0}
+  digActionVolume: 1
+  footstepVolume: 0.75
+  attackVolume: 1
+  buildVolume: 1
+  coinGainVolume: 1
+  digActionImpactNormalizedTime: 0.55
+  digActionMinimumInterval: 0.12
+  footstepInterval: 0.35
+  buildSoundInterval: 0.55
+  syncDigSpeedToGatherInterval: 1
+  baseDigCycleDuration: 0.5
+  minSyncedDigAnimatorSpeed: 0.5
+  maxSyncedDigAnimatorSpeed: 3
 --- !u!136 &-6218835091768195446
 CapsuleCollider:
   m_ObjectHideFlags: 0

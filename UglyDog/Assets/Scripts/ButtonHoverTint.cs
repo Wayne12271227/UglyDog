@@ -12,6 +12,7 @@ public class ButtonHoverTint : MonoBehaviour, IPointerEnterHandler, IPointerExit
     [SerializeField] private float hoverScale = 1.06f;
     [SerializeField] private float pressedScale = 0.97f;
     [SerializeField] private float transitionSpeed = 14f;
+    [SerializeField] private bool scaleWhenDisabled = true;
 
     private Selectable selectable;
     private Color normalColor;
@@ -122,19 +123,19 @@ public class ButtonHoverTint : MonoBehaviour, IPointerEnterHandler, IPointerExit
 
     private void ApplyTint()
     {
-        if (targetGraphic == null)
+        bool canInteract = selectable == null || selectable.interactable;
+        bool shouldHover = isPointerOver || isSelected;
+        bool shouldHoverTint = canInteract && shouldHover;
+        bool shouldHoverScale = shouldHoverTint || scaleWhenDisabled && shouldHover;
+
+        if (targetGraphic != null)
         {
-            return;
+            targetColor = shouldHoverTint
+                ? Color.Lerp(normalColor, WithAlpha(hoverTint, normalColor.a), hoverStrength)
+                : normalColor;
         }
 
-        bool shouldHoverTint = selectable == null || selectable.interactable
-            ? isPointerOver || isSelected
-            : false;
-
-        targetColor = shouldHoverTint
-            ? Color.Lerp(normalColor, WithAlpha(hoverTint, normalColor.a), hoverStrength)
-            : normalColor;
-        targetScale = normalScale * (isPointerDown ? pressedScale : shouldHoverTint ? hoverScale : 1f);
+        targetScale = normalScale * (isPointerDown && canInteract ? pressedScale : shouldHoverScale ? hoverScale : 1f);
     }
 
     private static Color WithAlpha(Color color, float alpha)

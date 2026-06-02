@@ -8,6 +8,7 @@ using UnityEngine;
 public class UglyDogFusionLauncher : MonoBehaviour, INetworkRunnerCallbacks
 {
     [SerializeField] private NetworkObject playerPrefab;
+    [SerializeField] private NetworkObject secondPlayerPrefab;
     [SerializeField] private string sessionName = "UglyDog-Test-Room";
     [SerializeField] private Vector3[] spawnPositions =
     {
@@ -63,8 +64,15 @@ public class UglyDogFusionLauncher : MonoBehaviour, INetworkRunnerCallbacks
             return;
         }
 
-        Vector3 spawnPosition = GetSpawnPosition(player);
-        NetworkObject playerObject = networkRunner.Spawn(playerPrefab, spawnPosition, Quaternion.identity, player);
+        NetworkObject prefab = GetPrefabForPlayer(networkRunner, player);
+        if (prefab == null)
+        {
+            Debug.LogError("UglyDogFusionLauncher needs a NetworkObject player prefab.");
+            return;
+        }
+
+        Vector3 spawnPosition = GetSpawnPosition(networkRunner, player);
+        NetworkObject playerObject = networkRunner.Spawn(prefab, spawnPosition, Quaternion.identity, player);
         networkRunner.SetPlayerObject(player, playerObject);
     }
 
@@ -85,8 +93,7 @@ public class UglyDogFusionLauncher : MonoBehaviour, INetworkRunnerCallbacks
             && !BuildingPlacementController.BlocksPlayerInput
             && !SettingsPanelUI.BlocksPlayerInput)
         {
-            data.Move = new Vector2(Input.GetAxisRaw("Horizontal"), Input.GetAxisRaw("Vertical"));
-            data.Move = Vector2.ClampMagnitude(data.Move, 1f);
+            data.Move = UglyDogNetworkInput.ReadCameraRelativeMove();
             data.Buttons.Set((int)UglyDogInputButton.Attack, Input.GetKey(KeyCode.J));
         }
 
@@ -98,14 +105,41 @@ public class UglyDogFusionLauncher : MonoBehaviour, INetworkRunnerCallbacks
         input.Set(default(UglyDogNetworkInput));
     }
 
-    private Vector3 GetSpawnPosition(PlayerRef player)
+    private NetworkObject GetPrefabForPlayer(NetworkRunner networkRunner, PlayerRef player)
+    {
+        int playerIndex = GetPlayerIndex(networkRunner, player);
+        if (playerIndex == 1 && secondPlayerPrefab != null)
+        {
+            return secondPlayerPrefab;
+        }
+
+        return playerPrefab;
+    }
+
+    private int GetPlayerIndex(NetworkRunner networkRunner, PlayerRef player)
+    {
+        int index = 0;
+        foreach (PlayerRef activePlayer in networkRunner.ActivePlayers.OrderBy(active => active.RawEncoded))
+        {
+            if (activePlayer == player)
+            {
+                return index;
+            }
+
+            index++;
+        }
+
+        return Mathf.Max(0, player.RawEncoded - 1);
+    }
+
+    private Vector3 GetSpawnPosition(NetworkRunner networkRunner, PlayerRef player)
     {
         if (spawnPositions == null || spawnPositions.Length == 0)
         {
             return Vector3.zero;
         }
 
-        int index = Mathf.Abs(player.RawEncoded) % spawnPositions.Length;
+        int index = GetPlayerIndex(networkRunner, player) % spawnPositions.Length;
         return spawnPositions[index];
     }
 

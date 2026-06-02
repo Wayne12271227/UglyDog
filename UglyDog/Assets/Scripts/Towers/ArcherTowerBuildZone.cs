@@ -71,6 +71,8 @@ public class ArcherTowerBuildZone : MonoBehaviour
     private CatPlayerController activeBuilder;
     private GameObject currentBuilding;
     private TeamBuilding currentTeamBuilding;
+    private BuildSiteBuildingType currentBuildingType;
+    private bool currentBuildingIsNetworkPrediction;
     private BuildSiteBuildingType pendingType;
     private bool isBuilding;
     private float buildProgress;
@@ -110,7 +112,20 @@ public class ArcherTowerBuildZone : MonoBehaviour
 #endif
     }
 
-    public bool HasCurrentBuilding => currentBuilding != null;
+    public bool HasCurrentBuilding => currentBuilding != null || isBuilding;
+
+    public Vector3 NetworkAnchorPosition
+    {
+        get
+        {
+            if (zoneCollider == null)
+            {
+                zoneCollider = GetComponent<Collider>();
+            }
+
+            return zoneCollider != null ? zoneCollider.bounds.center : transform.position;
+        }
+    }
 
     private void EnsureVisualPrefabSlots()
     {
@@ -385,7 +400,7 @@ public class ArcherTowerBuildZone : MonoBehaviour
 
     public void BeginBuild(BuildSiteBuildingType type)
     {
-        if (activeBuilder == null || currentBuilding != null)
+        if (activeBuilder == null || HasCurrentBuilding)
         {
             return;
         }
@@ -414,7 +429,7 @@ public class ArcherTowerBuildZone : MonoBehaviour
             return false;
         }
 
-        if (currentBuilding != null)
+        if (HasCurrentBuilding)
         {
             failureMessage = occupiedPromptText;
             FlashPrompt(failureMessage);
@@ -463,7 +478,18 @@ public class ArcherTowerBuildZone : MonoBehaviour
 
         MinionTeam team = GetPlayerTeam(builder);
         MoveBuilderOutsideBuildFootprint(builder, pendingType);
-        CreateBuilding(pendingType, team);
+        if (TryRequestNetworkBuilding(pendingType, team, builder, out bool shouldCreatePrediction))
+        {
+            if (shouldCreatePrediction)
+            {
+                TryCreatePredictedNetworkBuilding(pendingType, team);
+            }
+        }
+        else
+        {
+            CreateBuilding(pendingType, team);
+        }
+
         MoveBuilderOutsideCurrentBuilding(builder);
         isBuilding = false;
         buildProgress = 0f;
@@ -484,7 +510,7 @@ public class ArcherTowerBuildZone : MonoBehaviour
 
     private void TryOpenBuildUI(CatPlayerController builder)
     {
-        if (currentBuilding != null)
+        if (HasCurrentBuilding)
         {
             FlashPrompt("\u9700\u5148\u6467\u6bc0\u73fe\u6709\u5efa\u7bc9");
             return;
@@ -542,8 +568,13 @@ public class ArcherTowerBuildZone : MonoBehaviour
         }
     }
 
-    private void CreateBuilding(BuildSiteBuildingType type, MinionTeam team)
+    private void CreateBuilding(BuildSiteBuildingType type, MinionTeam team, bool isNetworkPrediction = false)
     {
+        if (currentBuilding != null)
+        {
+            return;
+        }
+
         GameObject buildingObject = new GameObject(team + " " + GetDisplayName(type));
         buildingObject.transform.position = GetBuildPosition();
         buildingObject.transform.rotation = Quaternion.Euler(0f, transform.eulerAngles.y, 0f);
@@ -553,6 +584,8 @@ public class ArcherTowerBuildZone : MonoBehaviour
         health.Destroyed += OnBuildingDestroyed;
 
         currentBuilding = buildingObject;
+        currentBuildingType = type;
+        currentBuildingIsNetworkPrediction = isNetworkPrediction;
         currentTeamBuilding = buildingObject.AddComponent<TeamBuilding>();
         currentTeamBuilding.Configure(team);
 
@@ -582,6 +615,120 @@ public class ArcherTowerBuildZone : MonoBehaviour
         SetOwner(team);
     }
 
+    public bool TryCreateNetworkBuilding(BuildSiteBuildingType type, MinionTeam team)
+    {
+        if (currentBuilding != null)
+        {
+            if (currentBuildingIsNetworkPrediction)
+            {
+                if (currentBuildingType != type || currentTeamBuilding == null || currentTeamBuilding.Team != team)
+                {
+                    ClearCurrentBuilding();
+                    CreateBuilding(type, team);
+                    return currentBuilding != null;
+                }
+
+                currentBuildingIsNetworkPrediction = false;
+                SetOwner(team);
+                return true;
+            }
+
+            return false;
+        }
+
+        CreateBuilding(type, team);
+        return currentBuilding != null;
+    }
+
+    public bool TryCreatePredictedNetworkBuilding(BuildSiteBuildingType type, MinionTeam team)
+    {
+        if (currentBuilding != null)
+        {
+            return false;
+        }
+
+        CreateBuilding(type, team, true);
+        return currentBuilding != null;
+    }
+
+    public void RejectNetworkBuildPrediction(BuildSiteBuildingType type)
+    {
+        if (!currentBuildingIsNetworkPrediction || currentBuildingType != type)
+        {
+            return;
+        }
+
+        ClearCurrentBuilding();
+    }
+
+    public static ArcherTowerBuildZone FindClosestNetworkZone(Vector3 anchorPosition, float maxDistance = 2.5f)
+    {
+        ArcherTowerBuildZone[] zones = FindObjectsOfType<ArcherTowerBuildZone>(true);
+        ArcherTowerBuildZone closest = null;
+        float closestDistance = maxDistance * maxDistance;
+
+        for (int i = 0; i < zones.Length; i++)
+        {
+            ArcherTowerBuildZone zone = zones[i];
+            if (zone == null)
+            {
+                continue;
+            }
+
+            Vector3 offset = zone.NetworkAnchorPosition - anchorPosition;
+            offset.y = 0f;
+            float distance = offset.sqrMagnitude;
+            if (distance <= closestDistance)
+            {
+                closest = zone;
+                closestDistance = distance;
+            }
+        }
+
+        return closest;
+    }
+
+    public static void RefundBuildCost(BuildSiteBuildingType type)
+    {
+        ResourceManager resources = ResourceManager.Instance;
+        if (resources == null)
+        {
+            return;
+        }
+
+        int coinCost = GetCoinCost(type);
+        int woodCost = GetWoodCost(type);
+        int stoneCost = GetStoneCost(type);
+
+        if (coinCost > 0)
+        {
+            resources.Add(ResourceType.Coin, coinCost);
+        }
+
+        if (woodCost > 0)
+        {
+            resources.Add(ResourceType.Wood, woodCost);
+        }
+
+        if (stoneCost > 0)
+        {
+            resources.Add(ResourceType.Stone, stoneCost);
+        }
+    }
+
+    private bool TryRequestNetworkBuilding(BuildSiteBuildingType type, MinionTeam team, CatPlayerController builder, out bool shouldCreatePrediction)
+    {
+        shouldCreatePrediction = false;
+        UglyDogNetworkPlayer networkPlayer = builder != null ? builder.GetComponent<UglyDogNetworkPlayer>() : null;
+        if (networkPlayer == null || !builder.HasRunningNetworkInputAuthority())
+        {
+            return false;
+        }
+
+        shouldCreatePrediction = networkPlayer.ShouldPredictBuildRequests;
+        return networkPlayer.RequestBuild(NetworkAnchorPosition, type, team);
+    }
+
     private void OnBuildingDestroyed(BuildingHealth health)
     {
         if (health != null)
@@ -589,8 +736,30 @@ public class ArcherTowerBuildZone : MonoBehaviour
             health.Destroyed -= OnBuildingDestroyed;
         }
 
+        ResetCurrentBuildingState();
+    }
+
+    private void ClearCurrentBuilding()
+    {
+        if (currentTeamBuilding != null && currentTeamBuilding.Health != null)
+        {
+            currentTeamBuilding.Health.Destroyed -= OnBuildingDestroyed;
+        }
+
+        if (currentBuilding != null)
+        {
+            Destroy(currentBuilding);
+        }
+
+        ResetCurrentBuildingState();
+    }
+
+    private void ResetCurrentBuildingState()
+    {
         currentBuilding = null;
         currentTeamBuilding = null;
+        currentBuildingType = default;
+        currentBuildingIsNetworkPrediction = false;
         hasOwner = false;
         ApplyOwnershipColor();
     }

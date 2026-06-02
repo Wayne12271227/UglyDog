@@ -209,8 +209,7 @@ public class UglyDogRoomLobby : MonoBehaviour, INetworkRunnerCallbacks
             && !BuildingPlacementController.BlocksPlayerInput
             && !SettingsPanelUI.BlocksPlayerInput)
         {
-            data.Move = new Vector2(Input.GetAxisRaw("Horizontal"), Input.GetAxisRaw("Vertical"));
-            data.Move = Vector2.ClampMagnitude(data.Move, 1f);
+            data.Move = UglyDogNetworkInput.ReadCameraRelativeMove();
             data.Buttons.Set((int)UglyDogInputButton.Attack, Input.GetKey(KeyCode.J));
         }
 

@@ -7,6 +7,9 @@ public class MinionUnit : MonoBehaviour
     [SerializeField] private float moveSpeed = 2.2f;
     [SerializeField] private float turnSpeed = 12f;
     [SerializeField] private float targetSearchRadius = 7f;
+    [SerializeField] private float buildingSearchRadius = 24f;
+    [SerializeField] private float buildingPriorityRadius = 12f;
+    [SerializeField] private float minionInterruptRadius = 2.2f;
     [SerializeField] private float attackRange = 1.25f;
     [SerializeField] private int attackDamage = 4;
     [SerializeField] private int buildingAttackDamage = 4;
@@ -32,6 +35,7 @@ public class MinionUnit : MonoBehaviour
     [SerializeField] private string attackTrigger = "Attack";
 
     private const float FallbackAttackAnimationLength = 0.55f;
+    private const float TargetSearchInterval = 0.2f;
 
     private MinionCombatant combatant;
     private MinionCombatant currentTarget;
@@ -39,7 +43,8 @@ public class MinionUnit : MonoBehaviour
     private Transform goal;
     private MinionBaseHealth enemyBase;
     private float nextAttackTime;
-    private float nextTargetSearchTime;
+    private float nextMinionTargetSearchTime;
+    private float nextBuildingTargetSearchTime;
     private float resumeWalkTime;
     private float attackAnimationLength = FallbackAttackAnimationLength;
     private int walkStateHash;
@@ -73,22 +78,38 @@ public class MinionUnit : MonoBehaviour
             return;
         }
 
-        if (!IsValidTarget(currentTarget) || Time.time >= nextTargetSearchTime)
+        if (!IsValidTarget(currentTarget))
+        {
+            currentTarget = null;
+        }
+
+        if (!IsValidBuildingTarget(currentBuildingTarget) || !ShouldKeepBuildingTarget(currentBuildingTarget))
+        {
+            currentBuildingTarget = null;
+        }
+
+        if (currentBuildingTarget == null && Time.time >= nextBuildingTargetSearchTime)
+        {
+            currentBuildingTarget = FindNearestEnemyBuilding();
+            nextBuildingTargetSearchTime = Time.time + TargetSearchInterval;
+        }
+
+        if (Time.time >= nextMinionTargetSearchTime)
         {
             currentTarget = FindNearestEnemyMinion();
-            nextTargetSearchTime = Time.time + 0.2f;
+            nextMinionTargetSearchTime = Time.time + TargetSearchInterval;
+        }
+
+        if (ShouldPrioritizeBuilding(currentBuildingTarget, currentTarget))
+        {
+            ChaseOrAttack(currentBuildingTarget);
+            return;
         }
 
         if (currentTarget != null)
         {
-            currentBuildingTarget = null;
             ChaseOrAttack(currentTarget);
             return;
-        }
-
-        if (!IsValidBuildingTarget(currentBuildingTarget) || Time.time >= nextTargetSearchTime)
-        {
-            currentBuildingTarget = FindNearestEnemyBuilding();
         }
 
         if (currentBuildingTarget != null)
@@ -142,6 +163,9 @@ public class MinionUnit : MonoBehaviour
         int newBuildingAttackDamage,
         float newAttackCooldown,
         float newSearchRadius,
+        float newBuildingSearchRadius,
+        float newBuildingPriorityRadius,
+        float newMinionInterruptRadius,
         MinionBaseHealth newEnemyBase)
     {
         kind = newKind;
@@ -153,6 +177,9 @@ public class MinionUnit : MonoBehaviour
         buildingAttackDamage = Mathf.Max(1, newBuildingAttackDamage);
         attackCooldown = Mathf.Max(0.1f, newAttackCooldown);
         targetSearchRadius = Mathf.Max(attackRange, newSearchRadius);
+        buildingSearchRadius = Mathf.Max(targetSearchRadius, newBuildingSearchRadius);
+        buildingPriorityRadius = Mathf.Clamp(newBuildingPriorityRadius, attackRange, buildingSearchRadius);
+        minionInterruptRadius = Mathf.Max(0.1f, newMinionInterruptRadius);
     }
 
     private void ChaseOrAttack(MinionCombatant target)
@@ -236,13 +263,11 @@ public class MinionUnit : MonoBehaviour
             return;
         }
 
-        Vector3 offset = targetBuilding.transform.position - transform.position;
-        offset.y = 0f;
-        float attackDistance = GetAttackRangeForBuilding(health);
+        Vector3 offset = GetDirectionTowardBuildingTarget(health);
 
-        if (offset.sqrMagnitude > attackDistance * attackDistance)
+        if (!IsBuildingInAttackRange(health))
         {
-            MoveInDirection(offset.normalized);
+            MoveInDirection(GetBuildingApproachDirection(health));
             return;
         }
 
@@ -257,7 +282,7 @@ public class MinionUnit : MonoBehaviour
         PlayAttackAnimation();
         if (kind == MinionKind.Ranged)
         {
-            MinionProjectile.Spawn(transform.position + Vector3.up * 0.9f, health, attackDamage, Team);
+            MinionProjectile.Spawn(transform.position + Vector3.up * 0.9f, health, buildingAttackDamage, Team);
         }
         else
         {
@@ -913,7 +938,7 @@ public class MinionUnit : MonoBehaviour
 
     private TeamBuilding FindNearestEnemyBuilding()
     {
-        Collider[] hits = Physics.OverlapSphere(transform.position, targetSearchRadius, searchLayers, QueryTriggerInteraction.Collide);
+        Collider[] hits = Physics.OverlapSphere(transform.position, buildingSearchRadius, searchLayers, QueryTriggerInteraction.Collide);
         TeamBuilding nearest = null;
         float nearestDistance = float.PositiveInfinity;
 
@@ -921,6 +946,11 @@ public class MinionUnit : MonoBehaviour
         {
             TeamBuilding candidate = hits[i] != null ? hits[i].GetComponentInParent<TeamBuilding>() : null;
             if (!IsValidBuildingTarget(candidate))
+            {
+                continue;
+            }
+
+            if (!IsBuildingAheadOfGoal(candidate))
             {
                 continue;
             }
@@ -954,6 +984,68 @@ public class MinionUnit : MonoBehaviour
             && !candidate.Health.IsDestroyed;
     }
 
+    private bool ShouldPrioritizeBuilding(TeamBuilding building, MinionCombatant minion)
+    {
+        if (!IsValidBuildingTarget(building))
+        {
+            return false;
+        }
+
+        if (!IsValidTarget(minion))
+        {
+            return true;
+        }
+
+        float priorityDistance = GetPriorityDistanceForBuilding(building.Health);
+        if (GetHorizontalDistanceToBuildingSqr(building.Health) > priorityDistance * priorityDistance)
+        {
+            return false;
+        }
+
+        Vector3 minionOffset = minion.transform.position - transform.position;
+        minionOffset.y = 0f;
+        return minionOffset.sqrMagnitude > minionInterruptRadius * minionInterruptRadius;
+    }
+
+    private bool ShouldKeepBuildingTarget(TeamBuilding building)
+    {
+        if (!IsValidBuildingTarget(building))
+        {
+            return false;
+        }
+
+        if (kind == MinionKind.Melee && IsInsideBuildingHorizontalFootprint(GetBuildingCollider(building.Health)))
+        {
+            return true;
+        }
+
+        return IsBuildingAheadOfGoal(building) || IsBuildingInAttackRange(building.Health);
+    }
+
+    private bool IsBuildingAheadOfGoal(TeamBuilding building)
+    {
+        if (building == null || goal == null)
+        {
+            return true;
+        }
+
+        Vector3 toGoal = goal.position - transform.position;
+        toGoal.y = 0f;
+        if (toGoal.sqrMagnitude <= 0.001f)
+        {
+            return true;
+        }
+
+        Vector3 toBuilding = building.transform.position - transform.position;
+        toBuilding.y = 0f;
+        if (toBuilding.sqrMagnitude <= 0.001f)
+        {
+            return true;
+        }
+
+        return Vector3.Dot(toGoal.normalized, toBuilding.normalized) >= -0.05f;
+    }
+
     private float GetAttackRangeForTarget(MinionCombatant target)
     {
         Collider collider = target != null ? target.GetComponentInChildren<Collider>() : null;
@@ -965,15 +1057,132 @@ public class MinionUnit : MonoBehaviour
         return attackRange + Mathf.Max(collider.bounds.extents.x, collider.bounds.extents.z);
     }
 
-    private float GetAttackRangeForBuilding(BuildingHealth targetBuilding)
+    private float GetPriorityDistanceForBuilding(BuildingHealth targetBuilding)
     {
-        Collider collider = targetBuilding != null ? targetBuilding.GetComponentInChildren<Collider>() : null;
-        if (collider == null)
+        return buildingPriorityRadius;
+    }
+
+    private bool IsBuildingInAttackRange(BuildingHealth targetBuilding)
+    {
+        if (targetBuilding == null)
         {
-            return attackRange;
+            return false;
         }
 
-        return attackRange + Mathf.Max(collider.bounds.extents.x, collider.bounds.extents.z);
+        Collider collider = GetBuildingCollider(targetBuilding);
+        if (kind == MinionKind.Melee && IsInsideBuildingHorizontalFootprint(collider))
+        {
+            return false;
+        }
+
+        float distanceSqr = kind == MinionKind.Ranged
+            ? GetHorizontalCenterDistanceToBuildingSqr(targetBuilding)
+            : GetHorizontalDistanceToBuildingSqr(targetBuilding);
+
+        return distanceSqr <= attackRange * attackRange;
+    }
+
+    private float GetHorizontalCenterDistanceToBuildingSqr(BuildingHealth targetBuilding)
+    {
+        if (targetBuilding == null)
+        {
+            return float.PositiveInfinity;
+        }
+
+        Vector3 offset = targetBuilding.transform.position - transform.position;
+        offset.y = 0f;
+        return offset.sqrMagnitude;
+    }
+
+    private float GetHorizontalDistanceToBuildingSqr(BuildingHealth targetBuilding)
+    {
+        Collider collider = GetBuildingCollider(targetBuilding);
+        if (collider == null)
+        {
+            return GetHorizontalCenterDistanceToBuildingSqr(targetBuilding);
+        }
+
+        Vector3 closest = collider.ClosestPoint(transform.position);
+        Vector3 offset = closest - transform.position;
+        offset.y = 0f;
+        return offset.sqrMagnitude;
+    }
+
+    private Vector3 GetBuildingApproachDirection(BuildingHealth targetBuilding)
+    {
+        Collider collider = GetBuildingCollider(targetBuilding);
+        if (collider != null)
+        {
+            Vector3 closest = collider.ClosestPoint(transform.position);
+            Vector3 toEdge = closest - transform.position;
+            toEdge.y = 0f;
+            if (toEdge.sqrMagnitude > 0.0001f)
+            {
+                return toEdge.normalized;
+            }
+
+            Vector3 awayFromCenter = transform.position - collider.bounds.center;
+            awayFromCenter.y = 0f;
+            if (awayFromCenter.sqrMagnitude > 0.0001f)
+            {
+                return awayFromCenter.normalized;
+            }
+        }
+
+        return GetDirectionTowardBuildingTarget(targetBuilding);
+    }
+
+    private Vector3 GetDirectionTowardBuildingTarget(BuildingHealth targetBuilding)
+    {
+        if (targetBuilding == null)
+        {
+            return transform.forward;
+        }
+
+        Collider collider = GetBuildingCollider(targetBuilding);
+        if (collider != null)
+        {
+            Vector3 closest = collider.ClosestPoint(transform.position);
+            Vector3 toEdge = closest - transform.position;
+            toEdge.y = 0f;
+            if (toEdge.sqrMagnitude > 0.0001f)
+            {
+                return toEdge.normalized;
+            }
+        }
+
+        Vector3 toCenter = targetBuilding.transform.position - transform.position;
+        toCenter.y = 0f;
+        return toCenter.sqrMagnitude > 0.0001f ? toCenter.normalized : transform.forward;
+    }
+
+    private Collider GetBuildingCollider(BuildingHealth targetBuilding)
+    {
+        return targetBuilding != null ? targetBuilding.GetComponentInChildren<Collider>() : null;
+    }
+
+    private bool IsInsideBuildingHorizontalFootprint(Collider collider)
+    {
+        if (collider == null)
+        {
+            return false;
+        }
+
+        Vector3 closest = collider.ClosestPoint(transform.position);
+        Vector3 toClosest = closest - transform.position;
+        toClosest.y = 0f;
+        if (toClosest.sqrMagnitude > 0.0001f)
+        {
+            return false;
+        }
+
+        Bounds bounds = collider.bounds;
+        const float edgePadding = 0.05f;
+        Vector3 position = transform.position;
+        return position.x > bounds.min.x + edgePadding
+            && position.x < bounds.max.x - edgePadding
+            && position.z > bounds.min.z + edgePadding
+            && position.z < bounds.max.z - edgePadding;
     }
 
     private bool IsInsideEnemyBaseRange()
@@ -1008,7 +1217,10 @@ public class MinionUnit : MonoBehaviour
         moveSpeed = Mathf.Max(0.1f, moveSpeed);
         turnSpeed = Mathf.Max(0f, turnSpeed);
         targetSearchRadius = Mathf.Max(0.1f, targetSearchRadius);
+        buildingSearchRadius = Mathf.Max(targetSearchRadius, buildingSearchRadius);
         attackRange = Mathf.Max(0.1f, attackRange);
+        buildingPriorityRadius = Mathf.Clamp(buildingPriorityRadius, attackRange, buildingSearchRadius);
+        minionInterruptRadius = Mathf.Max(0.1f, minionInterruptRadius);
         buildingAttackDamage = Mathf.Max(1, buildingAttackDamage);
         attackCooldown = Mathf.Max(0.05f, attackCooldown);
         groundProbeHeight = Mathf.Max(0.1f, groundProbeHeight);

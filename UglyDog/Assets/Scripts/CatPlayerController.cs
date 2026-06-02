@@ -194,7 +194,39 @@ public class CatPlayerController : MonoBehaviour
 
     public void ApplyNetworkInput(Vector2 moveInput, bool attackPressed, float deltaTime)
     {
-        ApplyMovementInput(new Vector3(moveInput.x, 0f, moveInput.y), attackPressed, deltaTime);
+        ApplyNetworkInput(moveInput, attackPressed, deltaTime, true, true);
+    }
+
+    public void ApplyNetworkInput(Vector2 moveInput, bool attackPressed, float deltaTime, bool allowLocalSideEffects, bool allowGameplayEffects)
+    {
+        ApplyWorldMovementInput(new Vector3(moveInput.x, 0f, moveInput.y), attackPressed, deltaTime, allowLocalSideEffects, allowGameplayEffects);
+    }
+
+    private void ApplyWorldMovementInput(Vector3 worldMoveInput, bool attackPressed, float deltaTime, bool allowLocalSideEffects, bool allowGameplayEffects)
+    {
+        worldMoveInput = Vector3.ClampMagnitude(worldMoveInput, 1f);
+        currentInputMagnitude = worldMoveInput.magnitude;
+
+        bool isWalking = worldMoveInput.sqrMagnitude > 0.001f;
+        if (isWalking)
+        {
+            Quaternion targetRotation = Quaternion.LookRotation(worldMoveInput, Vector3.up) * Quaternion.Euler(0f, modelForwardOffsetY, 0f);
+            transform.rotation = Quaternion.Slerp(transform.rotation, targetRotation, turnSpeed * deltaTime);
+        }
+
+        MovePlayer(worldMoveInput * GetEffectiveMoveSpeed() * deltaTime);
+        SnapToGroundIfNeeded();
+        if (allowLocalSideEffects)
+        {
+            UpdateFootstepAudio(isWalking);
+        }
+
+        UpdateAnimation(currentInputMagnitude);
+
+        if (attackPressed)
+        {
+            TryKickAttack(allowGameplayEffects, allowLocalSideEffects || allowGameplayEffects);
+        }
     }
 
     public void ApplyNetworkAnimation(float speedValue)
@@ -225,7 +257,7 @@ public class CatPlayerController : MonoBehaviour
 
         if (attackPressed)
         {
-            TryKickAttack();
+            TryKickAttack(true, true);
         }
     }
 
@@ -327,6 +359,11 @@ public class CatPlayerController : MonoBehaviour
                 continue;
             }
 
+            if (IsPredictionUnstableCollider(hitCollider))
+            {
+                continue;
+            }
+
             if (IsEscapingBuildingCollider(hitCollider, horizontalOffset))
             {
                 continue;
@@ -381,6 +418,11 @@ public class CatPlayerController : MonoBehaviour
                 continue;
             }
 
+            if (IsPredictionUnstableCollider(other))
+            {
+                continue;
+            }
+
             if (!Physics.ComputePenetration(
                     capsuleCollider,
                     transform.position,
@@ -424,6 +466,11 @@ public class CatPlayerController : MonoBehaviour
 
     private bool ShouldIgnoreHorizontalCollision(Collider other, Vector3 normal)
     {
+        if (IsPredictionUnstableCollider(other))
+        {
+            return true;
+        }
+
         if (IsGroundLikeCollider(other))
         {
             return true;
@@ -435,6 +482,18 @@ public class CatPlayerController : MonoBehaviour
         }
 
         return false;
+    }
+
+    private bool IsPredictionUnstableCollider(Collider other)
+    {
+        if (!networkControlled || other == null || IsBuildingCollider(other))
+        {
+            return false;
+        }
+
+        return other.GetComponentInParent<CatPlayerController>() != null
+            || other.GetComponentInParent<MinionUnit>() != null
+            || other.GetComponentInParent<MinionCombatant>() != null;
     }
 
     private bool IsEscapingBuildingCollider(Collider other, Vector3 horizontalOffset)
@@ -933,7 +992,7 @@ public class CatPlayerController : MonoBehaviour
         networkPlayer.RequestAction(action);
     }
 
-    private void TryKickAttack()
+    private void TryKickAttack(bool applyGameplayEffects, bool playLocalFeedback)
     {
         if (Time.time < nextAttackTime)
         {
@@ -941,8 +1000,15 @@ public class CatPlayerController : MonoBehaviour
         }
 
         nextAttackTime = Time.time + attackCooldown;
-        PlayAttack();
-        PerformKickAttack();
+        if (playLocalFeedback)
+        {
+            PlayAttack();
+        }
+
+        if (applyGameplayEffects)
+        {
+            PerformKickAttack();
+        }
     }
 
     private void PerformKickAttack()

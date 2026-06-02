@@ -30,12 +30,15 @@ public class MinionManager : MonoBehaviour
     [Header("Ranged")]
     [SerializeField] private int rangedHealth = 20;
     [SerializeField] private int rangedDamage = 4;
-    [SerializeField] private float rangedAttackRange = 5.5f;
+    [SerializeField] private float rangedAttackRange = 8f;
     [SerializeField] private float rangedAttackCooldown = 1.25f;
     [SerializeField] private float rangedMoveSpeed = 2.2f;
 
     [Header("Search")]
     [SerializeField] private float targetSearchRadius = 7f;
+    [SerializeField] private float buildingSearchRadius = 24f;
+    [SerializeField] private float buildingPriorityRadius = 12f;
+    [SerializeField] private float minionInterruptRadius = 2.2f;
     [SerializeField] private Vector3 spawnOffset = new Vector3(0f, 0.1f, 1.6f);
     [SerializeField] private int baseHealth = 100;
     [SerializeField] private Vector3 baseHealthLabelOffset = new Vector3(2.6f, 1.7f, 0f);
@@ -143,6 +146,10 @@ public class MinionManager : MonoBehaviour
     private void OnValidate()
     {
         baseHealth = Mathf.Max(1, baseHealth);
+        targetSearchRadius = Mathf.Max(0.1f, targetSearchRadius);
+        buildingSearchRadius = Mathf.Max(targetSearchRadius, buildingSearchRadius);
+        buildingPriorityRadius = Mathf.Clamp(buildingPriorityRadius, 0.1f, buildingSearchRadius);
+        minionInterruptRadius = Mathf.Max(0.1f, minionInterruptRadius);
 
 #if UNITY_EDITOR
         if (dogVictoryPrefab == null)
@@ -408,6 +415,9 @@ public class MinionManager : MonoBehaviour
             effectiveBuildingDamage,
             kind == MinionKind.Melee ? meleeAttackCooldown : rangedAttackCooldown,
             targetSearchRadius,
+            buildingSearchRadius,
+            buildingPriorityRadius,
+            minionInterruptRadius,
             enemyBase);
 
         if (!useVisualPrefab)
@@ -829,7 +839,7 @@ public class MinionManager : MonoBehaviour
     {
         EnsureResultUi();
 
-        string result = GetTeamName(winningTeam) + " \u52dd\u5229\n" + GetTeamName(losingTeam) + " \u5931\u6557";
+        string result = "\u52dd\u5229\u8005\uff1a" + GetTeamName(winningTeam);
         if (resultView != null)
         {
             resultView.ShowResult(result, null);
