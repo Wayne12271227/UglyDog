@@ -181,6 +181,7 @@ public class UglyDogRoomLobby : MonoBehaviour, INetworkRunnerCallbacks
     public void OnPlayerJoined(NetworkRunner networkRunner, PlayerRef player)
     {
         RefreshUi();
+        ConfigureSinglePlayerCatAi(networkRunner);
 
         if (gameStarted && networkRunner.IsServer)
         {
@@ -550,17 +551,12 @@ public class UglyDogRoomLobby : MonoBehaviour, INetworkRunnerCallbacks
 
     private void ConfigureSinglePlayerCatAi(NetworkRunner networkRunner)
     {
-        if (!gameStarted || networkRunner == null || !networkRunner.IsServer)
+        if (!gameStarted || networkRunner == null)
         {
             return;
         }
 
         MinionManager manager = MinionManager.EnsureInstance();
-        if (manager.GetComponent<MinionCatAiCommander>() == null)
-        {
-            manager.gameObject.AddComponent<MinionCatAiCommander>();
-        }
-
         if (secondPlayerPrefab != null)
         {
             manager.SetSinglePlayerCatPrefab(secondPlayerPrefab.gameObject);
@@ -568,6 +564,16 @@ public class UglyDogRoomLobby : MonoBehaviour, INetworkRunnerCallbacks
 
         bool hasHumanCat = networkRunner.ActivePlayers.Count() >= 2;
         manager.SetHumanCatOpponentPresent(hasHumanCat);
+
+        if (!networkRunner.IsServer)
+        {
+            return;
+        }
+
+        if (manager.GetComponent<MinionCatAiCommander>() == null)
+        {
+            manager.gameObject.AddComponent<MinionCatAiCommander>();
+        }
 
         if (!hasHumanCat)
         {

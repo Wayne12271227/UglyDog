@@ -278,12 +278,16 @@ public class UglyDogNetworkPlayer : NetworkBehaviour
     private void RPC_RejectBuild(Vector3 zoneAnchorPosition, byte buildingType)
     {
         ArcherTowerBuildZone zone = ArcherTowerBuildZone.FindClosestNetworkZone(zoneAnchorPosition);
+        bool removedPrediction = false;
         if (zone != null)
         {
-            zone.RejectNetworkBuildPrediction((BuildSiteBuildingType)buildingType);
+            removedPrediction = zone.RejectNetworkBuildPrediction((BuildSiteBuildingType)buildingType);
         }
 
-        ArcherTowerBuildZone.RefundBuildCost((BuildSiteBuildingType)buildingType);
+        if (removedPrediction)
+        {
+            ArcherTowerBuildZone.RefundBuildCost((BuildSiteBuildingType)buildingType);
+        }
     }
 
     private void TryBuildOnStateAuthority(Vector3 zoneAnchorPosition, byte buildingType, byte requestedTeam)
@@ -294,7 +298,7 @@ public class UglyDogNetworkPlayer : NetworkBehaviour
         }
 
         ArcherTowerBuildZone zone = ArcherTowerBuildZone.FindClosestNetworkZone(zoneAnchorPosition);
-        if (zone == null || zone.HasCurrentBuilding)
+        if (zone == null || zone.HasPlacedBuilding)
         {
             RPC_RejectBuild(zoneAnchorPosition, buildingType);
             return;

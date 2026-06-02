@@ -113,6 +113,7 @@ public class ArcherTowerBuildZone : MonoBehaviour
     }
 
     public bool HasCurrentBuilding => currentBuilding != null || isBuilding;
+    public bool HasPlacedBuilding => currentBuilding != null;
 
     public Vector3 NetworkAnchorPosition
     {
@@ -658,14 +659,15 @@ public class ArcherTowerBuildZone : MonoBehaviour
         return currentBuilding != null;
     }
 
-    public void RejectNetworkBuildPrediction(BuildSiteBuildingType type)
+    public bool RejectNetworkBuildPrediction(BuildSiteBuildingType type)
     {
         if (!currentBuildingIsNetworkPrediction || currentBuildingType != type)
         {
-            return;
+            return false;
         }
 
         ClearCurrentBuilding();
+        return true;
     }
 
     public static ArcherTowerBuildZone FindClosestNetworkZone(Vector3 anchorPosition, float maxDistance = 2.5f)
