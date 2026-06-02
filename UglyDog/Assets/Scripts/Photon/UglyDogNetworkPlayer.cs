@@ -143,6 +143,96 @@ public class UglyDogNetworkPlayer : NetworkBehaviour
         return true;
     }
 
+    public bool RequestBuyMinion(MinionKind kind, MinionTeam team, Vector3 spawnPosition, bool useExplicitPosition)
+    {
+        if (Object == null || Runner == null)
+        {
+            return false;
+        }
+
+        if (Object.HasStateAuthority)
+        {
+            return TryBuyAndBroadcastMinion((byte)kind, (byte)team, spawnPosition, useExplicitPosition);
+        }
+
+        if (!Object.HasInputAuthority)
+        {
+            return false;
+        }
+
+        RPC_RequestBuyMinion((byte)kind, (byte)team, spawnPosition, useExplicitPosition);
+        return true;
+    }
+
+    public bool BroadcastMinionSummon(MinionKind kind, MinionTeam team, Vector3 spawnPosition, bool useExplicitPosition)
+    {
+        if (Object == null || Runner == null || !Object.HasStateAuthority)
+        {
+            return false;
+        }
+
+        ApplyMinionSummon((byte)kind, (byte)team, spawnPosition, useExplicitPosition);
+        RPC_ApplyMinionSummon((byte)kind, (byte)team, spawnPosition, useExplicitPosition);
+        return true;
+    }
+
+    public static bool HasRunningNetworkSession()
+    {
+        NetworkRunner[] runners = FindObjectsOfType<NetworkRunner>();
+        for (int i = 0; i < runners.Length; i++)
+        {
+            if (runners[i] != null && runners[i].IsRunning)
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    public static bool IsStateSimulationPeer()
+    {
+        NetworkRunner[] runners = FindObjectsOfType<NetworkRunner>();
+        bool hasRunningRunner = false;
+        for (int i = 0; i < runners.Length; i++)
+        {
+            NetworkRunner runner = runners[i];
+            if (runner == null || !runner.IsRunning)
+            {
+                continue;
+            }
+
+            hasRunningRunner = true;
+            if (runner.IsServer)
+            {
+                return true;
+            }
+        }
+
+        return !hasRunningRunner;
+    }
+
+    public static bool TryBroadcastMinionSummon(MinionKind kind, MinionTeam team, Vector3 spawnPosition, bool useExplicitPosition)
+    {
+        UglyDogNetworkPlayer authorityPlayer = FindStateAuthorityPlayer();
+        return authorityPlayer != null && authorityPlayer.BroadcastMinionSummon(kind, team, spawnPosition, useExplicitPosition);
+    }
+
+    private static UglyDogNetworkPlayer FindStateAuthorityPlayer()
+    {
+        UglyDogNetworkPlayer[] players = FindObjectsOfType<UglyDogNetworkPlayer>();
+        for (int i = 0; i < players.Length; i++)
+        {
+            UglyDogNetworkPlayer player = players[i];
+            if (player != null && player.Object != null && player.Object.HasStateAuthority)
+            {
+                return player;
+            }
+        }
+
+        return null;
+    }
+
     [Rpc(RpcSources.InputAuthority, RpcTargets.StateAuthority)]
     private void RPC_RequestAction(byte actionKind)
     {
@@ -155,6 +245,12 @@ public class UglyDogNetworkPlayer : NetworkBehaviour
         TryBuildOnStateAuthority(zoneAnchorPosition, buildingType, requestedTeam);
     }
 
+    [Rpc(RpcSources.InputAuthority, RpcTargets.StateAuthority, Channel = RpcChannel.Reliable, TickAligned = false)]
+    private void RPC_RequestBuyMinion(byte kind, byte team, Vector3 spawnPosition, bool useExplicitPosition)
+    {
+        TryBuyAndBroadcastMinion(kind, team, spawnPosition, useExplicitPosition);
+    }
+
     [Rpc(RpcSources.StateAuthority, RpcTargets.All, Channel = RpcChannel.Reliable, TickAligned = false)]
     private void RPC_ApplyBuild(Vector3 zoneAnchorPosition, byte buildingType, byte team)
     {
@@ -165,6 +261,17 @@ public class UglyDogNetworkPlayer : NetworkBehaviour
         }
 
         zone.TryCreateNetworkBuilding((BuildSiteBuildingType)buildingType, (MinionTeam)team);
+    }
+
+    [Rpc(RpcSources.StateAuthority, RpcTargets.All, Channel = RpcChannel.Reliable, TickAligned = false)]
+    private void RPC_ApplyMinionSummon(byte kind, byte team, Vector3 spawnPosition, bool useExplicitPosition)
+    {
+        if (Object.HasStateAuthority)
+        {
+            return;
+        }
+
+        ApplyMinionSummon(kind, team, spawnPosition, useExplicitPosition);
     }
 
     [Rpc(RpcSources.StateAuthority, RpcTargets.InputAuthority, Channel = RpcChannel.Reliable, TickAligned = false)]
@@ -193,9 +300,50 @@ public class UglyDogNetworkPlayer : NetworkBehaviour
             return;
         }
 
+        if (!ArcherTowerBuildZone.TrySpendBuildCost((BuildSiteBuildingType)buildingType))
+        {
+            RPC_RejectBuild(zoneAnchorPosition, buildingType);
+            return;
+        }
+
         MinionTeam ownerTeam = GetAuthoritativeTeam((MinionTeam)requestedTeam);
         zone.TryCreateNetworkBuilding((BuildSiteBuildingType)buildingType, ownerTeam);
         RPC_ApplyBuild(zone.NetworkAnchorPosition, buildingType, (byte)ownerTeam);
+    }
+
+    private bool TryBuyAndBroadcastMinion(byte kind, byte team, Vector3 spawnPosition, bool useExplicitPosition)
+    {
+        if (!Object.HasStateAuthority)
+        {
+            return false;
+        }
+
+        MinionManager manager = MinionManager.EnsureInstance();
+        ResourceManager resources = ResourceManager.Instance;
+        MinionKind minionKind = (MinionKind)kind;
+        int cost = manager.GetCost(minionKind);
+        if (resources == null || !resources.Spend(ResourceType.Coin, cost))
+        {
+            return false;
+        }
+
+        ApplyMinionSummon(kind, team, spawnPosition, useExplicitPosition);
+        RPC_ApplyMinionSummon(kind, team, spawnPosition, useExplicitPosition);
+        return true;
+    }
+
+    private void ApplyMinionSummon(byte kind, byte team, Vector3 spawnPosition, bool useExplicitPosition)
+    {
+        MinionManager manager = MinionManager.EnsureInstance();
+        MinionKind minionKind = (MinionKind)kind;
+        MinionTeam minionTeam = (MinionTeam)team;
+        if (useExplicitPosition)
+        {
+            manager.SummonAt(minionKind, minionTeam, spawnPosition);
+            return;
+        }
+
+        manager.Summon(minionKind, minionTeam);
     }
 
     private MinionTeam GetAuthoritativeTeam(MinionTeam fallbackTeam)

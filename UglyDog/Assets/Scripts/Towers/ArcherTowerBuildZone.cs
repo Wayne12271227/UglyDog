@@ -469,24 +469,31 @@ public class ArcherTowerBuildZone : MonoBehaviour
 
     private void CompleteBuild(CatPlayerController builder)
     {
-        if (!SpendCost(pendingType))
-        {
-            CancelBuild();
-            FlashPrompt("\u8cc7\u6e90\u4e0d\u8db3");
-            return;
-        }
-
         MinionTeam team = GetPlayerTeam(builder);
         MoveBuilderOutsideBuildFootprint(builder, pendingType);
         if (TryRequestNetworkBuilding(pendingType, team, builder, out bool shouldCreatePrediction))
         {
             if (shouldCreatePrediction)
             {
+                if (!SpendCost(pendingType))
+                {
+                    CancelBuild();
+                    FlashPrompt("\u8cc7\u6e90\u4e0d\u8db3");
+                    return;
+                }
+
                 TryCreatePredictedNetworkBuilding(pendingType, team);
             }
         }
         else
         {
+            if (!SpendCost(pendingType))
+            {
+                CancelBuild();
+                FlashPrompt("\u8cc7\u6e90\u4e0d\u8db3");
+                return;
+            }
+
             CreateBuilding(pendingType, team);
         }
 
@@ -714,6 +721,42 @@ public class ArcherTowerBuildZone : MonoBehaviour
         {
             resources.Add(ResourceType.Stone, stoneCost);
         }
+    }
+
+    public static bool TrySpendBuildCost(BuildSiteBuildingType type)
+    {
+        ResourceManager resources = ResourceManager.Instance;
+        if (resources == null)
+        {
+            return false;
+        }
+
+        int coinCost = GetCoinCost(type);
+        int woodCost = GetWoodCost(type);
+        int stoneCost = GetStoneCost(type);
+        if (!resources.CanSpend(ResourceType.Coin, coinCost)
+            || !resources.CanSpend(ResourceType.Wood, woodCost)
+            || !resources.CanSpend(ResourceType.Stone, stoneCost))
+        {
+            return false;
+        }
+
+        if (coinCost > 0)
+        {
+            resources.Spend(ResourceType.Coin, coinCost);
+        }
+
+        if (woodCost > 0)
+        {
+            resources.Spend(ResourceType.Wood, woodCost);
+        }
+
+        if (stoneCost > 0)
+        {
+            resources.Spend(ResourceType.Stone, stoneCost);
+        }
+
+        return true;
     }
 
     private bool TryRequestNetworkBuilding(BuildSiteBuildingType type, MinionTeam team, CatPlayerController builder, out bool shouldCreatePrediction)

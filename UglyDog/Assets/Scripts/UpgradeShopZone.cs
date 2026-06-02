@@ -520,7 +520,11 @@ public class UpgradeShopZone : MonoBehaviour
     {
         MinionManager manager = MinionManager.EnsureInstance();
         MinionTeam team = GetShopTeam();
-        bool bought = manager.TryBuyAndSummon(kind, team);
+        CatPlayerController buyer = GetPreferredPlayerInsideZone();
+        UglyDogNetworkPlayer networkPlayer = buyer != null ? buyer.GetComponent<UglyDogNetworkPlayer>() : null;
+        bool bought = networkPlayer != null && buyer.HasRunningNetworkInputAuthority()
+            ? networkPlayer.RequestBuyMinion(kind, team, Vector3.zero, false)
+            : manager.TryBuyAndSummon(kind, team);
         if (bought)
         {
             FlashMinionPrompt("\u5df2\u53ec\u559a " + manager.GetDisplayName(kind));

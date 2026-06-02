@@ -77,7 +77,11 @@ public class MinionShopZone : MonoBehaviour
     private void TryBuy(MinionKind kind)
     {
         MinionManager manager = MinionManager.EnsureInstance();
-        bool bought = manager.TryBuyAndSummon(kind, MinionTeam.Dog);
+        CatPlayerController buyer = GetPreferredPlayerInsideZone();
+        UglyDogNetworkPlayer networkPlayer = buyer != null ? buyer.GetComponent<UglyDogNetworkPlayer>() : null;
+        bool bought = networkPlayer != null && buyer.HasRunningNetworkInputAuthority()
+            ? networkPlayer.RequestBuyMinion(kind, MinionTeam.Dog, Vector3.zero, false)
+            : manager.TryBuyAndSummon(kind, MinionTeam.Dog);
         FlashPrompt(bought ? GetBoughtText(kind) : GetNotEnoughCoinsText(kind));
     }
 

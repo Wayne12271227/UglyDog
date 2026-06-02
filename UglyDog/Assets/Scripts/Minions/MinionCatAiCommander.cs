@@ -17,6 +17,11 @@ public class MinionCatAiCommander : MonoBehaviour
 
     private void Update()
     {
+        if (UglyDogNetworkPlayer.HasRunningNetworkSession() && !UglyDogNetworkPlayer.IsStateSimulationPeer())
+        {
+            return;
+        }
+
         MinionManager manager = MinionManager.EnsureInstance();
         if (!manager.ShouldRunSinglePlayerCatAi())
         {
@@ -39,6 +44,12 @@ public class MinionCatAiCommander : MonoBehaviour
         MinionKind kind = rangedEveryNthSummon > 0 && summonCount % rangedEveryNthSummon == 0
             ? MinionKind.Ranged
             : MinionKind.Melee;
+
+        if (UglyDogNetworkPlayer.HasRunningNetworkSession()
+            && UglyDogNetworkPlayer.TryBroadcastMinionSummon(kind, MinionTeam.Cat, Vector3.zero, false))
+        {
+            return;
+        }
 
         manager.Summon(kind, MinionTeam.Cat);
     }

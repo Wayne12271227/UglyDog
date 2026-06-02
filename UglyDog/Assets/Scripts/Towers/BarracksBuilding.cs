@@ -30,6 +30,11 @@ public class BarracksBuilding : MonoBehaviour
 
     private void UpdateAutoSummon()
     {
+        if (UglyDogNetworkPlayer.HasRunningNetworkSession() && !UglyDogNetworkPlayer.IsStateSimulationPeer())
+        {
+            return;
+        }
+
         if (Time.time < nextSummonTime)
         {
             return;
@@ -65,6 +70,22 @@ public class BarracksBuilding : MonoBehaviour
     private void TryBuyAndSummon(MinionKind kind)
     {
         MinionManager manager = MinionManager.EnsureInstance();
+        Vector3 spawnPosition = GetSpawnPosition();
+        UglyDogNetworkPlayer networkPlayer = activePlayer != null ? activePlayer.GetComponent<UglyDogNetworkPlayer>() : null;
+        if (networkPlayer != null && activePlayer.HasRunningNetworkInputAuthority())
+        {
+            if (networkPlayer.RequestBuyMinion(kind, team, spawnPosition, true))
+            {
+                FlashPrompt("\u5df2\u53ec\u559a " + manager.GetDisplayName(kind));
+            }
+            else
+            {
+                FlashPrompt("\u9700\u8981 " + manager.GetCost(kind) + " \u91d1\u5e63");
+            }
+
+            return;
+        }
+
         ResourceManager resources = ResourceManager.Instance;
         int cost = manager.GetCost(kind);
         if (resources == null || !resources.Spend(ResourceType.Coin, cost))
@@ -80,8 +101,20 @@ public class BarracksBuilding : MonoBehaviour
     private void Summon(MinionKind kind)
     {
         MinionManager manager = MinionManager.EnsureInstance();
-        Vector3 spawnPosition = transform.position + transform.forward * 1.7f;
+        Vector3 spawnPosition = GetSpawnPosition();
+        if (UglyDogNetworkPlayer.HasRunningNetworkSession()
+            && UglyDogNetworkPlayer.IsStateSimulationPeer()
+            && UglyDogNetworkPlayer.TryBroadcastMinionSummon(kind, team, spawnPosition, true))
+        {
+            return;
+        }
+
         manager.SummonAt(kind, team, spawnPosition);
+    }
+
+    private Vector3 GetSpawnPosition()
+    {
+        return transform.position + transform.forward * 1.7f;
     }
 
     private CatPlayerController FindPlayerInRange()

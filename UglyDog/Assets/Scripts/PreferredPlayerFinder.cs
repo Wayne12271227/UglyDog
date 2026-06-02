@@ -24,7 +24,7 @@ public static class PreferredPlayerFinder
         for (int i = 0; i < candidates.Length; i++)
         {
             CatPlayerController candidate = candidates[i];
-            if (!IsUsable(candidate))
+            if (!IsLocallyUsable(candidate))
             {
                 continue;
             }
@@ -57,7 +57,7 @@ public static class PreferredPlayerFinder
         for (int i = 0; i < candidates.Length; i++)
         {
             CatPlayerController candidate = candidates[i];
-            if (!IsUsable(candidate) || (predicate != null && !predicate(candidate)))
+            if (!IsLocallyUsable(candidate) || (predicate != null && !predicate(candidate)))
             {
                 continue;
             }
@@ -89,7 +89,7 @@ public static class PreferredPlayerFinder
         for (int i = 0; i < candidates.Length; i++)
         {
             CatPlayerController candidate = candidates[i];
-            if (!IsUsable(candidate) || !IsPlayerTeam(candidate, team))
+            if (!IsLocallyUsable(candidate) || !IsPlayerTeam(candidate, team))
             {
                 continue;
             }
@@ -137,7 +137,7 @@ public static class PreferredPlayerFinder
         }
 
         CatPlayerController player = other.GetComponentInParent<CatPlayerController>();
-        if (!IsUsable(player))
+        if (!IsLocallyUsable(player))
         {
             return null;
         }
@@ -153,7 +153,12 @@ public static class PreferredPlayerFinder
         }
 
         CatPlayerController player = other.GetComponentInParent<CatPlayerController>();
-        return IsPlayerTeam(player, team) ? player : null;
+        return IsLocallyUsable(player) && IsPlayerTeam(player, team) ? player : null;
+    }
+
+    private static bool IsLocallyUsable(CatPlayerController player)
+    {
+        return IsUsable(player) && player.HasLocalPlayerAuthority();
     }
 
     private static bool IsUsable(CatPlayerController player)
