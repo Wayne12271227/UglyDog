@@ -863,7 +863,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 7978394019825862942, guid: bca9caf136578df439ff764a6cdca938, type: 3}
       propertyPath: outlineWidth
-      value: 0.011
+      value: 0.0698
       objectReference: {fileID: 0}
     - target: {fileID: 7978394019825862942, guid: bca9caf136578df439ff764a6cdca938, type: 3}
       propertyPath: shadowColor.b
@@ -895,7 +895,7 @@ PrefabInstance:
       objectReference: {fileID: 2100000, guid: cfd5645baeb727544902c95bf38d976c, type: 2}
     - target: {fileID: 7978394019825862942, guid: bca9caf136578df439ff764a6cdca938, type: 3}
       propertyPath: shadowSmoothness
-      value: 0.05
+      value: 0.089
       objectReference: {fileID: 0}
     - target: {fileID: 7978394019825862942, guid: bca9caf136578df439ff764a6cdca938, type: 3}
       propertyPath: preserveExistingMaterialTextures

@@ -472,8 +472,15 @@ public class ArcherTowerBuildZone : MonoBehaviour
     {
         MinionTeam team = GetPlayerTeam(builder);
         MoveBuilderOutsideBuildFootprint(builder, pendingType);
-        if (TryRequestNetworkBuilding(pendingType, team, builder, out bool shouldCreatePrediction))
+        if (TryRequestNetworkBuilding(pendingType, team, builder, out bool shouldCreatePrediction, out bool requestAccepted))
         {
+            if (!requestAccepted)
+            {
+                CancelBuild();
+                FlashPrompt("\u8cc7\u6e90\u4e0d\u8db3");
+                return;
+            }
+
             if (shouldCreatePrediction)
             {
                 if (!SpendCost(pendingType))
@@ -761,9 +768,15 @@ public class ArcherTowerBuildZone : MonoBehaviour
         return true;
     }
 
-    private bool TryRequestNetworkBuilding(BuildSiteBuildingType type, MinionTeam team, CatPlayerController builder, out bool shouldCreatePrediction)
+    private bool TryRequestNetworkBuilding(
+        BuildSiteBuildingType type,
+        MinionTeam team,
+        CatPlayerController builder,
+        out bool shouldCreatePrediction,
+        out bool requestAccepted)
     {
         shouldCreatePrediction = false;
+        requestAccepted = false;
         UglyDogNetworkPlayer networkPlayer = builder != null ? builder.GetComponent<UglyDogNetworkPlayer>() : null;
         if (networkPlayer == null || !builder.HasRunningNetworkInputAuthority())
         {
@@ -771,7 +784,8 @@ public class ArcherTowerBuildZone : MonoBehaviour
         }
 
         shouldCreatePrediction = networkPlayer.ShouldPredictBuildRequests;
-        return networkPlayer.RequestBuild(NetworkAnchorPosition, type, team);
+        requestAccepted = networkPlayer.RequestBuild(NetworkAnchorPosition, type, team);
+        return true;
     }
 
     private void OnBuildingDestroyed(BuildingHealth health)

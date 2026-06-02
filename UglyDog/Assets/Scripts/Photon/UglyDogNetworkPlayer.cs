@@ -130,8 +130,7 @@ public class UglyDogNetworkPlayer : NetworkBehaviour
 
         if (Object.HasStateAuthority)
         {
-            TryBuildOnStateAuthority(zoneAnchorPosition, (byte)buildingType, (byte)requestedTeam);
-            return true;
+            return TryBuildOnStateAuthority(zoneAnchorPosition, (byte)buildingType, (byte)requestedTeam);
         }
 
         if (!Object.HasInputAuthority)
@@ -290,29 +289,36 @@ public class UglyDogNetworkPlayer : NetworkBehaviour
         }
     }
 
-    private void TryBuildOnStateAuthority(Vector3 zoneAnchorPosition, byte buildingType, byte requestedTeam)
+    private bool TryBuildOnStateAuthority(Vector3 zoneAnchorPosition, byte buildingType, byte requestedTeam)
     {
         if (!Object.HasStateAuthority)
         {
-            return;
+            return false;
         }
 
         ArcherTowerBuildZone zone = ArcherTowerBuildZone.FindClosestNetworkZone(zoneAnchorPosition);
         if (zone == null || zone.HasPlacedBuilding)
         {
             RPC_RejectBuild(zoneAnchorPosition, buildingType);
-            return;
+            return false;
         }
 
         if (!ArcherTowerBuildZone.TrySpendBuildCost((BuildSiteBuildingType)buildingType))
         {
             RPC_RejectBuild(zoneAnchorPosition, buildingType);
-            return;
+            return false;
         }
 
         MinionTeam ownerTeam = GetAuthoritativeTeam((MinionTeam)requestedTeam);
-        zone.TryCreateNetworkBuilding((BuildSiteBuildingType)buildingType, ownerTeam);
+        if (!zone.TryCreateNetworkBuilding((BuildSiteBuildingType)buildingType, ownerTeam))
+        {
+            ArcherTowerBuildZone.RefundBuildCost((BuildSiteBuildingType)buildingType);
+            RPC_RejectBuild(zoneAnchorPosition, buildingType);
+            return false;
+        }
+
         RPC_ApplyBuild(zone.NetworkAnchorPosition, buildingType, (byte)ownerTeam);
+        return true;
     }
 
     private bool TryBuyAndBroadcastMinion(byte kind, byte team, Vector3 spawnPosition, bool useExplicitPosition)
