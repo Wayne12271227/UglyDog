@@ -8,7 +8,9 @@ public class MinionCatAiCommander : MonoBehaviour
     [SerializeField] private int rangedEveryNthSummon = 4;
 
     private float nextSummonTime;
+    private float nextHumanCatCheckTime;
     private int summonCount;
+    private bool cachedHasHumanCatPlayer;
 
     private void OnEnable()
     {
@@ -17,7 +19,8 @@ public class MinionCatAiCommander : MonoBehaviour
 
     private void Update()
     {
-        if (UglyDogNetworkPlayer.HasRunningNetworkSession() && !UglyDogNetworkPlayer.IsStateSimulationPeer())
+        bool hasNetworkSession = UglyDogNetworkPlayer.HasRunningNetworkSession();
+        if (hasNetworkSession && !UglyDogNetworkPlayer.IsStateSimulationPeer())
         {
             return;
         }
@@ -28,13 +31,14 @@ public class MinionCatAiCommander : MonoBehaviour
             return;
         }
 
-        if (onlyWhenNoHumanCatPlayer && HasHumanCatPlayer())
+        if (Time.time < nextSummonTime)
         {
             return;
         }
 
-        if (Time.time < nextSummonTime)
+        if (onlyWhenNoHumanCatPlayer && HasHumanCatPlayer())
         {
+            nextSummonTime = Time.time + summonInterval;
             return;
         }
 
@@ -45,7 +49,7 @@ public class MinionCatAiCommander : MonoBehaviour
             ? MinionKind.Ranged
             : MinionKind.Melee;
 
-        if (UglyDogNetworkPlayer.HasRunningNetworkSession()
+        if (hasNetworkSession
             && UglyDogNetworkPlayer.TryBroadcastMinionSummon(kind, MinionTeam.Cat, Vector3.zero, false))
         {
             return;
@@ -56,16 +60,24 @@ public class MinionCatAiCommander : MonoBehaviour
 
     private bool HasHumanCatPlayer()
     {
+        if (Time.time < nextHumanCatCheckTime)
+        {
+            return cachedHasHumanCatPlayer;
+        }
+
+        nextHumanCatCheckTime = Time.time + 0.5f;
         CatPlayerController[] players = FindObjectsOfType<CatPlayerController>();
         for (int i = 0; i < players.Length; i++)
         {
             CatPlayerController player = players[i];
             if (PreferredPlayerFinder.IsPlayerTeam(player, MinionTeam.Cat) && player.HasRunningNetworkInputAuthority())
             {
+                cachedHasHumanCatPlayer = true;
                 return true;
             }
         }
 
+        cachedHasHumanCatPlayer = false;
         return false;
     }
 }

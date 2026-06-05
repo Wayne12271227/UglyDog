@@ -145,11 +145,25 @@ public class UglyDogFusionLauncher : MonoBehaviour, INetworkRunnerCallbacks
 
     public void OnObjectExitAOI(NetworkRunner networkRunner, NetworkObject obj, PlayerRef player) { }
     public void OnObjectEnterAOI(NetworkRunner networkRunner, NetworkObject obj, PlayerRef player) { }
-    public void OnShutdown(NetworkRunner networkRunner, ShutdownReason shutdownReason) { }
-    public void OnConnectedToServer(NetworkRunner networkRunner) { }
-    public void OnDisconnectedFromServer(NetworkRunner networkRunner, NetDisconnectReason reason) { }
+    public void OnShutdown(NetworkRunner networkRunner, ShutdownReason shutdownReason)
+    {
+        Debug.LogWarning($"UglyDogFusionLauncher runner shutdown: {shutdownReason}");
+    }
+
+    public void OnConnectedToServer(NetworkRunner networkRunner)
+    {
+        Debug.Log("UglyDogFusionLauncher connected to Photon server.");
+    }
+
+    public void OnDisconnectedFromServer(NetworkRunner networkRunner, NetDisconnectReason reason)
+    {
+        Debug.LogWarning($"UglyDogFusionLauncher disconnected from Photon server: {reason}");
+    }
     public void OnConnectRequest(NetworkRunner networkRunner, NetworkRunnerCallbackArgs.ConnectRequest request, byte[] token) { }
-    public void OnConnectFailed(NetworkRunner networkRunner, NetAddress remoteAddress, NetConnectFailedReason reason) { }
+    public void OnConnectFailed(NetworkRunner networkRunner, NetAddress remoteAddress, NetConnectFailedReason reason)
+    {
+        Debug.LogError($"UglyDogFusionLauncher connection failed to {remoteAddress}: {reason}");
+    }
     public void OnUserSimulationMessage(NetworkRunner networkRunner, SimulationMessagePtr message) { }
     public void OnSessionListUpdated(NetworkRunner networkRunner, List<SessionInfo> sessionList) { }
     public void OnCustomAuthenticationResponse(NetworkRunner networkRunner, Dictionary<string, object> data) { }

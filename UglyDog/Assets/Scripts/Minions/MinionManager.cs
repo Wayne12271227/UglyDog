@@ -963,7 +963,7 @@ public class MinionManager : MonoBehaviour
         layout.childForceExpandHeight = true;
         layout.spacing = 28f;
 
-        CreateResultButton(buttonsObject.transform, "返回主選單", ReturnToMainMenu);
+        CreateResultButton(buttonsObject.transform, "\u78ba\u8a8d", ReturnToMainMenu);
     }
 
     private static void EnsureEventSystem()

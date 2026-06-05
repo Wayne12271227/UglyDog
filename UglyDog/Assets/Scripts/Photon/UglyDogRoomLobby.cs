@@ -75,6 +75,7 @@ public class UglyDogRoomLobby : MonoBehaviour, INetworkRunnerCallbacks
             busy = false;
             lobbyReady = false;
             SetStatus($"Photon 大廳連線失敗：{result.ShutdownReason}");
+            Debug.LogError($"UglyDogRoomLobby failed to join Photon lobby: {result.ShutdownReason}");
             RefreshUi();
             return;
         }
@@ -297,6 +298,7 @@ public class UglyDogRoomLobby : MonoBehaviour, INetworkRunnerCallbacks
         if (!result.Ok)
         {
             SetStatus($"房間操作失敗：{result.ShutdownReason}");
+            Debug.LogError($"UglyDogRoomLobby failed to {(mode == GameMode.Host ? "create" : "join")} room '{roomName}': {result.ShutdownReason}");
             RefreshUi();
             return;
         }
@@ -1065,11 +1067,60 @@ public class UglyDogRoomLobby : MonoBehaviour, INetworkRunnerCallbacks
 
     public void OnObjectExitAOI(NetworkRunner networkRunner, NetworkObject obj, PlayerRef player) { }
     public void OnObjectEnterAOI(NetworkRunner networkRunner, NetworkObject obj, PlayerRef player) { }
-    public void OnShutdown(NetworkRunner networkRunner, ShutdownReason shutdownReason) { }
-    public void OnConnectedToServer(NetworkRunner networkRunner) { }
-    public void OnDisconnectedFromServer(NetworkRunner networkRunner, NetDisconnectReason reason) { }
+    public void OnShutdown(NetworkRunner networkRunner, ShutdownReason shutdownReason)
+    {
+        Debug.LogWarning($"UglyDogRoomLobby runner shutdown: {shutdownReason}");
+
+        if (isLeaving || networkRunner != runner)
+        {
+            return;
+        }
+
+        busy = false;
+        lobbyReady = false;
+        inRoom = false;
+        gameStarted = false;
+        SetStatus($"連線已關閉：{shutdownReason}");
+        RefreshUi();
+    }
+
+    public void OnConnectedToServer(NetworkRunner networkRunner)
+    {
+        Debug.Log("UglyDogRoomLobby connected to Photon server.");
+    }
+
+    public void OnDisconnectedFromServer(NetworkRunner networkRunner, NetDisconnectReason reason)
+    {
+        Debug.LogWarning($"UglyDogRoomLobby disconnected from Photon server: {reason}");
+
+        if (isLeaving || networkRunner != runner)
+        {
+            return;
+        }
+
+        busy = false;
+        lobbyReady = false;
+        inRoom = false;
+        gameStarted = false;
+        SetStatus($"已與 Photon 伺服器斷線：{reason}");
+        RefreshUi();
+    }
     public void OnConnectRequest(NetworkRunner networkRunner, NetworkRunnerCallbackArgs.ConnectRequest request, byte[] token) { }
-    public void OnConnectFailed(NetworkRunner networkRunner, NetAddress remoteAddress, NetConnectFailedReason reason) { }
+    public void OnConnectFailed(NetworkRunner networkRunner, NetAddress remoteAddress, NetConnectFailedReason reason)
+    {
+        Debug.LogError($"UglyDogRoomLobby connection failed to {remoteAddress}: {reason}");
+
+        if (isLeaving || networkRunner != runner)
+        {
+            return;
+        }
+
+        busy = false;
+        lobbyReady = false;
+        inRoom = false;
+        SetStatus($"連線失敗：{reason}");
+        RefreshUi();
+    }
     public void OnUserSimulationMessage(NetworkRunner networkRunner, SimulationMessagePtr message) { }
     public void OnCustomAuthenticationResponse(NetworkRunner networkRunner, Dictionary<string, object> data) { }
     public void OnHostMigration(NetworkRunner networkRunner, HostMigrationToken hostMigrationToken) { }

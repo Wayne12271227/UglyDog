@@ -4,6 +4,8 @@ using UnityEngine.UI;
 
 public class VictoryResultView : MonoBehaviour
 {
+    private const string ConfirmButtonLabel = "\u78ba\u8a8d";
+
     [SerializeField] private Text resultText;
     [SerializeField] private RawImage characterImage;
     [SerializeField] private Button mainMenuButton;
@@ -84,6 +86,63 @@ public class VictoryResultView : MonoBehaviour
         if (mainMenuButton == null)
         {
             mainMenuButton = FindChildComponent<Button>("Return Main Menu Button");
+        }
+
+        if (mainMenuButton != null)
+        {
+            EnsureMainMenuButtonLabel();
+        }
+    }
+
+    private void EnsureMainMenuButtonLabel()
+    {
+        Text buttonText = mainMenuButton.GetComponentInChildren<Text>(true);
+        if (buttonText == null)
+        {
+            GameObject textObject = new GameObject("Text", typeof(RectTransform), typeof(CanvasRenderer), typeof(Text));
+            textObject.transform.SetParent(mainMenuButton.transform, false);
+
+            RectTransform textRect = textObject.GetComponent<RectTransform>();
+            textRect.anchorMin = Vector2.zero;
+            textRect.anchorMax = Vector2.one;
+            textRect.offsetMin = Vector2.zero;
+            textRect.offsetMax = Vector2.zero;
+
+            buttonText = textObject.GetComponent<Text>();
+        }
+
+        Font readableFont = LoadReadableFont();
+        if (readableFont != null)
+        {
+            buttonText.font = readableFont;
+        }
+
+        buttonText.text = ConfirmButtonLabel;
+        buttonText.alignment = TextAnchor.MiddleCenter;
+        buttonText.fontSize = 34;
+        buttonText.fontStyle = FontStyle.Bold;
+        buttonText.color = new Color(0.08f, 0.08f, 0.1f, 1f);
+        buttonText.raycastTarget = false;
+    }
+
+    private static Font LoadReadableFont()
+    {
+        Font font = Font.CreateDynamicFontFromOSFont(
+            new[] { "Microsoft JhengHei", "Microsoft YaHei", "Arial Unicode MS", "Noto Sans CJK TC" },
+            18);
+
+        if (font != null)
+        {
+            return font;
+        }
+
+        try
+        {
+            return Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+        }
+        catch (System.ArgumentException)
+        {
+            return null;
         }
     }
 

@@ -16,6 +16,8 @@ public class UglyDogNetworkPlayer : NetworkBehaviour
 {
     private CatPlayerController controller;
     private int observedActionSequence;
+    private static int cachedRunnerFrame = -1;
+    private static NetworkRunner[] cachedRunners = new NetworkRunner[0];
 
     [Networked] private float NetworkMoveAmount { get; set; }
     [Networked] private byte NetworkActionKind { get; set; }
@@ -177,7 +179,7 @@ public class UglyDogNetworkPlayer : NetworkBehaviour
 
     public static bool HasRunningNetworkSession()
     {
-        NetworkRunner[] runners = FindObjectsOfType<NetworkRunner>();
+        NetworkRunner[] runners = GetNetworkRunners();
         for (int i = 0; i < runners.Length; i++)
         {
             if (runners[i] != null && runners[i].IsRunning)
@@ -191,7 +193,7 @@ public class UglyDogNetworkPlayer : NetworkBehaviour
 
     public static bool IsStateSimulationPeer()
     {
-        NetworkRunner[] runners = FindObjectsOfType<NetworkRunner>();
+        NetworkRunner[] runners = GetNetworkRunners();
         bool hasRunningRunner = false;
         for (int i = 0; i < runners.Length; i++)
         {
@@ -209,6 +211,18 @@ public class UglyDogNetworkPlayer : NetworkBehaviour
         }
 
         return !hasRunningRunner;
+    }
+
+    private static NetworkRunner[] GetNetworkRunners()
+    {
+        if (cachedRunnerFrame == Time.frameCount && cachedRunners != null)
+        {
+            return cachedRunners;
+        }
+
+        cachedRunnerFrame = Time.frameCount;
+        cachedRunners = FindObjectsOfType<NetworkRunner>();
+        return cachedRunners;
     }
 
     public static bool TryBroadcastMinionSummon(MinionKind kind, MinionTeam team, Vector3 spawnPosition, bool useExplicitPosition)

@@ -8321,18 +8321,18 @@ MonoBehaviour:
   attackAnimationSpeed: 2.5
   attackAnimationSpeedDuration: 0.4
   actionAudioSource: {fileID: 0}
-  woodDigActionClip: {fileID: 0}
-  stoneDigActionClip: {fileID: 0}
-  footstepClip: {fileID: 0}
-  attackClip: {fileID: 0}
-  buildClip: {fileID: 0}
-  coinGainClip: {fileID: 0}
-  digActionVolume: 1
-  footstepVolume: 0.75
+  woodDigActionClip: {fileID: 8300000, guid: 6059965aaef1ef0428d8feea1bfdeee3, type: 3}
+  stoneDigActionClip: {fileID: 8300000, guid: 6059965aaef1ef0428d8feea1bfdeee3, type: 3}
+  footstepClip: {fileID: 8300000, guid: 2d6ac25ddbaa49c44a0c60e3b67c0981, type: 3}
+  attackClip: {fileID: 8300000, guid: 6059965aaef1ef0428d8feea1bfdeee3, type: 3}
+  buildClip: {fileID: 8300000, guid: 71fa496925f1f29409f0fe863c409372, type: 3}
+  coinGainClip: {fileID: 8300000, guid: 63ca054aaf8d80547989d145b395d85b, type: 3}
+  digActionVolume: 0.341
+  footstepVolume: 0.432
   attackVolume: 1
-  buildVolume: 1
-  coinGainVolume: 1
-  digActionImpactNormalizedTime: 0.55
+  buildVolume: 0.691
+  coinGainVolume: 0.729
+  digActionImpactNormalizedTime: 0.222
   digActionMinimumInterval: 0.12
   footstepInterval: 0.35
   buildSoundInterval: 0.55

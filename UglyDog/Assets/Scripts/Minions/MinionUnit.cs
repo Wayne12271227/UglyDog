@@ -36,6 +36,10 @@ public class MinionUnit : MonoBehaviour
 
     private const float FallbackAttackAnimationLength = 0.55f;
     private const float TargetSearchInterval = 0.2f;
+    private const int ColliderQueryBufferSize = 128;
+    private const int HitQueryBufferSize = 64;
+    private static readonly Collider[] ColliderQueryBuffer = new Collider[ColliderQueryBufferSize];
+    private static readonly RaycastHit[] HitQueryBuffer = new RaycastHit[HitQueryBufferSize];
 
     private MinionCombatant combatant;
     private MinionCombatant currentTarget;
@@ -401,20 +405,21 @@ public class MinionUnit : MonoBehaviour
     {
         nearestDistance = float.PositiveInfinity;
         GetCapsuleWorldPoints(out Vector3 point1, out Vector3 point2, out float radius);
-        RaycastHit[] hits = Physics.CapsuleCastAll(point1, point2, radius + collisionSkin, direction, distance, collisionLayers, QueryTriggerInteraction.Ignore);
+        int hitCount = Physics.CapsuleCastNonAlloc(point1, point2, radius + collisionSkin, direction, HitQueryBuffer, distance, collisionLayers, QueryTriggerInteraction.Ignore);
         bool found = false;
-        for (int i = 0; i < hits.Length; i++)
+        for (int i = 0; i < hitCount; i++)
         {
-            Collider hitCollider = hits[i].collider;
+            RaycastHit hit = HitQueryBuffer[i];
+            Collider hitCollider = hit.collider;
             if (!IsAvoidanceObstacle(hitCollider))
             {
                 continue;
             }
 
-            if (hits[i].distance < nearestDistance)
+            if (hit.distance < nearestDistance)
             {
                 found = true;
-                nearestDistance = hits[i].distance;
+                nearestDistance = hit.distance;
             }
         }
 
@@ -465,12 +470,13 @@ public class MinionUnit : MonoBehaviour
         Vector3 direction = horizontalOffset.normalized;
         float distance = horizontalOffset.magnitude;
         GetCapsuleWorldPoints(out Vector3 point1, out Vector3 point2, out float radius);
-        RaycastHit[] hits = Physics.CapsuleCastAll(point1, point2, radius, direction, distance + collisionSkin, collisionLayers, QueryTriggerInteraction.Ignore);
+        int hitCount = Physics.CapsuleCastNonAlloc(point1, point2, radius, direction, HitQueryBuffer, distance + collisionSkin, collisionLayers, QueryTriggerInteraction.Ignore);
         float nearestDistance = float.PositiveInfinity;
 
-        for (int i = 0; i < hits.Length; i++)
+        for (int i = 0; i < hitCount; i++)
         {
-            Collider hitCollider = hits[i].collider;
+            RaycastHit hit = HitQueryBuffer[i];
+            Collider hitCollider = hit.collider;
             if (hitCollider == null || hitCollider.transform.IsChildOf(transform))
             {
                 continue;
@@ -481,12 +487,12 @@ public class MinionUnit : MonoBehaviour
                 continue;
             }
 
-            if (ShouldIgnoreHorizontalCollision(hitCollider, hits[i].normal))
+            if (ShouldIgnoreHorizontalCollision(hitCollider, hit.normal))
             {
                 continue;
             }
 
-            nearestDistance = Mathf.Min(nearestDistance, hits[i].distance);
+            nearestDistance = Mathf.Min(nearestDistance, hit.distance);
         }
 
         if (float.IsPositiveInfinity(nearestDistance))
@@ -518,13 +524,13 @@ public class MinionUnit : MonoBehaviour
     private bool TryResolveSinglePenetration()
     {
         GetCapsuleWorldPoints(out Vector3 point1, out Vector3 point2, out float radius);
-        Collider[] overlaps = Physics.OverlapCapsule(point1, point2, radius + penetrationSkin, collisionLayers, QueryTriggerInteraction.Ignore);
+        int overlapCount = Physics.OverlapCapsuleNonAlloc(point1, point2, radius + penetrationSkin, ColliderQueryBuffer, collisionLayers, QueryTriggerInteraction.Ignore);
         Vector3 bestDirection = Vector3.zero;
         float bestDistance = 0f;
 
-        for (int i = 0; i < overlaps.Length; i++)
+        for (int i = 0; i < overlapCount; i++)
         {
-            Collider other = overlaps[i];
+            Collider other = ColliderQueryBuffer[i];
             if (other == null || other.transform.IsChildOf(transform))
             {
                 continue;
@@ -807,15 +813,16 @@ public class MinionUnit : MonoBehaviour
     private void SnapToGround()
     {
         Vector3 origin = transform.position + Vector3.up * groundProbeHeight;
-        RaycastHit[] hits = Physics.RaycastAll(origin, Vector3.down, groundProbeHeight + groundSnapDistance, ~0, QueryTriggerInteraction.Ignore);
+        int hitCount = Physics.RaycastNonAlloc(origin, Vector3.down, HitQueryBuffer, groundProbeHeight + groundSnapDistance, ~0, QueryTriggerInteraction.Ignore);
         bool foundGround = false;
         float bestDistance = float.PositiveInfinity;
         Vector3 bestPoint = Vector3.zero;
 
-        for (int i = 0; i < hits.Length; i++)
+        for (int i = 0; i < hitCount; i++)
         {
-            Collider hitCollider = hits[i].collider;
-            if (hitCollider == null || hitCollider.transform.IsChildOf(transform) || hits[i].normal.y < 0.5f)
+            RaycastHit hit = HitQueryBuffer[i];
+            Collider hitCollider = hit.collider;
+            if (hitCollider == null || hitCollider.transform.IsChildOf(transform) || hit.normal.y < 0.5f)
             {
                 continue;
             }
@@ -830,11 +837,11 @@ public class MinionUnit : MonoBehaviour
                 continue;
             }
 
-            if (hits[i].distance < bestDistance)
+            if (hit.distance < bestDistance)
             {
                 foundGround = true;
-                bestDistance = hits[i].distance;
-                bestPoint = hits[i].point;
+                bestDistance = hit.distance;
+                bestPoint = hit.point;
             }
         }
 
@@ -864,12 +871,13 @@ public class MinionUnit : MonoBehaviour
 
     private void ResolvePlayerOverlap()
     {
-        Collider[] hits = Physics.OverlapSphere(transform.position, playerSeparationRadius, ~0, QueryTriggerInteraction.Collide);
+        int hitCount = Physics.OverlapSphereNonAlloc(transform.position, playerSeparationRadius, ColliderQueryBuffer, ~0, QueryTriggerInteraction.Collide);
         Vector3 push = Vector3.zero;
 
-        for (int i = 0; i < hits.Length; i++)
+        for (int i = 0; i < hitCount; i++)
         {
-            CatPlayerController player = hits[i] != null ? hits[i].GetComponentInParent<CatPlayerController>() : null;
+            Collider hit = ColliderQueryBuffer[i];
+            CatPlayerController player = hit != null ? hit.GetComponentInParent<CatPlayerController>() : null;
             if (player == null)
             {
                 continue;
@@ -911,13 +919,14 @@ public class MinionUnit : MonoBehaviour
 
     private MinionCombatant FindNearestEnemyMinion()
     {
-        Collider[] hits = Physics.OverlapSphere(transform.position, targetSearchRadius, searchLayers, QueryTriggerInteraction.Collide);
+        int hitCount = Physics.OverlapSphereNonAlloc(transform.position, targetSearchRadius, ColliderQueryBuffer, searchLayers, QueryTriggerInteraction.Collide);
         MinionCombatant nearest = null;
         float nearestDistance = float.PositiveInfinity;
 
-        for (int i = 0; i < hits.Length; i++)
+        for (int i = 0; i < hitCount; i++)
         {
-            MinionCombatant candidate = hits[i].GetComponentInParent<MinionCombatant>();
+            Collider hit = ColliderQueryBuffer[i];
+            MinionCombatant candidate = hit != null ? hit.GetComponentInParent<MinionCombatant>() : null;
             if (!IsValidTarget(candidate))
             {
                 continue;
@@ -938,13 +947,14 @@ public class MinionUnit : MonoBehaviour
 
     private TeamBuilding FindNearestEnemyBuilding()
     {
-        Collider[] hits = Physics.OverlapSphere(transform.position, buildingSearchRadius, searchLayers, QueryTriggerInteraction.Collide);
+        int hitCount = Physics.OverlapSphereNonAlloc(transform.position, buildingSearchRadius, ColliderQueryBuffer, searchLayers, QueryTriggerInteraction.Collide);
         TeamBuilding nearest = null;
         float nearestDistance = float.PositiveInfinity;
 
-        for (int i = 0; i < hits.Length; i++)
+        for (int i = 0; i < hitCount; i++)
         {
-            TeamBuilding candidate = hits[i] != null ? hits[i].GetComponentInParent<TeamBuilding>() : null;
+            Collider hit = ColliderQueryBuffer[i];
+            TeamBuilding candidate = hit != null ? hit.GetComponentInParent<TeamBuilding>() : null;
             if (!IsValidBuildingTarget(candidate))
             {
                 continue;
@@ -1199,10 +1209,11 @@ public class MinionUnit : MonoBehaviour
 
     private bool FindOverlappingEnemyBase()
     {
-        Collider[] hits = Physics.OverlapSphere(transform.position, 0.55f, ~0, QueryTriggerInteraction.Collide);
-        for (int i = 0; i < hits.Length; i++)
+        int hitCount = Physics.OverlapSphereNonAlloc(transform.position, 0.55f, ColliderQueryBuffer, ~0, QueryTriggerInteraction.Collide);
+        for (int i = 0; i < hitCount; i++)
         {
-            MinionBaseHealth hitBase = hits[i] != null ? hits[i].GetComponentInParent<MinionBaseHealth>() : null;
+            Collider hit = ColliderQueryBuffer[i];
+            MinionBaseHealth hitBase = hit != null ? hit.GetComponentInParent<MinionBaseHealth>() : null;
             if (hitBase != null && hitBase.Team != Team && !hitBase.IsDestroyed)
             {
                 return true;

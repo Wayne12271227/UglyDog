@@ -3,6 +3,8 @@ using UnityEngine;
 public static class PreferredPlayerFinder
 {
     public const string PreferredPlayerName = "CAT";
+    private static int cachedPlayerFrame = -1;
+    private static CatPlayerController[] cachedPlayers = new CatPlayerController[0];
 
     public static CatPlayerController FindPreferredPlayer()
     {
@@ -18,7 +20,7 @@ public static class PreferredPlayerFinder
             return dog;
         }
 
-        CatPlayerController[] candidates = Object.FindObjectsOfType<CatPlayerController>();
+        CatPlayerController[] candidates = GetPlayerCandidates();
         CatPlayerController fallback = null;
 
         for (int i = 0; i < candidates.Length; i++)
@@ -50,7 +52,7 @@ public static class PreferredPlayerFinder
 
     public static CatPlayerController FindPreferredPlayer(System.Predicate<CatPlayerController> predicate)
     {
-        CatPlayerController[] candidates = Object.FindObjectsOfType<CatPlayerController>();
+        CatPlayerController[] candidates = GetPlayerCandidates();
         CatPlayerController preferred = null;
         CatPlayerController fallback = null;
 
@@ -83,7 +85,7 @@ public static class PreferredPlayerFinder
 
     public static CatPlayerController FindPlayer(MinionTeam team)
     {
-        CatPlayerController[] candidates = Object.FindObjectsOfType<CatPlayerController>();
+        CatPlayerController[] candidates = GetPlayerCandidates();
         CatPlayerController fallback = null;
 
         for (int i = 0; i < candidates.Length; i++)
@@ -159,6 +161,18 @@ public static class PreferredPlayerFinder
     private static bool IsLocallyUsable(CatPlayerController player)
     {
         return IsUsable(player) && player.HasLocalPlayerAuthority();
+    }
+
+    private static CatPlayerController[] GetPlayerCandidates()
+    {
+        if (cachedPlayerFrame == Time.frameCount && cachedPlayers != null)
+        {
+            return cachedPlayers;
+        }
+
+        cachedPlayerFrame = Time.frameCount;
+        cachedPlayers = Object.FindObjectsOfType<CatPlayerController>();
+        return cachedPlayers;
     }
 
     private static bool IsUsable(CatPlayerController player)
