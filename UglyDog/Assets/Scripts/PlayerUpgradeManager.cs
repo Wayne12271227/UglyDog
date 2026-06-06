@@ -36,15 +36,17 @@ public class PlayerUpgradeManager : MonoBehaviour
     [SerializeField] private float meleeBuildingDamageBonusPerLevel = 0.1f;
     [SerializeField] private float rangedDamageBonusPerLevel = 0.2f;
     [SerializeField] private float rangedRangeBonusPerLevel = 0.1f;
-    [SerializeField] private int meleeTrainingHealthBonusPerLevel = 10;
-    [SerializeField] private int rangedTrainingDamageBonusPerLevel = 4;
+    [SerializeField] private int meleeTrainingHealthBonusPerLevel = 18;
+    [SerializeField] private int rangedTrainingDamageBonusPerLevel = 6;
 
     [Header("Costs")]
-    [SerializeField] private int[] moveSpeedCosts = { 50, 100, 175, 275, 400 };
-    [SerializeField] private int[] woodGatherSpeedCosts = { 40, 90, 160, 250, 375 };
-    [SerializeField] private int[] stoneGatherSpeedCosts = { 60, 120, 200, 320, 480 };
-    [SerializeField] private int[] meleeTrainingCosts = { 150, 250, 400 };
-    [SerializeField] private int[] rangedTrainingCosts = { 150, 250, 400 };
+    [SerializeField] private int maxUpgradeCost = 200;
+    [SerializeField] private int[] moveSpeedCosts = { 50, 85, 120, 155, 200 };
+    [SerializeField] private int[] gatherSpeedCosts = { 50, 85, 120, 155, 200 };
+    [SerializeField] private int[] woodGatherSpeedCosts = { 50, 85, 120, 155, 200 };
+    [SerializeField] private int[] stoneGatherSpeedCosts = { 50, 85, 120, 155, 200 };
+    [SerializeField] private int[] meleeTrainingCosts = { 100, 150, 200 };
+    [SerializeField] private int[] rangedTrainingCosts = { 100, 150, 200 };
 
     public event Action UpgradesChanged;
 
@@ -92,6 +94,7 @@ public class PlayerUpgradeManager : MonoBehaviour
     {
         maxLevel = Mathf.Max(1, maxLevel);
         maxMinionTrainingLevel = Mathf.Max(1, maxMinionTrainingLevel);
+        maxUpgradeCost = Mathf.Max(1, maxUpgradeCost);
         moveSpeedBonusPerLevel = Mathf.Max(0f, moveSpeedBonusPerLevel);
         gatherSpeedBonusPerLevel = Mathf.Max(0f, gatherSpeedBonusPerLevel);
         meleeHealthBonusPerLevel = Mathf.Max(0f, meleeHealthBonusPerLevel);
@@ -166,7 +169,7 @@ public class PlayerUpgradeManager : MonoBehaviour
             return 0;
         }
 
-        return costs[Mathf.Clamp(level, 0, costs.Length - 1)];
+        return ApplyUpgradeCostCap(costs[Mathf.Clamp(level, 0, costs.Length - 1)]);
     }
 
     public bool TryUpgrade(PlayerUpgradeType type, MinionTeam team)
@@ -233,23 +236,22 @@ public class PlayerUpgradeManager : MonoBehaviour
             return 0;
         }
 
-        return costs[Mathf.Clamp(level, 0, costs.Length - 1)];
+        return ApplyUpgradeCostCap(costs[Mathf.Clamp(level, 0, costs.Length - 1)]);
     }
 
     public int GetGatherSpeedNextCost()
     {
-        int cost = 0;
-        if (woodGatherSpeedLevel < maxLevel)
+        if (IsGatherSpeedMaxLevel())
         {
-            cost += GetCostAtLevel(PlayerUpgradeType.WoodGatherSpeed, woodGatherSpeedLevel);
+            return 0;
         }
 
-        if (stoneGatherSpeedLevel < maxLevel)
+        if (gatherSpeedCosts == null || gatherSpeedCosts.Length == 0)
         {
-            cost += GetCostAtLevel(PlayerUpgradeType.StoneGatherSpeed, stoneGatherSpeedLevel);
+            return 0;
         }
 
-        return cost;
+        return ApplyUpgradeCostCap(gatherSpeedCosts[Mathf.Clamp(GetGatherSpeedLevel(), 0, gatherSpeedCosts.Length - 1)]);
     }
 
     public bool CanUpgrade(PlayerUpgradeType type)
@@ -407,7 +409,12 @@ public class PlayerUpgradeManager : MonoBehaviour
             return 0;
         }
 
-        return costs[Mathf.Clamp(level, 0, costs.Length - 1)];
+        return ApplyUpgradeCostCap(costs[Mathf.Clamp(level, 0, costs.Length - 1)]);
+    }
+
+    private int ApplyUpgradeCostCap(int cost)
+    {
+        return cost <= 0 ? 0 : Mathf.Min(cost, maxUpgradeCost);
     }
 
     private void SetLevel(PlayerUpgradeType type, int level)

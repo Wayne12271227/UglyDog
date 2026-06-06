@@ -388,7 +388,7 @@ public class UpgradeShopUI : MonoBehaviour
             "\u8fd1\u6230\u8a13\u7df4",
             level,
             maxLevel,
-            DescribeFlatBonus(level, maxLevel, 10, "\u8840\u91cf"),
+            DescribeFlatBonus(level, maxLevel, 18, "\u8840\u91cf"),
             cost,
             isMax,
             canAfford);
@@ -408,7 +408,7 @@ public class UpgradeShopUI : MonoBehaviour
             "\u9060\u7a0b\u8a13\u7df4",
             level,
             maxLevel,
-            DescribeFlatBonus(level, maxLevel, 4, "\u653b\u64ca"),
+            DescribeFlatBonus(level, maxLevel, 6, "\u653b\u64ca"),
             cost,
             isMax,
             canAfford);
