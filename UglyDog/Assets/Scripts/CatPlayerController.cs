@@ -183,6 +183,21 @@ public class CatPlayerController : MonoBehaviour
         return networkObject != null && networkObject.Runner != null && networkObject.HasInputAuthority;
     }
 
+    public float AttackCooldownRemaining => Mathf.Max(0f, nextAttackTime - Time.time);
+
+    public float AttackCooldownReadyFraction
+    {
+        get
+        {
+            if (attackCooldown <= 0f)
+            {
+                return 1f;
+            }
+
+            return 1f - Mathf.Clamp01(AttackCooldownRemaining / attackCooldown);
+        }
+    }
+
     public void SetNetworkControlled(bool isNetworkControlled)
     {
         networkControlled = isNetworkControlled;
