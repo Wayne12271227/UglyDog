@@ -1,3 +1,4 @@
+using System.Collections;
 using Fusion;
 using UnityEngine;
 
@@ -45,7 +46,7 @@ public class CatPlayerController : MonoBehaviour
     [SerializeField] private float actionLoopBlendTime = 0.03f;
 
     [Header("Combat")]
-    [SerializeField] private int attackDamage = 1;
+    [SerializeField] private int attackDamage = 10;
     [SerializeField] private float attackRange = 1.6f;
     [SerializeField] private float attackRadius = 0.75f;
     [SerializeField] private float attackForwardOffset = 0.75f;
@@ -60,17 +61,27 @@ public class CatPlayerController : MonoBehaviour
     [SerializeField] private AudioClip stoneDigActionClip;
     [SerializeField] private AudioClip footstepClip;
     [SerializeField] private AudioClip attackClip;
+    [SerializeField] private AudioClip attackHitClip;
     [SerializeField] private AudioClip buildClip;
     [SerializeField] private AudioClip coinGainClip;
     [SerializeField, Range(0f, 1f)] private float digActionVolume = 1f;
     [SerializeField, Range(0f, 1f)] private float footstepVolume = 0.75f;
     [SerializeField, Range(0f, 1f)] private float attackVolume = 1f;
+    [SerializeField, Range(0f, 1f)] private float attackHitVolume = 1f;
     [SerializeField, Range(0f, 1f)] private float buildVolume = 1f;
     [SerializeField, Range(0f, 1f)] private float coinGainVolume = 1f;
     [SerializeField, Range(0f, 1f)] private float digActionImpactNormalizedTime = 0.55f;
     [SerializeField] private float digActionMinimumInterval = 0.12f;
     [SerializeField] private float footstepInterval = 0.35f;
     [SerializeField] private float buildSoundInterval = 0.55f;
+
+    [Header("Attack Hit Feedback")]
+    [SerializeField] private bool enableAttackHitFeedback = true;
+    [SerializeField] private float attackHitStopDuration = 0.045f;
+    [SerializeField] private float attackHitStopTimeScale = 0.08f;
+    [SerializeField] private float attackHitShakeDuration = 0.12f;
+    [SerializeField] private float attackHitShakeStrength = 0.18f;
+    [SerializeField] private Vector3 attackHitPopupOffset = new Vector3(0f, 1.5f, 0f);
 
     [Header("Smart Dig Speed")]
     [SerializeField] private bool syncDigSpeedToGatherInterval = true;
@@ -103,6 +114,10 @@ public class CatPlayerController : MonoBehaviour
     private float nextFootstepTime;
     private float nextBuildSoundTime;
     private float buildSoundEndTime;
+    private Coroutine hitStopCoroutine;
+    private bool hitStopActive;
+    private float hitStopOriginalTimeScale = 1f;
+    private float hitStopOriginalFixedDeltaTime;
     private ResourceType currentDigResourceType;
     private bool hasCurrentDigResourceType;
     private float currentDigCycleDuration;
@@ -147,6 +162,17 @@ public class CatPlayerController : MonoBehaviour
         ConfigureRigidbodyForTopDown();
         ConfigureCapsuleForTopDown();
         CacheAnimatorParameters();
+    }
+
+    private void OnDisable()
+    {
+        if (hitStopCoroutine != null)
+        {
+            StopCoroutine(hitStopCoroutine);
+            hitStopCoroutine = null;
+        }
+
+        RestoreHitStopTime();
     }
 
     private void Update()
@@ -1022,11 +1048,11 @@ public class CatPlayerController : MonoBehaviour
 
         if (applyGameplayEffects)
         {
-            PerformKickAttack();
+            PerformKickAttack(playLocalFeedback);
         }
     }
 
-    private void PerformKickAttack()
+    private void PerformKickAttack(bool playLocalFeedback)
     {
 
         MinionTeam attackerTeam = PreferredPlayerFinder.IsPlayerTeam(this, MinionTeam.Cat) ? MinionTeam.Cat : MinionTeam.Dog;
@@ -1054,9 +1080,9 @@ public class CatPlayerController : MonoBehaviour
                 continue;
             }
 
-            if (TryKickMinion(hit, attackerTeam, forward)
-                || TryKickBuilding(hit, attackerTeam)
-                || TryKickPlayer(hit, attackerTeam, forward))
+            if (TryKickMinion(hit, attackerTeam, forward, playLocalFeedback)
+                || TryKickBuilding(hit, attackerTeam, playLocalFeedback)
+                || TryKickPlayer(hit, attackerTeam, forward, playLocalFeedback))
             {
                 return;
             }
@@ -1074,7 +1100,7 @@ public class CatPlayerController : MonoBehaviour
         restoreAnimatorSpeedTime = Time.time + attackAnimationSpeedDuration;
     }
 
-    private bool TryKickMinion(Collider hit, MinionTeam attackerTeam, Vector3 forward)
+    private bool TryKickMinion(Collider hit, MinionTeam attackerTeam, Vector3 forward, bool playLocalFeedback)
     {
         MinionCombatant minion = hit.GetComponentInParent<MinionCombatant>();
         if (minion == null || minion.Team == attackerTeam || minion.IsDead)
@@ -1093,10 +1119,11 @@ public class CatPlayerController : MonoBehaviour
             minion.transform.position += forward.normalized * attackKnockbackDistance;
         }
 
+        PlayAttackHitFeedback(minion.transform.position + attackHitPopupOffset, playLocalFeedback);
         return true;
     }
 
-    private bool TryKickPlayer(Collider hit, MinionTeam attackerTeam, Vector3 forward)
+    private bool TryKickPlayer(Collider hit, MinionTeam attackerTeam, Vector3 forward, bool playLocalFeedback)
     {
         CatPlayerController targetPlayer = hit.GetComponentInParent<CatPlayerController>();
         if (targetPlayer == null || targetPlayer == this || !PreferredPlayerFinder.IsPlayerTeam(targetPlayer, GetEnemyTeam(attackerTeam)))
@@ -1112,10 +1139,11 @@ public class CatPlayerController : MonoBehaviour
 
         targetCombatant.TakeDamage(attackDamage);
         targetPlayer.ApplyKnockback(forward, attackKnockbackDistance);
+        PlayAttackHitFeedback(targetPlayer.transform.position + attackHitPopupOffset, playLocalFeedback);
         return true;
     }
 
-    private bool TryKickBuilding(Collider hit, MinionTeam attackerTeam)
+    private bool TryKickBuilding(Collider hit, MinionTeam attackerTeam, bool playLocalFeedback)
     {
         TeamBuilding building = hit.GetComponentInParent<TeamBuilding>();
         if (building == null || building.Team == attackerTeam || building.Health == null || building.Health.IsDestroyed)
@@ -1124,7 +1152,59 @@ public class CatPlayerController : MonoBehaviour
         }
 
         building.Health.TakeDamage(attackDamage);
+        PlayAttackHitFeedback(hit.bounds.center + attackHitPopupOffset, playLocalFeedback);
         return true;
+    }
+
+    private void PlayAttackHitFeedback(Vector3 hitPosition, bool playLocalFeedback)
+    {
+        if (!enableAttackHitFeedback || !playLocalFeedback)
+        {
+            return;
+        }
+
+        AudioClip hitClip = attackHitClip != null ? attackHitClip : attackClip;
+        PlayOneShot(hitClip, attackHitVolume);
+        CameraHitShake.ShakeMainCamera(attackHitShakeDuration, attackHitShakeStrength);
+        DamagePopup.Spawn(hitPosition, "-" + attackDamage);
+
+        if (attackHitStopDuration > 0f && attackHitStopTimeScale > 0f && attackHitStopTimeScale < 1f)
+        {
+            if (hitStopCoroutine != null)
+            {
+                StopCoroutine(hitStopCoroutine);
+                RestoreHitStopTime();
+            }
+
+            hitStopCoroutine = StartCoroutine(PlayHitStop());
+        }
+    }
+
+    private IEnumerator PlayHitStop()
+    {
+        hitStopActive = true;
+        hitStopOriginalTimeScale = Time.timeScale;
+        hitStopOriginalFixedDeltaTime = Time.fixedDeltaTime;
+
+        Time.timeScale = Mathf.Clamp(attackHitStopTimeScale, 0.01f, 1f);
+        Time.fixedDeltaTime = hitStopOriginalFixedDeltaTime * Time.timeScale;
+
+        yield return new WaitForSecondsRealtime(attackHitStopDuration);
+
+        RestoreHitStopTime();
+        hitStopCoroutine = null;
+    }
+
+    private void RestoreHitStopTime()
+    {
+        if (!hitStopActive)
+        {
+            return;
+        }
+
+        Time.timeScale = hitStopOriginalTimeScale;
+        Time.fixedDeltaTime = hitStopOriginalFixedDeltaTime;
+        hitStopActive = false;
     }
 
     private Vector3 GetAttackForward()

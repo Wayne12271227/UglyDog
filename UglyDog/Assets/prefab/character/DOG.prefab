@@ -982,7 +982,7 @@ MonoBehaviour:
   runLoopBlendTime: 0.08
   actionLoopRestartTime: 0.92
   actionLoopBlendTime: 0.03
-  attackDamage: 1
+  attackDamage: 10
   attackRange: 1.6
   attackRadius: 0.75
   attackForwardOffset: 0.75
@@ -995,17 +995,25 @@ MonoBehaviour:
   stoneDigActionClip: {fileID: 8300000, guid: 6059965aaef1ef0428d8feea1bfdeee3, type: 3}
   footstepClip: {fileID: 8300000, guid: 2d6ac25ddbaa49c44a0c60e3b67c0981, type: 3}
   attackClip: {fileID: 8300000, guid: 6059965aaef1ef0428d8feea1bfdeee3, type: 3}
+  attackHitClip: {fileID: 8300000, guid: f3cacc734f687d24d90628b03d445e45, type: 3}
   buildClip: {fileID: 8300000, guid: 71fa496925f1f29409f0fe863c409372, type: 3}
   coinGainClip: {fileID: 8300000, guid: 63ca054aaf8d80547989d145b395d85b, type: 3}
   digActionVolume: 0.341
   footstepVolume: 0.432
   attackVolume: 1
+  attackHitVolume: 1
   buildVolume: 0.691
   coinGainVolume: 0.729
   digActionImpactNormalizedTime: 0.222
   digActionMinimumInterval: 0.12
   footstepInterval: 0.35
   buildSoundInterval: 0.55
+  enableAttackHitFeedback: 1
+  attackHitStopDuration: 0.045
+  attackHitStopTimeScale: 0.08
+  attackHitShakeDuration: 0.12
+  attackHitShakeStrength: 0.18
+  attackHitPopupOffset: {x: 0, y: 1.5, z: 0}
   syncDigSpeedToGatherInterval: 1
   baseDigCycleDuration: 0.5
   minSyncedDigAnimatorSpeed: 0.5

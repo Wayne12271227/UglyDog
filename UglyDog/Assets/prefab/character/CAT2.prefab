@@ -8301,7 +8301,7 @@ MonoBehaviour:
   runLoopBlendTime: 0.08
   actionLoopRestartTime: 0.92
   actionLoopBlendTime: 0.03
-  attackDamage: 1
+  attackDamage: 10
   attackRange: 1.6
   attackRadius: 0.75
   attackForwardOffset: 0.75
