@@ -8333,7 +8333,7 @@ MonoBehaviour:
   attackVolume: 1
   attackHitVolume: 1
   buildVolume: 0.691
-  coinGainVolume: 0.729
+  coinGainVolume: 0.35
   digActionImpactNormalizedTime: 0.222
   digActionMinimumInterval: 0.12
   footstepInterval: 0.35

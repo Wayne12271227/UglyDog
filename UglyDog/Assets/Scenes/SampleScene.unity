@@ -5527,9 +5527,9 @@ MonoBehaviour:
     localScale: {x: 1, y: 1, z: 1}
     usePrefabColliders: 1
   towerAttackRange: 8
-  towerShotsPerSecond: 1
-  towerDamage: 5
-  towerProjectileSpeed: 12
+  towerShotsPerSecond: 1.1
+  towerDamage: 6
+  towerProjectileSpeed: 13
   barracksSummonInterval: 12
   autoFindDashedRangeRenderers: 1
   dashedRangeRenderers:
@@ -20715,9 +20715,9 @@ MonoBehaviour:
     localScale: {x: 1, y: 1, z: 1}
     usePrefabColliders: 1
   towerAttackRange: 8
-  towerShotsPerSecond: 1
-  towerDamage: 5
-  towerProjectileSpeed: 12
+  towerShotsPerSecond: 1.1
+  towerDamage: 6
+  towerProjectileSpeed: 13
   barracksSummonInterval: 12
   autoFindDashedRangeRenderers: 1
   dashedRangeRenderers:
@@ -31041,9 +31041,9 @@ MonoBehaviour:
     localScale: {x: 1, y: 1, z: 1}
     usePrefabColliders: 1
   towerAttackRange: 8
-  towerShotsPerSecond: 1
-  towerDamage: 5
-  towerProjectileSpeed: 12
+  towerShotsPerSecond: 1.1
+  towerDamage: 6
+  towerProjectileSpeed: 13
   barracksSummonInterval: 12
   autoFindDashedRangeRenderers: 1
   dashedRangeRenderers:
@@ -36145,9 +36145,9 @@ MonoBehaviour:
     localScale: {x: 1, y: 1, z: 1}
     usePrefabColliders: 1
   towerAttackRange: 8
-  towerShotsPerSecond: 1
-  towerDamage: 5
-  towerProjectileSpeed: 12
+  towerShotsPerSecond: 1.1
+  towerDamage: 6
+  towerProjectileSpeed: 13
   barracksSummonInterval: 12
   autoFindDashedRangeRenderers: 1
   dashedRangeRenderers:
@@ -41182,9 +41182,9 @@ MonoBehaviour:
     localScale: {x: 1, y: 1, z: 1}
     usePrefabColliders: 1
   towerAttackRange: 8
-  towerShotsPerSecond: 1
-  towerDamage: 5
-  towerProjectileSpeed: 12
+  towerShotsPerSecond: 1.1
+  towerDamage: 6
+  towerProjectileSpeed: 13
   barracksSummonInterval: 12
   autoFindDashedRangeRenderers: 1
   dashedRangeRenderers:
@@ -46504,9 +46504,9 @@ MonoBehaviour:
     localScale: {x: 1, y: 1, z: 1}
     usePrefabColliders: 1
   towerAttackRange: 8
-  towerShotsPerSecond: 1
-  towerDamage: 5
-  towerProjectileSpeed: 12
+  towerShotsPerSecond: 1.1
+  towerDamage: 6
+  towerProjectileSpeed: 13
   barracksSummonInterval: 12
   autoFindDashedRangeRenderers: 1
   dashedRangeRenderers:
@@ -73622,9 +73622,9 @@ MonoBehaviour:
     localScale: {x: 1, y: 1, z: 1}
     usePrefabColliders: 1
   towerAttackRange: 8
-  towerShotsPerSecond: 1
-  towerDamage: 5
-  towerProjectileSpeed: 12
+  towerShotsPerSecond: 1.1
+  towerDamage: 6
+  towerProjectileSpeed: 13
   barracksSummonInterval: 12
   autoFindDashedRangeRenderers: 1
   dashedRangeRenderers:
@@ -74370,9 +74370,9 @@ MonoBehaviour:
     localScale: {x: 1, y: 1, z: 1}
     usePrefabColliders: 1
   towerAttackRange: 8
-  towerShotsPerSecond: 1
-  towerDamage: 5
-  towerProjectileSpeed: 12
+  towerShotsPerSecond: 1.1
+  towerDamage: 6
+  towerProjectileSpeed: 13
   barracksSummonInterval: 12
   autoFindDashedRangeRenderers: 1
   dashedRangeRenderers:
@@ -75198,9 +75198,9 @@ MonoBehaviour:
     localScale: {x: 1, y: 1, z: 1}
     usePrefabColliders: 1
   towerAttackRange: 8
-  towerShotsPerSecond: 1
-  towerDamage: 5
-  towerProjectileSpeed: 12
+  towerShotsPerSecond: 1.1
+  towerDamage: 6
+  towerProjectileSpeed: 13
   barracksSummonInterval: 12
   autoFindDashedRangeRenderers: 1
   dashedRangeRenderers:
@@ -111065,9 +111065,9 @@ MonoBehaviour:
     localScale: {x: 1, y: 1, z: 1}
     usePrefabColliders: 1
   towerAttackRange: 8
-  towerShotsPerSecond: 1
-  towerDamage: 5
-  towerProjectileSpeed: 12
+  towerShotsPerSecond: 1.1
+  towerDamage: 6
+  towerProjectileSpeed: 13
   barracksSummonInterval: 12
   autoFindDashedRangeRenderers: 1
   dashedRangeRenderers:
@@ -143413,12 +143413,12 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 2e0cb03ac6c93434abc751bf26a7f305, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  startingCoins: 999
-  startingWood: 50
-  startingStone: 0
-  coins: 999
-  wood: 50
-  stone: 0
+  startingCoins: 50
+  startingWood: 10
+  startingStone: 10
+  coins: 50
+  wood: 10
+  stone: 10
 --- !u!4 &1246326456
 Transform:
   m_ObjectHideFlags: 0
@@ -143825,9 +143825,9 @@ MonoBehaviour:
     localScale: {x: 1, y: 1, z: 1}
     usePrefabColliders: 1
   towerAttackRange: 8
-  towerShotsPerSecond: 1
-  towerDamage: 5
-  towerProjectileSpeed: 12
+  towerShotsPerSecond: 1.1
+  towerDamage: 6
+  towerProjectileSpeed: 13
   barracksSummonInterval: 12
   autoFindDashedRangeRenderers: 1
   dashedRangeRenderers:
@@ -144668,9 +144668,9 @@ MonoBehaviour:
     localScale: {x: 1, y: 1, z: 1}
     usePrefabColliders: 1
   towerAttackRange: 8
-  towerShotsPerSecond: 1
-  towerDamage: 5
-  towerProjectileSpeed: 12
+  towerShotsPerSecond: 1.1
+  towerDamage: 6
+  towerProjectileSpeed: 13
   barracksSummonInterval: 12
   autoFindDashedRangeRenderers: 1
   dashedRangeRenderers:
@@ -165713,9 +165713,9 @@ MonoBehaviour:
     localScale: {x: 1, y: 1, z: 1}
     usePrefabColliders: 1
   towerAttackRange: 8
-  towerShotsPerSecond: 1
-  towerDamage: 5
-  towerProjectileSpeed: 12
+  towerShotsPerSecond: 1.1
+  towerDamage: 6
+  towerProjectileSpeed: 13
   barracksSummonInterval: 12
   autoFindDashedRangeRenderers: 1
   dashedRangeRenderers:
@@ -166261,9 +166261,9 @@ MonoBehaviour:
     localScale: {x: 1, y: 1, z: 1}
     usePrefabColliders: 1
   towerAttackRange: 8
-  towerShotsPerSecond: 1
-  towerDamage: 5
-  towerProjectileSpeed: 12
+  towerShotsPerSecond: 1.1
+  towerDamage: 6
+  towerProjectileSpeed: 13
   barracksSummonInterval: 12
   autoFindDashedRangeRenderers: 1
   dashedRangeRenderers:
@@ -197714,9 +197714,9 @@ MonoBehaviour:
     localScale: {x: 1, y: 1, z: 1}
     usePrefabColliders: 1
   towerAttackRange: 8
-  towerShotsPerSecond: 1
-  towerDamage: 5
-  towerProjectileSpeed: 12
+  towerShotsPerSecond: 1.1
+  towerDamage: 6
+  towerProjectileSpeed: 13
   barracksSummonInterval: 12
   autoFindDashedRangeRenderers: 1
   dashedRangeRenderers:
@@ -203337,9 +203337,9 @@ MonoBehaviour:
     localScale: {x: 1, y: 1, z: 1}
     usePrefabColliders: 1
   towerAttackRange: 8
-  towerShotsPerSecond: 1
-  towerDamage: 5
-  towerProjectileSpeed: 12
+  towerShotsPerSecond: 1.1
+  towerDamage: 6
+  towerProjectileSpeed: 13
   barracksSummonInterval: 12
   autoFindDashedRangeRenderers: 1
   dashedRangeRenderers:
@@ -254369,9 +254369,9 @@ MonoBehaviour:
     localScale: {x: 1, y: 1, z: 1}
     usePrefabColliders: 1
   towerAttackRange: 8
-  towerShotsPerSecond: 1
-  towerDamage: 5
-  towerProjectileSpeed: 12
+  towerShotsPerSecond: 1.1
+  towerDamage: 6
+  towerProjectileSpeed: 13
   barracksSummonInterval: 12
   autoFindDashedRangeRenderers: 1
   dashedRangeRenderers:
@@ -254749,9 +254749,9 @@ MonoBehaviour:
     localScale: {x: 1, y: 1, z: 1}
     usePrefabColliders: 1
   towerAttackRange: 8
-  towerShotsPerSecond: 1
-  towerDamage: 5
-  towerProjectileSpeed: 12
+  towerShotsPerSecond: 1.1
+  towerDamage: 6
+  towerProjectileSpeed: 13
   barracksSummonInterval: 12
   autoFindDashedRangeRenderers: 1
   dashedRangeRenderers:

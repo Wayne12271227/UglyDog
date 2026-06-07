@@ -69,7 +69,7 @@ public class CatPlayerController : MonoBehaviour
     [SerializeField, Range(0f, 1f)] private float attackVolume = 1f;
     [SerializeField, Range(0f, 1f)] private float attackHitVolume = 1f;
     [SerializeField, Range(0f, 1f)] private float buildVolume = 1f;
-    [SerializeField, Range(0f, 1f)] private float coinGainVolume = 1f;
+    [SerializeField, Range(0f, 1f)] private float coinGainVolume = 0.35f;
     [SerializeField, Range(0f, 1f)] private float digActionImpactNormalizedTime = 0.55f;
     [SerializeField] private float digActionMinimumInterval = 0.12f;
     [SerializeField] private float footstepInterval = 0.35f;

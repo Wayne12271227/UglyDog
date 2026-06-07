@@ -64,6 +64,7 @@ public class MinionCombatant : MonoBehaviour
 
         if (currentHealth <= 0)
         {
+            EconomyRewards.AwardLocalOpponentOf(team, EconomyRewards.MinionKillCoins);
             Died?.Invoke(this);
             Destroy(gameObject);
         }

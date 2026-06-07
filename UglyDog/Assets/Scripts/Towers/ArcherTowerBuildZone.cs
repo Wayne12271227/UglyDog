@@ -44,9 +44,9 @@ public class ArcherTowerBuildZone : MonoBehaviour
 
     [Header("Archer Tower")]
     [SerializeField] private float towerAttackRange = 8f;
-    [SerializeField] private float towerShotsPerSecond = 1f;
-    [SerializeField] private int towerDamage = 5;
-    [SerializeField] private float towerProjectileSpeed = 12f;
+    [SerializeField] private float towerShotsPerSecond = 1.1f;
+    [SerializeField] private int towerDamage = 6;
+    [SerializeField] private float towerProjectileSpeed = 13f;
 
     [Header("Barracks")]
     [SerializeField] private float barracksSummonInterval = 12f;

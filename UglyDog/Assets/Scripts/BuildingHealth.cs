@@ -61,6 +61,12 @@ public class BuildingHealth : MonoBehaviour
 
         if (currentHealth <= 0)
         {
+            TeamBuilding teamBuilding = GetComponent<TeamBuilding>();
+            if (teamBuilding != null)
+            {
+                EconomyRewards.AwardLocalOpponentOf(teamBuilding.Team, EconomyRewards.BuildingDestroyedCoins);
+            }
+
             Destroyed?.Invoke(this);
             Destroy(gameObject);
         }
