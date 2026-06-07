@@ -37,6 +37,8 @@ public class PlayerUpgradeManager : MonoBehaviour
     [SerializeField] private float rangedDamageBonusPerLevel = 0.2f;
     [SerializeField] private float rangedRangeBonusPerLevel = 0.1f;
     [SerializeField] private int meleeTrainingHealthBonusPerLevel = 18;
+    [SerializeField] private int meleeTrainingDamageBonusPerLevel = 1;
+    [SerializeField] private int rangedTrainingHealthBonusPerLevel = 5;
     [SerializeField] private int rangedTrainingDamageBonusPerLevel = 6;
 
     [Header("Costs")]
@@ -102,6 +104,8 @@ public class PlayerUpgradeManager : MonoBehaviour
         rangedDamageBonusPerLevel = Mathf.Max(0f, rangedDamageBonusPerLevel);
         rangedRangeBonusPerLevel = Mathf.Max(0f, rangedRangeBonusPerLevel);
         meleeTrainingHealthBonusPerLevel = Mathf.Max(0, meleeTrainingHealthBonusPerLevel);
+        meleeTrainingDamageBonusPerLevel = Mathf.Max(0, meleeTrainingDamageBonusPerLevel);
+        rangedTrainingHealthBonusPerLevel = Mathf.Max(0, rangedTrainingHealthBonusPerLevel);
         rangedTrainingDamageBonusPerLevel = Mathf.Max(0, rangedTrainingDamageBonusPerLevel);
         ClampLevels();
     }
@@ -195,6 +199,16 @@ public class PlayerUpgradeManager : MonoBehaviour
     public int GetMeleeTrainingHealthBonus(MinionTeam team)
     {
         return GetLevel(PlayerUpgradeType.MeleeTraining, team) * meleeTrainingHealthBonusPerLevel;
+    }
+
+    public int GetMeleeTrainingDamageBonus(MinionTeam team)
+    {
+        return GetLevel(PlayerUpgradeType.MeleeTraining, team) * meleeTrainingDamageBonusPerLevel;
+    }
+
+    public int GetRangedTrainingHealthBonus(MinionTeam team)
+    {
+        return GetLevel(PlayerUpgradeType.RangedTraining, team) * rangedTrainingHealthBonusPerLevel;
     }
 
     public int GetRangedTrainingDamageBonus(MinionTeam team)

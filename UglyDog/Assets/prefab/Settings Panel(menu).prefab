@@ -414,6 +414,8 @@ MonoBehaviour:
   sfxValueText: {fileID: 0}
   closeButton: {fileID: 0}
   exitGameButton: {fileID: 0}
+  exitGameButtonText: {fileID: 0}
+  exitConfirmSeconds: 2.5
 --- !u!222 &8885968111971648745
 CanvasRenderer:
   m_ObjectHideFlags: 0
@@ -874,7 +876,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
-  m_AnchoredPosition: {x: 0, y: 272}
+  m_AnchoredPosition: {x: 0, y: 260}
   m_SizeDelta: {x: 220, y: 70}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!222 &4645519294214089786
@@ -1467,6 +1469,7 @@ MonoBehaviour:
   hoverScale: 1.06
   pressedScale: 0.97
   transitionSpeed: 14
+  scaleWhenDisabled: 1
 --- !u!1 &7683780546325763653
 GameObject:
   m_ObjectHideFlags: 0

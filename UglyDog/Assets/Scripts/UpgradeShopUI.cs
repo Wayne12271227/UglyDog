@@ -385,10 +385,10 @@ public class UpgradeShopUI : MonoBehaviour
 
         RefreshCard(
             meleeTrainingCard,
-            "\u8fd1\u6230\u8a13\u7df4",
+            "\u8fd1\u6230\u5c0f\u5175\u8a13\u7df4",
             level,
             maxLevel,
-            DescribeFlatBonus(level, maxLevel, 18, "\u8840\u91cf"),
+            DescribeDualFlatBonus(level, maxLevel, 18, "\u8840\u91cf", 1, "\u653b\u64ca"),
             cost,
             isMax,
             canAfford);
@@ -405,10 +405,10 @@ public class UpgradeShopUI : MonoBehaviour
 
         RefreshCard(
             rangedTrainingCard,
-            "\u9060\u7a0b\u8a13\u7df4",
+            "\u9060\u7a0b\u5c0f\u5175\u8a13\u7df4",
             level,
             maxLevel,
-            DescribeFlatBonus(level, maxLevel, 6, "\u653b\u64ca"),
+            DescribeDualFlatBonus(level, maxLevel, 6, "\u653b\u64ca", 5, "\u8840\u91cf"),
             cost,
             isMax,
             canAfford);
@@ -504,6 +504,26 @@ public class UpgradeShopUI : MonoBehaviour
 
         int nextAmount = (level + 1) * amountPerLevel;
         return $"{label} +{currentAmount}\u2192<color=#89E35B>+{nextAmount}</color>";
+    }
+
+    private string DescribeDualFlatBonus(
+        int level,
+        int maxLevel,
+        int firstAmountPerLevel,
+        string firstLabel,
+        int secondAmountPerLevel,
+        string secondLabel)
+    {
+        int currentFirst = level * firstAmountPerLevel;
+        int currentSecond = level * secondAmountPerLevel;
+        if (level >= maxLevel)
+        {
+            return $"{firstLabel} +{currentFirst}\n{secondLabel} +{currentSecond}";
+        }
+
+        int nextFirst = (level + 1) * firstAmountPerLevel;
+        int nextSecond = (level + 1) * secondAmountPerLevel;
+        return $"{firstLabel} +{currentFirst}\u2192<color=#89E35B>+{nextFirst}</color>\n{secondLabel} +{currentSecond}\u2192<color=#89E35B>+{nextSecond}</color>";
     }
 
     private MinionTeam GetSourceTeam()

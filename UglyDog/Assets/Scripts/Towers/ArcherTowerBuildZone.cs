@@ -43,7 +43,7 @@ public class ArcherTowerBuildZone : MonoBehaviour
     };
 
     [Header("Archer Tower")]
-    [SerializeField] private float towerAttackRange = 8f;
+    [SerializeField] private float towerAttackRange = 10.4f;
     [SerializeField] private float towerShotsPerSecond = 1.1f;
     [SerializeField] private int towerDamage = 6;
     [SerializeField] private float towerProjectileSpeed = 13f;
@@ -471,7 +471,6 @@ public class ArcherTowerBuildZone : MonoBehaviour
     private void CompleteBuild(CatPlayerController builder)
     {
         MinionTeam team = GetPlayerTeam(builder);
-        MoveBuilderOutsideBuildFootprint(builder, pendingType);
         if (TryRequestNetworkBuilding(pendingType, team, builder, out bool shouldCreatePrediction, out bool requestAccepted))
         {
             if (!requestAccepted)
@@ -505,7 +504,6 @@ public class ArcherTowerBuildZone : MonoBehaviour
             CreateBuilding(pendingType, team);
         }
 
-        MoveBuilderOutsideCurrentBuilding(builder);
         isBuilding = false;
         buildProgress = 0f;
         builder.StopAction();
@@ -607,6 +605,7 @@ public class ArcherTowerBuildZone : MonoBehaviour
         BoxCollider fallbackCollider = buildingObject.AddComponent<BoxCollider>();
         fallbackCollider.size = GetFootprint(type);
         fallbackCollider.center = new Vector3(0f, fallbackCollider.size.y * 0.5f, 0f);
+        fallbackCollider.isTrigger = true;
 
         if (type == BuildSiteBuildingType.ArcherTower)
         {
@@ -1355,6 +1354,8 @@ public class ArcherTowerBuildZone : MonoBehaviour
             visualColliders = visualObject.GetComponentsInChildren<Collider>(true);
         }
 
+        CenterVisualHorizontalPivot(parent, visualObject, visualColliders);
+
         if (!useSimpleGameplayCollider && visual.usePrefabColliders && visualColliders.Length > 0)
         {
             if (fallbackCollider != null)
@@ -1362,13 +1363,14 @@ public class ArcherTowerBuildZone : MonoBehaviour
                 fallbackCollider.enabled = false;
             }
 
-            SetVisualCollidersEnabled(visualColliders, true);
+            SetVisualCollidersEnabled(visualColliders, true, true);
         }
         else
         {
             if (fallbackCollider != null)
             {
                 fallbackCollider.enabled = true;
+                fallbackCollider.isTrigger = true;
                 FitColliderToPrefabColliderBounds(fallbackCollider as BoxCollider, visualColliders);
             }
 
@@ -1376,6 +1378,29 @@ public class ArcherTowerBuildZone : MonoBehaviour
         }
 
         return true;
+    }
+
+    private static void CenterVisualHorizontalPivot(Transform buildRoot, GameObject visualObject, Collider[] visualColliders)
+    {
+        if (buildRoot == null || visualObject == null)
+        {
+            return;
+        }
+
+        Bounds localBounds;
+        if (!TryGetColliderLocalBounds(buildRoot, visualColliders, out localBounds)
+            && !TryGetRendererLocalBounds(buildRoot, visualObject, out localBounds))
+        {
+            return;
+        }
+
+        Vector3 horizontalOffset = new Vector3(localBounds.center.x, 0f, localBounds.center.z);
+        if (horizontalOffset.sqrMagnitude <= 0.0001f)
+        {
+            return;
+        }
+
+        visualObject.transform.localPosition -= horizontalOffset;
     }
 
     private static void FitColliderToPrefabColliderBounds(BoxCollider collider, Collider[] visualColliders)
@@ -1400,6 +1425,11 @@ public class ArcherTowerBuildZone : MonoBehaviour
     private static bool TryGetColliderLocalBounds(Transform root, Collider[] colliders, out Bounds localBounds)
     {
         localBounds = default;
+        if (root == null || colliders == null)
+        {
+            return false;
+        }
+
         bool found = false;
         for (int i = 0; i < colliders.Length; i++)
         {
@@ -1409,31 +1439,106 @@ public class ArcherTowerBuildZone : MonoBehaviour
                 continue;
             }
 
-            EncapsulateWorldBoundsAsLocal(root, collider.bounds, ref localBounds, ref found);
+            TryEncapsulateColliderLocalBounds(root, collider, ref localBounds, ref found);
         }
 
         return found;
     }
 
-    private static void EncapsulateWorldBoundsAsLocal(Transform root, Bounds worldBounds, ref Bounds localBounds, ref bool found)
+    private static bool TryEncapsulateColliderLocalBounds(Transform root, Collider collider, ref Bounds localBounds, ref bool found)
     {
-        Vector3 min = worldBounds.min;
-        Vector3 max = worldBounds.max;
+        if (collider is BoxCollider boxCollider)
+        {
+            EncapsulateBoxLocalBounds(root, boxCollider.transform, boxCollider.center, boxCollider.size, ref localBounds, ref found);
+            return true;
+        }
+
+        if (collider is SphereCollider sphereCollider)
+        {
+            float diameter = sphereCollider.radius * 2f;
+            EncapsulateBoxLocalBounds(root, sphereCollider.transform, sphereCollider.center, Vector3.one * diameter, ref localBounds, ref found);
+            return true;
+        }
+
+        if (collider is CapsuleCollider capsuleCollider)
+        {
+            float diameter = capsuleCollider.radius * 2f;
+            Vector3 size = new Vector3(diameter, diameter, diameter);
+            if (capsuleCollider.direction == 0)
+            {
+                size.x = Mathf.Max(diameter, capsuleCollider.height);
+            }
+            else if (capsuleCollider.direction == 1)
+            {
+                size.y = Mathf.Max(diameter, capsuleCollider.height);
+            }
+            else
+            {
+                size.z = Mathf.Max(diameter, capsuleCollider.height);
+            }
+
+            EncapsulateBoxLocalBounds(root, capsuleCollider.transform, capsuleCollider.center, size, ref localBounds, ref found);
+            return true;
+        }
+
+        if (collider is MeshCollider meshCollider && meshCollider.sharedMesh != null)
+        {
+            Bounds meshBounds = meshCollider.sharedMesh.bounds;
+            EncapsulateBoxLocalBounds(root, meshCollider.transform, meshBounds.center, meshBounds.size, ref localBounds, ref found);
+            return true;
+        }
+
+        return false;
+    }
+
+    private static bool TryGetRendererLocalBounds(Transform root, GameObject visualObject, out Bounds localBounds)
+    {
+        localBounds = default;
+        if (root == null || visualObject == null)
+        {
+            return false;
+        }
+
+        Renderer[] renderers = visualObject.GetComponentsInChildren<Renderer>(true);
+        bool found = false;
+        for (int i = 0; i < renderers.Length; i++)
+        {
+            Renderer renderer = renderers[i];
+            if (renderer == null || !renderer.enabled)
+            {
+                continue;
+            }
+
+            Bounds rendererBounds = renderer.localBounds;
+            EncapsulateBoxLocalBounds(root, renderer.transform, rendererBounds.center, rendererBounds.size, ref localBounds, ref found);
+        }
+
+        return found;
+    }
+
+    private static void EncapsulateBoxLocalBounds(Transform root, Transform boundsTransform, Vector3 center, Vector3 size, ref Bounds localBounds, ref bool found)
+    {
+        if (root == null || boundsTransform == null)
+        {
+            return;
+        }
+
+        Vector3 extents = size * 0.5f;
         Vector3[] corners =
         {
-            new Vector3(min.x, min.y, min.z),
-            new Vector3(min.x, min.y, max.z),
-            new Vector3(min.x, max.y, min.z),
-            new Vector3(min.x, max.y, max.z),
-            new Vector3(max.x, min.y, min.z),
-            new Vector3(max.x, min.y, max.z),
-            new Vector3(max.x, max.y, min.z),
-            new Vector3(max.x, max.y, max.z)
+            center + new Vector3(-extents.x, -extents.y, -extents.z),
+            center + new Vector3(-extents.x, -extents.y, extents.z),
+            center + new Vector3(-extents.x, extents.y, -extents.z),
+            center + new Vector3(-extents.x, extents.y, extents.z),
+            center + new Vector3(extents.x, -extents.y, -extents.z),
+            center + new Vector3(extents.x, -extents.y, extents.z),
+            center + new Vector3(extents.x, extents.y, -extents.z),
+            center + new Vector3(extents.x, extents.y, extents.z)
         };
 
         for (int cornerIndex = 0; cornerIndex < corners.Length; cornerIndex++)
         {
-            Vector3 localPoint = root.InverseTransformPoint(corners[cornerIndex]);
+            Vector3 localPoint = root.InverseTransformPoint(boundsTransform.TransformPoint(corners[cornerIndex]));
             if (!found)
             {
                 localBounds = new Bounds(localPoint, Vector3.zero);
@@ -1497,11 +1602,18 @@ public class ArcherTowerBuildZone : MonoBehaviour
         return null;
     }
 
-    private static void SetVisualCollidersEnabled(Collider[] colliders, bool enabled)
+    private static void SetVisualCollidersEnabled(Collider[] colliders, bool enabled, bool asTrigger)
     {
         for (int i = 0; i < colliders.Length; i++)
         {
-            colliders[i].enabled = enabled;
+            Collider collider = colliders[i];
+            if (collider == null)
+            {
+                continue;
+            }
+
+            collider.enabled = enabled;
+            collider.isTrigger = asTrigger;
         }
     }
 

@@ -5,7 +5,7 @@ using UnityEngine;
 public class CatPlayerController : MonoBehaviour
 {
     [Header("Movement")]
-    [SerializeField] private float moveSpeed = 3.3f;
+    [SerializeField] private float moveSpeed = 4f;
     [SerializeField] private float turnSpeed = 12f;
     [SerializeField] private bool moveRelativeToCamera = true;
     [SerializeField] private float modelForwardOffsetY = -90f;

@@ -99,6 +99,9 @@ public static class BuildingSystem
         BuildingHealth health = root.AddComponent<BuildingHealth>();
         health.Configure(DefaultBuildingHealth);
 
+        TeamBuilding teamBuilding = root.AddComponent<TeamBuilding>();
+        teamBuilding.Configure(MinionTeam.Dog);
+
         AutoResourceBuilding producer = root.AddComponent<AutoResourceBuilding>();
         producer.Configure(GetProducedResource(type), 1, 2f);
 
@@ -106,6 +109,7 @@ public static class BuildingSystem
         Vector3 footprint = GetFootprintSize(type);
         collider.size = footprint;
         collider.center = new Vector3(0f, footprint.y * 0.5f, 0f);
+        collider.isTrigger = true;
 
         CreateVisuals(root.transform, type);
     }

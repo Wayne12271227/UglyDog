@@ -97,6 +97,7 @@ public class VictoryResultView : MonoBehaviour
     private void EnsureMainMenuButtonLabel()
     {
         Text buttonText = mainMenuButton.GetComponentInChildren<Text>(true);
+        bool createdLabel = buttonText == null;
         if (buttonText == null)
         {
             GameObject textObject = new GameObject("Text", typeof(RectTransform), typeof(CanvasRenderer), typeof(Text));
@@ -111,17 +112,24 @@ public class VictoryResultView : MonoBehaviour
             buttonText = textObject.GetComponent<Text>();
         }
 
-        Font readableFont = LoadReadableFont();
-        if (readableFont != null)
+        if (createdLabel)
         {
-            buttonText.font = readableFont;
+            Font readableFont = LoadReadableFont();
+            if (readableFont != null)
+            {
+                buttonText.font = readableFont;
+            }
         }
 
         buttonText.text = ConfirmButtonLabel;
         buttonText.alignment = TextAnchor.MiddleCenter;
-        buttonText.fontSize = 34;
-        buttonText.fontStyle = FontStyle.Bold;
-        buttonText.color = new Color(0.08f, 0.08f, 0.1f, 1f);
+        if (createdLabel)
+        {
+            buttonText.fontSize = 34;
+            buttonText.fontStyle = FontStyle.Bold;
+            buttonText.color = Color.white;
+        }
+
         buttonText.raycastTarget = false;
     }
 

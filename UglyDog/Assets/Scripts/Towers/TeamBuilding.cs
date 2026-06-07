@@ -5,17 +5,30 @@ public class TeamBuilding : MonoBehaviour
 {
     [SerializeField] private MinionTeam team = MinionTeam.Dog;
 
+    private BuildingHealth health;
+
     public MinionTeam Team => team;
-    public BuildingHealth Health { get; private set; }
+    public BuildingHealth Health
+    {
+        get
+        {
+            if (health == null)
+            {
+                health = GetComponent<BuildingHealth>();
+            }
+
+            return health;
+        }
+    }
 
     private void Awake()
     {
-        Health = GetComponent<BuildingHealth>();
+        health = GetComponent<BuildingHealth>();
     }
 
     public void Configure(MinionTeam newTeam)
     {
         team = newTeam;
-        Health = GetComponent<BuildingHealth>();
+        health = GetComponent<BuildingHealth>();
     }
 }

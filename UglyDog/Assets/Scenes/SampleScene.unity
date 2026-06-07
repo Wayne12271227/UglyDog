@@ -5526,7 +5526,7 @@ MonoBehaviour:
     localEulerAngles: {x: 0, y: 0, z: 0}
     localScale: {x: 1, y: 1, z: 1}
     usePrefabColliders: 1
-  towerAttackRange: 8
+  towerAttackRange: 10.4
   towerShotsPerSecond: 1.1
   towerDamage: 6
   towerProjectileSpeed: 13
@@ -20714,7 +20714,7 @@ MonoBehaviour:
     localEulerAngles: {x: 0, y: 0, z: 0}
     localScale: {x: 1, y: 1, z: 1}
     usePrefabColliders: 1
-  towerAttackRange: 8
+  towerAttackRange: 10.4
   towerShotsPerSecond: 1.1
   towerDamage: 6
   towerProjectileSpeed: 13
@@ -31040,7 +31040,7 @@ MonoBehaviour:
     localEulerAngles: {x: 0, y: 0, z: 0}
     localScale: {x: 1, y: 1, z: 1}
     usePrefabColliders: 1
-  towerAttackRange: 8
+  towerAttackRange: 10.4
   towerShotsPerSecond: 1.1
   towerDamage: 6
   towerProjectileSpeed: 13
@@ -36144,7 +36144,7 @@ MonoBehaviour:
     localEulerAngles: {x: 0, y: 0, z: 0}
     localScale: {x: 1, y: 1, z: 1}
     usePrefabColliders: 1
-  towerAttackRange: 8
+  towerAttackRange: 10.4
   towerShotsPerSecond: 1.1
   towerDamage: 6
   towerProjectileSpeed: 13
@@ -41181,7 +41181,7 @@ MonoBehaviour:
     localEulerAngles: {x: 0, y: 0, z: 0}
     localScale: {x: 1, y: 1, z: 1}
     usePrefabColliders: 1
-  towerAttackRange: 8
+  towerAttackRange: 10.4
   towerShotsPerSecond: 1.1
   towerDamage: 6
   towerProjectileSpeed: 13
@@ -46503,7 +46503,7 @@ MonoBehaviour:
     localEulerAngles: {x: 0, y: 0, z: 0}
     localScale: {x: 1, y: 1, z: 1}
     usePrefabColliders: 1
-  towerAttackRange: 8
+  towerAttackRange: 10.4
   towerShotsPerSecond: 1.1
   towerDamage: 6
   towerProjectileSpeed: 13
@@ -73621,7 +73621,7 @@ MonoBehaviour:
     localEulerAngles: {x: 0, y: 0, z: 0}
     localScale: {x: 1, y: 1, z: 1}
     usePrefabColliders: 1
-  towerAttackRange: 8
+  towerAttackRange: 10.4
   towerShotsPerSecond: 1.1
   towerDamage: 6
   towerProjectileSpeed: 13
@@ -74369,7 +74369,7 @@ MonoBehaviour:
     localEulerAngles: {x: 0, y: 0, z: 0}
     localScale: {x: 1, y: 1, z: 1}
     usePrefabColliders: 1
-  towerAttackRange: 8
+  towerAttackRange: 10.4
   towerShotsPerSecond: 1.1
   towerDamage: 6
   towerProjectileSpeed: 13
@@ -75197,7 +75197,7 @@ MonoBehaviour:
     localEulerAngles: {x: 0, y: 0, z: 0}
     localScale: {x: 1, y: 1, z: 1}
     usePrefabColliders: 1
-  towerAttackRange: 8
+  towerAttackRange: 10.4
   towerShotsPerSecond: 1.1
   towerDamage: 6
   towerProjectileSpeed: 13
@@ -111064,7 +111064,7 @@ MonoBehaviour:
     localEulerAngles: {x: 0, y: 0, z: 0}
     localScale: {x: 1, y: 1, z: 1}
     usePrefabColliders: 1
-  towerAttackRange: 8
+  towerAttackRange: 10.4
   towerShotsPerSecond: 1.1
   towerDamage: 6
   towerProjectileSpeed: 13
@@ -143413,11 +143413,11 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 2e0cb03ac6c93434abc751bf26a7f305, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  startingCoins: 50
-  startingWood: 10
+  startingCoins: 999
+  startingWood: 500
   startingStone: 10
-  coins: 50
-  wood: 10
+  coins: 999
+  wood: 500
   stone: 10
 --- !u!4 &1246326456
 Transform:
@@ -143824,7 +143824,7 @@ MonoBehaviour:
     localEulerAngles: {x: 0, y: 0, z: 0}
     localScale: {x: 1, y: 1, z: 1}
     usePrefabColliders: 1
-  towerAttackRange: 8
+  towerAttackRange: 10.4
   towerShotsPerSecond: 1.1
   towerDamage: 6
   towerProjectileSpeed: 13
@@ -144667,7 +144667,7 @@ MonoBehaviour:
     localEulerAngles: {x: 0, y: 0, z: 0}
     localScale: {x: 1, y: 1, z: 1}
     usePrefabColliders: 1
-  towerAttackRange: 8
+  towerAttackRange: 10.4
   towerShotsPerSecond: 1.1
   towerDamage: 6
   towerProjectileSpeed: 13
@@ -144923,7 +144923,7 @@ MonoBehaviour:
   rangedMoveSpeed: 2.2
   targetSearchRadius: 7
   buildingSearchRadius: 24
-  buildingPriorityRadius: 12
+  buildingPriorityRadius: 18
   minionInterruptRadius: 2.2
   spawnOffset: {x: 0, y: 0.1, z: 1.6}
   baseHealth: 100
@@ -165712,7 +165712,7 @@ MonoBehaviour:
     localEulerAngles: {x: 0, y: 0, z: 0}
     localScale: {x: 1, y: 1, z: 1}
     usePrefabColliders: 1
-  towerAttackRange: 8
+  towerAttackRange: 10.4
   towerShotsPerSecond: 1.1
   towerDamage: 6
   towerProjectileSpeed: 13
@@ -166260,7 +166260,7 @@ MonoBehaviour:
     localEulerAngles: {x: 0, y: 0, z: 0}
     localScale: {x: 1, y: 1, z: 1}
     usePrefabColliders: 1
-  towerAttackRange: 8
+  towerAttackRange: 10.4
   towerShotsPerSecond: 1.1
   towerDamage: 6
   towerProjectileSpeed: 13
@@ -197713,7 +197713,7 @@ MonoBehaviour:
     localEulerAngles: {x: 0, y: 0, z: 0}
     localScale: {x: 1, y: 1, z: 1}
     usePrefabColliders: 1
-  towerAttackRange: 8
+  towerAttackRange: 10.4
   towerShotsPerSecond: 1.1
   towerDamage: 6
   towerProjectileSpeed: 13
@@ -203336,7 +203336,7 @@ MonoBehaviour:
     localEulerAngles: {x: 0, y: 0, z: 0}
     localScale: {x: 1, y: 1, z: 1}
     usePrefabColliders: 1
-  towerAttackRange: 8
+  towerAttackRange: 10.4
   towerShotsPerSecond: 1.1
   towerDamage: 6
   towerProjectileSpeed: 13
@@ -254368,7 +254368,7 @@ MonoBehaviour:
     localEulerAngles: {x: 0, y: 0, z: 0}
     localScale: {x: 1, y: 1, z: 1}
     usePrefabColliders: 1
-  towerAttackRange: 8
+  towerAttackRange: 10.4
   towerShotsPerSecond: 1.1
   towerDamage: 6
   towerProjectileSpeed: 13
@@ -254748,7 +254748,7 @@ MonoBehaviour:
     localEulerAngles: {x: 0, y: 0, z: 0}
     localScale: {x: 1, y: 1, z: 1}
     usePrefabColliders: 1
-  towerAttackRange: 8
+  towerAttackRange: 10.4
   towerShotsPerSecond: 1.1
   towerDamage: 6
   towerProjectileSpeed: 13
@@ -265322,6 +265322,63 @@ BoxCollider:
   serializedVersion: 3
   m_Size: {x: 0.98632824, y: 0.998047, z: 0.8222656}
   m_Center: {x: 0.0000000020068103, y: 0.0000000020925628, z: 0.4111328}
+--- !u!1 &663840290001
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 663840290002}
+  - component: {fileID: 663840290003}
+  m_Layer: 0
+  m_Name: Mushroom Spawner
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &663840290002
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 663840290001}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &663840290003
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 663840290001}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 88daf9ae7771495ca782d3714a811b98, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  mushroomPrefab: {fileID: 6495166354059119777, guid: d58e6965f0663cd45a06205dab540e6f, type: 3}
+  floorRootName: floor_grass
+  spawnInterval: 10
+  maxActiveMushrooms: 3
+  spawnOnStart: 1
+  surfaceOffset: 0.08
+  groundProbeHeight: 5
+  groundLayers:
+    serializedVersion: 2
+    m_Bits: 4294967295
+  minCoinReward: 30
+  maxCoinReward: 50
+  despawnAfterSeconds: 45
 --- !u!1660057539 &9223372036854775807
 SceneRoots:
   m_ObjectHideFlags: 0
@@ -265348,3 +265405,4 @@ SceneRoots:
   - {fileID: 2127181913}
   - {fileID: 1145788670}
   - {fileID: 969460169}
+  - {fileID: 663840290002}
