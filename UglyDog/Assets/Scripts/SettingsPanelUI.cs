@@ -1,4 +1,5 @@
 using Fusion;
+using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.Events;
@@ -28,14 +29,21 @@ public class SettingsPanelUI : MonoBehaviour
     [SerializeField] private Button closeButton;
     [SerializeField] private Button exitGameButton;
     [SerializeField] private Text exitGameButtonText;
+    [SerializeField] private Button unstuckButton;
+    [SerializeField] private Text unstuckButtonText;
+    [SerializeField] private bool showUnstuckButton = true;
     [SerializeField] private float exitConfirmSeconds = 2.5f;
+    [SerializeField] private float unstuckFeedbackSeconds = 1.2f;
 
     private RectTransform root;
     private bool isBuilt;
     private bool isRefreshing;
     private bool exitConfirmPending;
     private float exitConfirmDeadline;
+    private float unstuckFeedbackDeadline;
     private string exitGameButtonDefaultText = "\u9000\u51fa\u904a\u6232";
+    private string unstuckButtonDefaultText = "\u9632\u5361\u7246";
+    private Coroutine unstuckFeedbackCoroutine;
 
     public void Show()
     {
@@ -51,6 +59,7 @@ public class SettingsPanelUI : MonoBehaviour
     public void Hide()
     {
         ResetExitConfirmation();
+        ResetUnstuckButtonText();
         gameObject.SetActive(false);
         BlocksPlayerInput = false;
     }
@@ -87,6 +96,7 @@ public class SettingsPanelUI : MonoBehaviour
 
     private void OnDisable()
     {
+        ResetUnstuckButtonText();
         BlocksPlayerInput = false;
     }
 
@@ -100,6 +110,11 @@ public class SettingsPanelUI : MonoBehaviour
         if (exitConfirmPending && Time.unscaledTime > exitConfirmDeadline)
         {
             ResetExitConfirmation();
+        }
+
+        if (unstuckFeedbackDeadline > 0f && Time.unscaledTime > unstuckFeedbackDeadline)
+        {
+            ResetUnstuckButtonText();
         }
     }
 
@@ -118,12 +133,14 @@ public class SettingsPanelUI : MonoBehaviour
 
         ConfigureRoot();
         BindExistingControls();
+        DisableNonUiCloseIcons();
 
         if (musicSlider == null || sfxSlider == null)
         {
             ClearExistingChildren();
             BuildPanel();
             BindExistingControls();
+            DisableNonUiCloseIcons();
         }
 
         WireControls();
@@ -174,7 +191,11 @@ public class SettingsPanelUI : MonoBehaviour
         sfxSlider = CreateSlider(panel, new Vector2(0f, -144f));
         sfxValueText = CreateText(panel, font, "100%", 24, FontStyle.Bold, new Vector2(0f, -194f), new Vector2(160f, 34f), TextAnchor.MiddleCenter);
 
-        exitGameButton = CreateButton(panel, font, "\u9000\u51fa\u904a\u6232", new Vector2(0f, -276f), new Vector2(260f, 58f), null);
+        unstuckButton = CreateButton(panel, font, unstuckButtonDefaultText, new Vector2(0f, -236f), new Vector2(260f, 48f), null);
+        unstuckButton.name = "Unstuck Button";
+        unstuckButtonText = unstuckButton.GetComponentInChildren<Text>(true);
+
+        exitGameButton = CreateButton(panel, font, "\u9000\u51fa\u904a\u6232", new Vector2(0f, -292f), new Vector2(260f, 48f), null);
         exitGameButton.name = "Exit Game Button";
         exitGameButtonText = exitGameButton.GetComponentInChildren<Text>(true);
         exitGameButton.gameObject.SetActive(showExitGameButton);
@@ -225,6 +246,26 @@ public class SettingsPanelUI : MonoBehaviour
             exitGameButtonDefaultText = exitGameButtonText.text;
         }
 
+        if (unstuckButton == null)
+        {
+            unstuckButton = FindButtonByNameOrText("Unstuck", unstuckButtonDefaultText);
+        }
+
+        if (unstuckButton == null)
+        {
+            CreateUnstuckButtonForExistingPanel();
+        }
+
+        if (unstuckButton != null && unstuckButtonText == null)
+        {
+            unstuckButtonText = unstuckButton.GetComponentInChildren<Text>(true);
+        }
+
+        if (unstuckButtonText != null && unstuckFeedbackDeadline <= 0f)
+        {
+            unstuckButtonText.text = unstuckButtonDefaultText;
+        }
+
         Slider[] sliders = GetComponentsInChildren<Slider>(true);
         if (musicSlider == null && sliders.Length > 0)
         {
@@ -237,6 +278,18 @@ public class SettingsPanelUI : MonoBehaviour
         }
 
         BindValueTexts();
+    }
+
+    private void DisableNonUiCloseIcons()
+    {
+        SpriteRenderer[] renderers = GetComponentsInChildren<SpriteRenderer>(true);
+        for (int i = 0; i < renderers.Length; i++)
+        {
+            if (renderers[i] != null && renderers[i].name == "iconCross_grey")
+            {
+                renderers[i].gameObject.SetActive(false);
+            }
+        }
     }
 
     private void BindValueTexts()
@@ -294,6 +347,14 @@ public class SettingsPanelUI : MonoBehaviour
             exitGameButton.gameObject.SetActive(showExitGameButton);
         }
 
+        if (unstuckButton != null)
+        {
+            EnsureButtonCanReceiveClicks(unstuckButton);
+            unstuckButton.onClick.RemoveListener(OnUnstuckButtonClicked);
+            unstuckButton.onClick.AddListener(OnUnstuckButtonClicked);
+            unstuckButton.gameObject.SetActive(ShouldShowUnstuckButton());
+        }
+
         if (musicSlider != null)
         {
             musicSlider.minValue = 0f;
@@ -315,32 +376,26 @@ public class SettingsPanelUI : MonoBehaviour
 
     private static void ConfigureSliderVisuals(Slider slider)
     {
-        RectTransform fillRect = slider.fillRect != null ? slider.fillRect : FindChildRect(slider.transform, "Fill");
-        RectTransform handleRect = slider.handleRect != null ? slider.handleRect : FindChildRect(slider.transform, "Handle");
-
-        if (fillRect != null)
+        if (slider.fillRect == null)
         {
-            slider.fillRect = fillRect;
-            fillRect.anchorMin = Vector2.zero;
-            fillRect.anchorMax = Vector2.one;
-            fillRect.offsetMin = Vector2.zero;
-            fillRect.offsetMax = Vector2.zero;
+            slider.fillRect = FindChildRect(slider.transform, "Fill");
         }
 
-        if (handleRect != null)
+        if (slider.handleRect == null)
         {
-            slider.handleRect = handleRect;
-            Graphic handleGraphic = handleRect.GetComponent<Graphic>();
+            slider.handleRect = FindChildRect(slider.transform, "Handle");
+        }
+
+        if (slider.targetGraphic == null && slider.handleRect != null)
+        {
+            Graphic handleGraphic = slider.handleRect.GetComponent<Graphic>();
             if (handleGraphic != null)
             {
                 slider.targetGraphic = handleGraphic;
-                handleGraphic.raycastTarget = true;
             }
         }
 
-        slider.direction = Slider.Direction.LeftToRight;
         slider.SetValueWithoutNotify(Mathf.Clamp01(slider.value));
-        slider.Rebuild(CanvasUpdate.Prelayout);
     }
 
     private static RectTransform FindChildRect(Transform parent, string childName)
@@ -429,6 +484,18 @@ public class SettingsPanelUI : MonoBehaviour
         ExitGame();
     }
 
+    private void OnUnstuckButtonClicked()
+    {
+        CatPlayerController player = PreferredPlayerFinder.FindPreferredPlayer();
+        if (player == null || !player.TryTeleportToNearbySafeGround())
+        {
+            SetUnstuckButtonText("\u627e\u4e0d\u5230\u5730\u677f");
+            return;
+        }
+
+        SetUnstuckButtonText("\u5df2\u79fb\u52d5");
+    }
+
     private void ResetExitConfirmation()
     {
         exitConfirmPending = false;
@@ -446,6 +513,48 @@ public class SettingsPanelUI : MonoBehaviour
         {
             exitGameButtonText.text = value;
         }
+    }
+
+    private void SetUnstuckButtonText(string value)
+    {
+        if (unstuckButtonText == null && unstuckButton != null)
+        {
+            unstuckButtonText = unstuckButton.GetComponentInChildren<Text>(true);
+        }
+
+        if (unstuckButtonText != null)
+        {
+            unstuckButtonText.text = value;
+            unstuckFeedbackDeadline = Time.unscaledTime + unstuckFeedbackSeconds;
+            if (unstuckFeedbackCoroutine != null)
+            {
+                StopCoroutine(unstuckFeedbackCoroutine);
+            }
+
+            unstuckFeedbackCoroutine = StartCoroutine(ResetUnstuckButtonTextAfterDelay());
+        }
+    }
+
+    private void ResetUnstuckButtonText()
+    {
+        if (unstuckFeedbackCoroutine != null)
+        {
+            StopCoroutine(unstuckFeedbackCoroutine);
+            unstuckFeedbackCoroutine = null;
+        }
+
+        unstuckFeedbackDeadline = 0f;
+        if (unstuckButtonText != null)
+        {
+            unstuckButtonText.text = unstuckButtonDefaultText;
+        }
+    }
+
+    private IEnumerator ResetUnstuckButtonTextAfterDelay()
+    {
+        yield return new WaitForSecondsRealtime(unstuckFeedbackSeconds);
+        unstuckFeedbackCoroutine = null;
+        ResetUnstuckButtonText();
     }
 
     private async void ExitGame()
@@ -509,6 +618,30 @@ public class SettingsPanelUI : MonoBehaviour
         slider.handleRect = handle;
         slider.direction = Slider.Direction.LeftToRight;
         return slider;
+    }
+
+    private void CreateUnstuckButtonForExistingPanel()
+    {
+        if (root == null || !showUnstuckButton)
+        {
+            return;
+        }
+
+        RectTransform panel = FindChildRect(root, "Vertical Settings Panel");
+        if (panel == null)
+        {
+            panel = root;
+        }
+
+        Font font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+        unstuckButton = CreateButton(panel, font, unstuckButtonDefaultText, new Vector2(0f, -236f), new Vector2(260f, 48f), null);
+        unstuckButton.name = "Unstuck Button";
+        unstuckButtonText = unstuckButton.GetComponentInChildren<Text>(true);
+    }
+
+    private bool ShouldShowUnstuckButton()
+    {
+        return showUnstuckButton && PreferredPlayerFinder.FindPreferredPlayer() != null;
     }
 
     private Button CreateButton(Transform parent, Font font, string label, Vector2 position, Vector2 size, UnityAction action)

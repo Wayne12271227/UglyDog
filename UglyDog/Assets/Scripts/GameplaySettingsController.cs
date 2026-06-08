@@ -5,6 +5,7 @@ using UnityEngine.UI;
 public class GameplaySettingsController : MonoBehaviour
 {
     [SerializeField] private KeyCode toggleKey = KeyCode.Escape;
+    [SerializeField] private string settingsPanelName = "Gameplay Settings Panel";
     [SerializeField] private Button settingsButton;
     [SerializeField] private SettingsPanelUI settingsPanel;
     [SerializeField] private GameplayPingDisplay pingDisplay;
@@ -26,6 +27,7 @@ public class GameplaySettingsController : MonoBehaviour
     private void OnEnable()
     {
         BindSceneReferences();
+        PrepareSettingsPanel();
         if (settingsButton != null)
         {
             settingsButton.onClick.RemoveListener(OpenSettings);
@@ -45,6 +47,8 @@ public class GameplaySettingsController : MonoBehaviour
 
     private void Update()
     {
+        BindSceneReferences();
+
         if (settingsPanel != null && settingsPanel.gameObject.activeSelf)
         {
             return;
@@ -61,6 +65,8 @@ public class GameplaySettingsController : MonoBehaviour
 
     private void OpenSettings()
     {
+        BindSceneReferences();
+        PrepareSettingsPanel();
         if (settingsPanel != null)
         {
             settingsPanel.Show();
@@ -71,7 +77,7 @@ public class GameplaySettingsController : MonoBehaviour
     {
         if (settingsPanel == null)
         {
-            settingsPanel = FindObjectOfType<SettingsPanelUI>(true);
+            settingsPanel = FindGameplaySettingsPanel();
         }
 
         if (settingsButton == null)
@@ -82,6 +88,42 @@ public class GameplaySettingsController : MonoBehaviour
                 settingsButton = buttonObject.GetComponent<Button>();
             }
         }
+    }
+
+    private void PrepareSettingsPanel()
+    {
+        if (settingsPanel == null)
+        {
+            return;
+        }
+
+        settingsPanel.SetExitGameButtonVisible(true);
+    }
+
+    private SettingsPanelUI FindGameplaySettingsPanel()
+    {
+        SettingsPanelUI[] panels = Resources.FindObjectsOfTypeAll<SettingsPanelUI>();
+        SettingsPanelUI fallback = null;
+        for (int i = 0; i < panels.Length; i++)
+        {
+            SettingsPanelUI panel = panels[i];
+            if (panel == null || !panel.gameObject.scene.IsValid())
+            {
+                continue;
+            }
+
+            if (!string.IsNullOrEmpty(settingsPanelName) && panel.name == settingsPanelName)
+            {
+                return panel;
+            }
+
+            if (fallback == null)
+            {
+                fallback = panel;
+            }
+        }
+
+        return fallback;
     }
 
     private void EnsurePingDisplay()

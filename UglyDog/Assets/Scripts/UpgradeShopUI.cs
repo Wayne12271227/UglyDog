@@ -408,7 +408,7 @@ public class UpgradeShopUI : MonoBehaviour
             "\u9060\u7a0b\u5c0f\u5175\u8a13\u7df4",
             level,
             maxLevel,
-            DescribeDualFlatBonus(level, maxLevel, 6, "\u653b\u64ca", 5, "\u8840\u91cf"),
+            DescribeDualFlatBonus(level, maxLevel, 6, "\u653b\u64ca", 3, "\u8840\u91cf"),
             cost,
             isMax,
             canAfford);

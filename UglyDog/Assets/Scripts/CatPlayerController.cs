@@ -26,6 +26,14 @@ public class CatPlayerController : MonoBehaviour
     [SerializeField] private float groundSkin = 0.01f;
     [SerializeField] private float maxGroundStepUp = 1.2f;
 
+    [Header("Unstuck")]
+    [SerializeField] private float unstuckMinRadius = 0.8f;
+    [SerializeField] private float unstuckMaxRadius = 8f;
+    [SerializeField] private int unstuckRings = 6;
+    [SerializeField] private int unstuckSamplesPerRing = 16;
+    [SerializeField] private float unstuckClearanceSkin = 0.08f;
+    [SerializeField, Range(0f, 1f)] private float unstuckMinimumGroundNormalY = 0.65f;
+
     [Header("Animation")]
     [SerializeField] private Animator animator;
     [SerializeField] private KeyCode attackKey = KeyCode.J;
@@ -122,6 +130,9 @@ public class CatPlayerController : MonoBehaviour
     private bool hasCurrentDigResourceType;
     private float currentDigCycleDuration;
     private bool digImpactSoundArmed = true;
+
+    private const int UnstuckOverlapBufferSize = 64;
+    private static readonly Collider[] UnstuckOverlapBuffer = new Collider[UnstuckOverlapBufferSize];
 
     private void Awake()
     {
@@ -678,6 +689,29 @@ public class CatPlayerController : MonoBehaviour
         {
             playerRigidbody.position = transform.position;
         }
+    }
+
+    public bool TryTeleportToNearbySafeGround()
+    {
+        return TryTeleportToNearbySafeGround(out _);
+    }
+
+    public bool TryTeleportToNearbySafeGround(out Vector3 destination)
+    {
+        destination = transform.position;
+        if (capsuleCollider == null)
+        {
+            return false;
+        }
+
+        if (!TryFindNearbySafeGround(out destination))
+        {
+            return false;
+        }
+
+        TeleportToGroundedPosition(destination);
+        StopAction();
+        return true;
     }
 
     public void PlayDig()
@@ -1312,6 +1346,120 @@ public class CatPlayerController : MonoBehaviour
         }
     }
 
+    private bool TryFindNearbySafeGround(out Vector3 destination)
+    {
+        destination = transform.position;
+        float bestScore = float.PositiveInfinity;
+        Vector3 bestPosition = transform.position;
+        Vector3 center = transform.position;
+        int rings = Mathf.Max(1, unstuckRings);
+        int samplesPerRing = Mathf.Max(8, unstuckSamplesPerRing);
+
+        for (int ring = 1; ring <= rings; ring++)
+        {
+            float t = rings == 1 ? 1f : (ring - 1f) / (rings - 1f);
+            float radius = Mathf.Lerp(unstuckMinRadius, unstuckMaxRadius, t);
+            int samples = ring == 1 ? Mathf.Max(8, samplesPerRing / 2) : samplesPerRing;
+            float angleOffset = ring * 23.5f;
+
+            for (int sample = 0; sample < samples; sample++)
+            {
+                float angle = (360f / samples) * sample + angleOffset;
+                Vector3 direction = Quaternion.Euler(0f, angle, 0f) * Vector3.forward;
+                Vector3 samplePosition = center + direction * radius;
+
+                if (!TryGetSafeGroundCandidate(samplePosition, out Vector3 candidate))
+                {
+                    continue;
+                }
+
+                float score = (candidate - center).sqrMagnitude;
+                if (score < bestScore)
+                {
+                    bestScore = score;
+                    bestPosition = candidate;
+                }
+            }
+
+            if (!float.IsPositiveInfinity(bestScore))
+            {
+                destination = bestPosition;
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private bool TryGetSafeGroundCandidate(Vector3 samplePosition, out Vector3 candidate)
+    {
+        candidate = transform.position;
+        Vector3 origin = new Vector3(samplePosition.x, transform.position.y + groundProbeHeight, samplePosition.z);
+        float rayDistance = groundProbeHeight + maxGroundSnapDistance + Mathf.Abs(transform.position.y - samplePosition.y) + 2f;
+        RaycastHit[] hits = Physics.RaycastAll(origin, Vector3.down, rayDistance, groundLayers, QueryTriggerInteraction.Ignore);
+        float bestDistance = float.PositiveInfinity;
+        Vector3 bestPoint = Vector3.zero;
+
+        for (int i = 0; i < hits.Length; i++)
+        {
+            RaycastHit hit = hits[i];
+            Collider hitCollider = hit.collider;
+            if (hitCollider == null || hitCollider.transform.IsChildOf(transform))
+            {
+                continue;
+            }
+
+            if (hit.normal.y < unstuckMinimumGroundNormalY || IsBuildingCollider(hitCollider) || !IsGroundLikeCollider(hitCollider))
+            {
+                continue;
+            }
+
+            if (hit.distance < bestDistance)
+            {
+                bestDistance = hit.distance;
+                bestPoint = hit.point;
+            }
+        }
+
+        if (float.IsPositiveInfinity(bestDistance))
+        {
+            return false;
+        }
+
+        float bottomOffset = transform.position.y - GetCapsuleBottomWorldY();
+        candidate = new Vector3(samplePosition.x, bestPoint.y + groundSkin + bottomOffset, samplePosition.z);
+        return HasSafeUnstuckClearance(candidate);
+    }
+
+    private bool HasSafeUnstuckClearance(Vector3 position)
+    {
+        GetCapsuleWorldPointsAt(position, out Vector3 point1, out Vector3 point2, out float radius);
+        int count = Physics.OverlapCapsuleNonAlloc(point1, point2, radius + unstuckClearanceSkin, UnstuckOverlapBuffer, collisionLayers, QueryTriggerInteraction.Collide);
+        for (int i = 0; i < count; i++)
+        {
+            Collider other = UnstuckOverlapBuffer[i];
+            UnstuckOverlapBuffer[i] = null;
+            if (other == null || other.transform.IsChildOf(transform))
+            {
+                continue;
+            }
+
+            if (IsGroundLikeCollider(other))
+            {
+                continue;
+            }
+
+            if (other.isTrigger && !IsBuildingCollider(other))
+            {
+                continue;
+            }
+
+            return false;
+        }
+
+        return true;
+    }
+
     private float GetCapsuleBottomWorldY()
     {
         Vector3 worldCenter = transform.TransformPoint(capsuleCollider.center);
@@ -1321,7 +1469,13 @@ public class CatPlayerController : MonoBehaviour
 
     private void GetCapsuleWorldPoints(out Vector3 point1, out Vector3 point2, out float radius)
     {
-        Vector3 worldCenter = transform.TransformPoint(capsuleCollider.center);
+        GetCapsuleWorldPointsAt(transform.position, out point1, out point2, out radius);
+    }
+
+    private void GetCapsuleWorldPointsAt(Vector3 position, out Vector3 point1, out Vector3 point2, out float radius)
+    {
+        Vector3 scaledCenter = Vector3.Scale(capsuleCollider.center, transform.lossyScale);
+        Vector3 worldCenter = position + transform.rotation * scaledCenter;
         float scaleX = Mathf.Abs(transform.lossyScale.x);
         float scaleY = Mathf.Abs(transform.lossyScale.y);
         float scaleZ = Mathf.Abs(transform.lossyScale.z);
@@ -1379,6 +1533,12 @@ public class CatPlayerController : MonoBehaviour
         penetrationSkin = Mathf.Clamp(penetrationSkin, 0f, 0.02f);
         maxPenetrationCorrection = Mathf.Clamp(maxPenetrationCorrection, 0.01f, 0.1f);
         maxGroundStepUp = Mathf.Clamp(maxGroundStepUp, 0.8f, 2f);
+        unstuckMinRadius = Mathf.Max(0.2f, unstuckMinRadius);
+        unstuckMaxRadius = Mathf.Max(unstuckMinRadius, unstuckMaxRadius);
+        unstuckRings = Mathf.Clamp(unstuckRings, 1, 12);
+        unstuckSamplesPerRing = Mathf.Clamp(unstuckSamplesPerRing, 8, 48);
+        unstuckClearanceSkin = Mathf.Clamp(unstuckClearanceSkin, 0.01f, 0.3f);
+        unstuckMinimumGroundNormalY = Mathf.Clamp01(unstuckMinimumGroundNormalY);
         baseDigCycleDuration = Mathf.Max(0.05f, baseDigCycleDuration);
         minSyncedDigAnimatorSpeed = Mathf.Max(0.05f, minSyncedDigAnimatorSpeed);
         maxSyncedDigAnimatorSpeed = Mathf.Max(minSyncedDigAnimatorSpeed, maxSyncedDigAnimatorSpeed);

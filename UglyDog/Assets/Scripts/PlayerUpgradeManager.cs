@@ -38,7 +38,7 @@ public class PlayerUpgradeManager : MonoBehaviour
     [SerializeField] private float rangedRangeBonusPerLevel = 0.1f;
     [SerializeField] private int meleeTrainingHealthBonusPerLevel = 18;
     [SerializeField] private int meleeTrainingDamageBonusPerLevel = 1;
-    [SerializeField] private int rangedTrainingHealthBonusPerLevel = 5;
+    [SerializeField] private int rangedTrainingHealthBonusPerLevel = 3;
     [SerializeField] private int rangedTrainingDamageBonusPerLevel = 6;
 
     [Header("Costs")]

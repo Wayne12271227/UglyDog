@@ -965,6 +965,12 @@ MonoBehaviour:
   maxGroundSnapDistance: 6
   groundSkin: 0.01
   maxGroundStepUp: 0.8
+  unstuckMinRadius: 0.8
+  unstuckMaxRadius: 8
+  unstuckRings: 6
+  unstuckSamplesPerRing: 16
+  unstuckClearanceSkin: 0.08
+  unstuckMinimumGroundNormalY: 0.65
   animator: {fileID: 2097607194034178886}
   attackKey: 106
   speedParameter: Speed

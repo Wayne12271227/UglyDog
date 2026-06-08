@@ -8,7 +8,7 @@ using UnityEngine.UI;
 public static class GameplaySettingsSceneInstaller
 {
     private const string ScenePath = "Assets/Scenes/SampleScene.unity";
-    private const string SettingsPrefabPath = "Assets/prefab/Settings Panel.prefab";
+    private const string SettingsPrefabPath = "Assets/prefab/Gameplay Settings Panel.prefab";
     private const string RequestPath = "Temp/InstallGameplaySettingsUI.request";
 
     [InitializeOnLoadMethod]
