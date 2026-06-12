@@ -85,20 +85,18 @@ public class MinionBaseHealth : MonoBehaviour
             return;
         }
 
-        healthLabel = WorldSpaceHealthLabel.Create(
+        healthLabel = WorldSpaceHealthLabel.CreateBaseHealthBar(
             transform,
             "Base Health Label",
             labelOffset,
-            32,
-            new Vector2(220f, 54f),
-            0.012f);
+            team);
     }
 
     private void RefreshLabel()
     {
         if (healthLabel != null)
         {
-            healthLabel.SetText(currentHealth + "/" + maxHealth + " HP");
+            healthLabel.SetBaseHealth(team, currentHealth, maxHealth);
         }
     }
 }

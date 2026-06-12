@@ -58,34 +58,7 @@ public class UglyDogRoomLobby : MonoBehaviour, INetworkRunnerCallbacks
         SetStatus("正在連線到 Photon 大廳...");
         RefreshUi();
 
-        runner = gameObject.AddComponent<NetworkRunner>();
-        runner.ProvideInput = true;
-        runner.AddCallbacks(this);
-        sceneManager = gameObject.AddComponent<NetworkSceneManagerDefault>();
-        objectProvider = gameObject.AddComponent<NetworkObjectProviderDefault>();
-
-        StartGameResult result = await runner.JoinSessionLobby(
-            SessionLobby.ClientServer,
-            customAppSettings: UglyDogPhotonSettings.GetPhotonAppSettingsForCurrentPlatform());
-        if (isLeaving || this == null)
-        {
-            return;
-        }
-
-        if (!result.Ok)
-        {
-            busy = false;
-            lobbyReady = false;
-            SetStatus($"Photon 大廳連線失敗：{result.ShutdownReason}");
-            Debug.LogError($"UglyDogRoomLobby failed to join Photon lobby: {result.ShutdownReason}");
-            RefreshUi();
-            return;
-        }
-
-        busy = false;
-        lobbyReady = true;
-        SetStatus("選擇房間或建立新房間。");
-        RefreshUi();
+        await JoinPhotonLobbyAsync();
     }
 
     private void Update()
@@ -176,9 +149,97 @@ public class UglyDogRoomLobby : MonoBehaviour, INetworkRunnerCallbacks
         SceneManager.LoadScene(MainMenuSceneName);
     }
 
-    public void RefreshRooms()
+    public async void RefreshRooms()
     {
+        if (busy || inRoom || isLeaving)
+        {
+            RefreshUi();
+            return;
+        }
+
+        await RejoinPhotonLobbyAsync();
+    }
+
+    private void InitializeRunnerComponents()
+    {
+        runner = gameObject.AddComponent<NetworkRunner>();
+        runner.ProvideInput = true;
+        runner.AddCallbacks(this);
+        sceneManager = gameObject.AddComponent<NetworkSceneManagerDefault>();
+        objectProvider = gameObject.AddComponent<NetworkObjectProviderDefault>();
+    }
+
+    private async System.Threading.Tasks.Task JoinPhotonLobbyAsync()
+    {
+        InitializeRunnerComponents();
+
+        StartGameResult result = await runner.JoinSessionLobby(
+            SessionLobby.ClientServer,
+            customAppSettings: UglyDogPhotonSettings.GetPhotonAppSettingsForCurrentPlatform());
+        if (isLeaving || this == null)
+        {
+            return;
+        }
+
+        if (!result.Ok)
+        {
+            busy = false;
+            lobbyReady = false;
+            SetStatus($"Photon 大廳連線失敗：{result.ShutdownReason}");
+            Debug.LogError($"UglyDogRoomLobby failed to join Photon lobby: {result.ShutdownReason}");
+            RefreshUi();
+            return;
+        }
+
+        busy = false;
+        lobbyReady = true;
+        SetStatus("選擇房間或建立新房間。");
         RefreshUi();
+    }
+
+    private async System.Threading.Tasks.Task RejoinPhotonLobbyAsync()
+    {
+        busy = true;
+        lobbyReady = false;
+        sessions.Clear();
+        SetStatus("正在更新房間列表...");
+        RefreshUi();
+
+        NetworkRunner oldRunner = runner;
+        NetworkSceneManagerDefault oldSceneManager = sceneManager;
+        NetworkObjectProviderDefault oldObjectProvider = objectProvider;
+        runner = null;
+        sceneManager = null;
+        objectProvider = null;
+
+        if (oldRunner != null)
+        {
+            oldRunner.RemoveCallbacks(this);
+            await oldRunner.Shutdown();
+        }
+
+        if (isLeaving || this == null)
+        {
+            return;
+        }
+
+        if (oldRunner != null)
+        {
+            Destroy(oldRunner);
+        }
+
+        if (oldSceneManager != null)
+        {
+            Destroy(oldSceneManager);
+        }
+
+        if (oldObjectProvider != null)
+        {
+            Destroy(oldObjectProvider);
+        }
+
+        await System.Threading.Tasks.Task.Yield();
+        await JoinPhotonLobbyAsync();
     }
 
     public void OnPlayerJoined(NetworkRunner networkRunner, PlayerRef player)
@@ -227,7 +288,7 @@ public class UglyDogRoomLobby : MonoBehaviour, INetworkRunnerCallbacks
 
     public void OnSessionListUpdated(NetworkRunner networkRunner, List<SessionInfo> sessionList)
     {
-        if (!lobbyReady)
+        if (isLeaving || inRoom || networkRunner != runner)
         {
             return;
         }

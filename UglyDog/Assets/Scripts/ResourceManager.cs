@@ -20,9 +20,9 @@ public class ResourceManager : MonoBehaviour
     public static ResourceManager Instance { get; private set; }
 
     [Header("Starting Resources")]
-    [SerializeField] private int startingCoins = 999;
-    [SerializeField] private int startingWood = 500;
-    [SerializeField] private int startingStone = 10;
+    [SerializeField] private int startingCoins = 100;
+    [SerializeField] private int startingWood = 0;
+    [SerializeField] private int startingStone = 0;
 
     [Header("Current Resources")]
     [SerializeField] private int coins;

@@ -66,6 +66,8 @@ public class MinionManager : MonoBehaviour
     private static Material dogTeamMaterial;
     private static Material catTeamMaterial;
     private static Material minionOutlineMaterial;
+    private const float VisualGroundSink = 0.055f;
+    private const float MinionOutlineWidth = 0.0065f;
     private MinionBaseHealth dogBase;
     private MinionBaseHealth catBase;
     private GameObject singlePlayerCatStandIn;
@@ -387,7 +389,7 @@ public class MinionManager : MonoBehaviour
             visualObject.transform.localRotation = Quaternion.Euler(0f, GetVisualYawOffset(kind, team), 0f);
             visualObject.transform.localScale = Vector3.one;
             RemoveRuntimeComponentsFromVisual(visualObject);
-            ApplyToonStyleToVisual(visualObject);
+            ApplyToonStyleToVisual(visualObject, kind, team);
             Vector3 alignedLocalPosition = AlignVisualBottomToRoot(visualObject.transform, minionObject);
             MinionVisualAnimator visualAnimator = minionObject.GetComponent<MinionVisualAnimator>();
             if (visualAnimator == null)
@@ -540,7 +542,7 @@ public class MinionManager : MonoBehaviour
         float rootBottom = rootCollider != null ? rootCollider.bounds.min.y : minionObject.transform.position.y;
         Vector3 worldOffset = new Vector3(
             minionObject.transform.position.x - bounds.center.x,
-            rootBottom - bounds.min.y - 0.015f,
+            rootBottom - bounds.min.y - VisualGroundSink,
             minionObject.transform.position.z - bounds.center.z);
         visualRoot.localPosition += minionObject.transform.InverseTransformVector(worldOffset);
         return visualRoot.localPosition;
@@ -554,19 +556,20 @@ public class MinionManager : MonoBehaviour
 
         for (int i = 0; i < renderers.Length; i++)
         {
-            if (renderers[i] == null)
+            Renderer renderer = renderers[i];
+            if (renderer == null || renderer.GetComponent<CharacterOutlineProxy>() != null)
             {
                 continue;
             }
 
             if (!hasBounds)
             {
-                bounds = renderers[i].bounds;
+                bounds = renderer.bounds;
                 hasBounds = true;
             }
             else
             {
-                bounds.Encapsulate(renderers[i].bounds);
+                bounds.Encapsulate(renderer.bounds);
             }
         }
 
@@ -594,23 +597,35 @@ public class MinionManager : MonoBehaviour
         }
     }
 
-    private static void ApplyToonStyleToVisual(GameObject visualObject)
+    private static void ApplyToonStyleToVisual(GameObject visualObject, MinionKind kind, MinionTeam team)
     {
         if (visualObject == null)
         {
             return;
         }
 
-        Material outline = GetMinionOutlineMaterial();
+        bool isCatRanged = team == MinionTeam.Cat && kind == MinionKind.Ranged;
+        Material outline = isCatRanged ? null : GetMinionOutlineMaterial();
         ToonCharacterSetup setup = visualObject.GetComponent<ToonCharacterSetup>();
         if (setup == null)
         {
             setup = visualObject.AddComponent<ToonCharacterSetup>();
             setup.Configure(visualObject.transform, outline, null, true, outline != null);
-            return;
+        }
+        else if (isCatRanged)
+        {
+            setup.Configure(visualObject.transform, null, null, true, false);
+        }
+        else
+        {
+            setup.EnsureConfiguration(visualObject.transform, outline);
         }
 
-        setup.EnsureConfiguration(visualObject.transform, outline);
+        if (isCatRanged)
+        {
+            RemoveOutlineProxies(visualObject);
+            ApplyCatRangedToonTuning(visualObject);
+        }
     }
 
     private static Material GetMinionOutlineMaterial()
@@ -638,10 +653,71 @@ public class MinionManager : MonoBehaviour
 
         if (minionOutlineMaterial.HasProperty("_OutlineWidth"))
         {
-            minionOutlineMaterial.SetFloat("_OutlineWidth", 0.011f);
+            minionOutlineMaterial.SetFloat("_OutlineWidth", MinionOutlineWidth);
         }
 
         return minionOutlineMaterial;
+    }
+
+    private static void RemoveOutlineProxies(GameObject visualObject)
+    {
+        CharacterOutlineProxy[] proxies = visualObject.GetComponentsInChildren<CharacterOutlineProxy>(true);
+        for (int i = 0; i < proxies.Length; i++)
+        {
+            if (proxies[i] != null)
+            {
+                Destroy(proxies[i].gameObject);
+            }
+        }
+    }
+
+    private static void ApplyCatRangedToonTuning(GameObject visualObject)
+    {
+        Renderer[] renderers = visualObject.GetComponentsInChildren<Renderer>(true);
+        for (int i = 0; i < renderers.Length; i++)
+        {
+            Renderer renderer = renderers[i];
+            if (renderer == null || renderer.GetComponent<CharacterOutlineProxy>() != null)
+            {
+                continue;
+            }
+
+            Material[] materials = renderer.materials;
+            for (int j = 0; j < materials.Length; j++)
+            {
+                Material material = materials[j];
+                if (material == null)
+                {
+                    continue;
+                }
+
+                SetColorIfAvailable(material, "_Color", new Color(1.18f, 1.16f, 1.2f, 1f));
+                SetColorIfAvailable(material, "_ShadowColor", new Color(0.18f, 0.16f, 0.2f, 1f));
+                SetFloatIfAvailable(material, "_ShadowThreshold", 0.2f);
+                SetFloatIfAvailable(material, "_ShadowSmoothness", 0.11f);
+                SetColorIfAvailable(material, "_RimColor", new Color(0.72f, 0.66f, 0.9f, 1f));
+                SetFloatIfAvailable(material, "_RimPower", 2.2f);
+                SetFloatIfAvailable(material, "_RimStrength", 0.16f);
+                SetColorIfAvailable(material, "_OutlineColor", new Color(0.08f, 0.06f, 0.08f, 1f));
+                SetFloatIfAvailable(material, "_OutlineWidth", 0.003f);
+            }
+        }
+    }
+
+    private static void SetColorIfAvailable(Material material, string propertyName, Color value)
+    {
+        if (material != null && material.HasProperty(propertyName))
+        {
+            material.SetColor(propertyName, value);
+        }
+    }
+
+    private static void SetFloatIfAvailable(Material material, string propertyName, float value)
+    {
+        if (material != null && material.HasProperty(propertyName))
+        {
+            material.SetFloat(propertyName, value);
+        }
     }
 
     private void AlignBottomToGround(GameObject target)
@@ -680,7 +756,7 @@ public class MinionManager : MonoBehaviour
 
         Collider selfCollider = target.GetComponent<Collider>();
         float centerToBottom = selfCollider != null ? target.transform.position.y - selfCollider.bounds.min.y : 0f;
-        target.transform.position = new Vector3(target.transform.position.x, bestPoint.y + centerToBottom + 0.02f, target.transform.position.z);
+        target.transform.position = new Vector3(target.transform.position.x, bestPoint.y + centerToBottom + 0.005f, target.transform.position.z);
     }
 
     private static void DisablePlayerControlScripts(GameObject target)

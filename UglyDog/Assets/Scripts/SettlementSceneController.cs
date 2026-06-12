@@ -7,7 +7,7 @@ public class SettlementSceneController : MonoBehaviour
 {
     private const string SettlementSceneName = "settlement";
     private const string MainMenuSceneName = "MainMenu";
-    private const string ToonShaderName = "Custom/ToonLitOutline";
+    private const string SettlementPanelObjectName = "settlement panel";
 
     private static readonly Vector3 WinnerViewportPosition = new Vector3(0.62f, 0.42f, 8f);
     private const float WinnerTargetHeight = 2.65f;
@@ -17,7 +17,6 @@ public class SettlementSceneController : MonoBehaviour
 
     private GameObject previewInstance;
     private bool previewInstanceIsRuntimeClone;
-    private Material runtimeOutlineMaterial;
 
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
     private static void InstallForCurrentScene()
@@ -64,7 +63,7 @@ public class SettlementSceneController : MonoBehaviour
 
     private void BuildSettlementUi()
     {
-        Canvas canvas = FindObjectOfType<Canvas>();
+        Canvas canvas = ResolveSettlementCanvas();
         if (canvas == null)
         {
             GameObject canvasObject = new GameObject("Settlement Canvas", typeof(RectTransform), typeof(Canvas), typeof(CanvasScaler), typeof(GraphicRaycaster));
@@ -84,6 +83,7 @@ public class SettlementSceneController : MonoBehaviour
 
         Transform root = canvas.transform;
         ClearGeneratedChildren(root);
+        SendSettlementPanelBehindText(root);
 
         CreateLeftInfo(root);
         CreateWinnerLabel(root);
@@ -114,9 +114,20 @@ public class SettlementSceneController : MonoBehaviour
     private void CreateWinnerLabel(Transform root)
     {
         string winner = GetTeamName(SettlementResultData.WinningTeam);
-        RectTransform labelRect = CreateRect("Settlement Winner Label", root, new Vector2(620f, 96f), new Vector2(-145f, 325f), new Vector2(1f, 0.5f), new Vector2(1f, 0.5f));
-        Text label = CreateText(labelRect, "Text", "\u52dd\u5229\u8005\uff1a" + winner, 46, FontStyle.Bold, TextAnchor.MiddleCenter, Vector2.zero, labelRect.sizeDelta);
-        label.color = new Color(1f, 0.95f, 0.62f, 1f);
+        RectTransform labelRect = CreateRect("Settlement Winner Label", root, new Vector2(700f, 118f), new Vector2(-125f, 326f), new Vector2(1f, 0.5f), new Vector2(1f, 0.5f));
+        Text label = CreateText(labelRect, "Text", "\u52dd\u5229\u8005\uff1a" + winner, 58, FontStyle.Bold, TextAnchor.MiddleCenter, Vector2.zero, labelRect.sizeDelta);
+        label.color = new Color(1f, 0.97f, 0.38f, 1f);
+
+        Outline outline = label.GetComponent<Outline>();
+        if (outline != null)
+        {
+            outline.effectColor = new Color(0.08f, 0.035f, 0f, 0.95f);
+            outline.effectDistance = new Vector2(4f, -4f);
+        }
+
+        Shadow shadow = label.gameObject.AddComponent<Shadow>();
+        shadow.effectColor = new Color(0f, 0f, 0f, 0.72f);
+        shadow.effectDistance = new Vector2(5f, -6f);
     }
 
     private void ShowWinnerModel()
@@ -164,20 +175,10 @@ public class SettlementSceneController : MonoBehaviour
 
         ApplyLayerRecursively(previewInstance, 0);
         PreparePreviewCharacter(previewInstance);
-        if (previewInstanceIsRuntimeClone)
-        {
-            ApplyRuntimeToon(previewInstance);
-        }
+        EnablePrefabToonSetup(previewInstance);
         StabilizeSettlementHighlights(previewInstance);
         EnsureModelLight();
-
-        MenuCharacterIdleLock idleLock = previewInstance.GetComponent<MenuCharacterIdleLock>();
-        if (idleLock == null)
-        {
-            idleLock = previewInstance.AddComponent<MenuCharacterIdleLock>();
-        }
-
-        idleLock.enabled = true;
+        StartSettlementRunMotion(previewInstance);
     }
 
     private void DestroyWinnerModel()
@@ -189,12 +190,6 @@ public class SettlementSceneController : MonoBehaviour
 
         previewInstance = null;
         previewInstanceIsRuntimeClone = false;
-
-        if (runtimeOutlineMaterial != null)
-        {
-            Destroy(runtimeOutlineMaterial);
-            runtimeOutlineMaterial = null;
-        }
     }
 
     private void ReturnToMainMenu()
@@ -235,6 +230,47 @@ public class SettlementSceneController : MonoBehaviour
         outline.effectColor = new Color(0f, 0f, 0f, 0.65f);
         outline.effectDistance = new Vector2(2f, -2f);
         return text;
+    }
+
+    private static Canvas ResolveSettlementCanvas()
+    {
+        Canvas[] canvases = FindObjectsOfType<Canvas>(true);
+        for (int i = 0; i < canvases.Length; i++)
+        {
+            if (ContainsSettlementPanel(canvases[i].transform))
+            {
+                return canvases[i];
+            }
+        }
+
+        return canvases.Length > 0 ? canvases[0] : null;
+    }
+
+    private static bool ContainsSettlementPanel(Transform root)
+    {
+        Transform[] children = root.GetComponentsInChildren<Transform>(true);
+        for (int i = 0; i < children.Length; i++)
+        {
+            if (string.Equals(children[i].name, SettlementPanelObjectName, System.StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static void SendSettlementPanelBehindText(Transform root)
+    {
+        Transform[] children = root.GetComponentsInChildren<Transform>(true);
+        for (int i = 0; i < children.Length; i++)
+        {
+            if (string.Equals(children[i].name, SettlementPanelObjectName, System.StringComparison.OrdinalIgnoreCase))
+            {
+                children[i].SetAsFirstSibling();
+                return;
+            }
+        }
     }
 
     private static void ClearGeneratedChildren(Transform root)
@@ -386,36 +422,64 @@ public class SettlementSceneController : MonoBehaviour
         MonoBehaviour[] behaviours = character.GetComponentsInChildren<MonoBehaviour>(true);
         for (int i = 0; i < behaviours.Length; i++)
         {
-            if (behaviours[i] != null)
+            if (behaviours[i] != null && !ShouldKeepEnabledInSettlement(behaviours[i]))
             {
                 behaviours[i].enabled = false;
             }
         }
     }
 
-    private void ApplyRuntimeToon(GameObject character)
+    private static bool ShouldKeepEnabledInSettlement(MonoBehaviour behaviour)
     {
-        Shader toonShader = Shader.Find(ToonShaderName);
-        if (toonShader == null)
+        return behaviour is ToonCharacterSetup
+            || behaviour is CharacterOutlineProxy
+            || behaviour is CatTailMotionLimiter
+            || behaviour is SettlementCharacterRunMotion;
+    }
+
+    private static void EnablePrefabToonSetup(GameObject character)
+    {
+        ToonCharacterSetup[] toonSetups = character.GetComponentsInChildren<ToonCharacterSetup>(true);
+        for (int i = 0; i < toonSetups.Length; i++)
         {
-            return;
+            ToonCharacterSetup toonSetup = toonSetups[i];
+            if (toonSetup == null)
+            {
+                continue;
+            }
+
+            toonSetup.enabled = true;
+            toonSetup.EnsureConfiguration(character.transform, null);
+        }
+    }
+
+    private static void StartSettlementRunMotion(GameObject character)
+    {
+        MenuCharacterIdleLock[] idleLocks = character.GetComponentsInChildren<MenuCharacterIdleLock>(true);
+        for (int i = 0; i < idleLocks.Length; i++)
+        {
+            if (idleLocks[i] != null)
+            {
+                idleLocks[i].enabled = false;
+            }
         }
 
-        runtimeOutlineMaterial = new Material(toonShader)
+        VictoryCharacterPreviewMotion[] victoryMotions = character.GetComponentsInChildren<VictoryCharacterPreviewMotion>(true);
+        for (int i = 0; i < victoryMotions.Length; i++)
         {
-            name = "Settlement Runtime Toon Outline"
-        };
-        SetColorIfAvailable(runtimeOutlineMaterial, "_Color", Color.white);
-        SetColorIfAvailable(runtimeOutlineMaterial, "_OutlineColor", new Color(0.14f, 0.08f, 0.06f, 1f));
-        SetFloatIfAvailable(runtimeOutlineMaterial, "_OutlineWidth", 0.014f);
-
-        ToonCharacterSetup setup = character.GetComponent<ToonCharacterSetup>();
-        if (setup == null)
-        {
-            setup = character.AddComponent<ToonCharacterSetup>();
+            if (victoryMotions[i] != null)
+            {
+                victoryMotions[i].enabled = false;
+            }
         }
 
-        setup.Configure(character.transform, runtimeOutlineMaterial, null, true, true);
+        SettlementCharacterRunMotion runMotion = character.GetComponent<SettlementCharacterRunMotion>();
+        if (runMotion == null)
+        {
+            runMotion = character.AddComponent<SettlementCharacterRunMotion>();
+        }
+
+        runMotion.enabled = true;
     }
 
     private static void StabilizeSettlementHighlights(GameObject character)

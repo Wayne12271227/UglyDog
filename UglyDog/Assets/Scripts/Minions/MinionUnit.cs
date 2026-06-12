@@ -161,6 +161,7 @@ public class MinionUnit : MonoBehaviour
     private void LateUpdate()
     {
         ResolvePlayerOverlap();
+        SnapToGround();
         KeepAnimatorMoving();
     }
 
