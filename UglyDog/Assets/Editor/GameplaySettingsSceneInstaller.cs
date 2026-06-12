@@ -127,7 +127,7 @@ public static class GameplaySettingsSceneInstaller
             return button;
         }
 
-        Font font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+        Font font = UglyDogUIFont.Load();
         GameObject buttonObject = new GameObject("Gameplay Settings Button", typeof(RectTransform), typeof(CanvasRenderer), typeof(Image), typeof(Button));
         RectTransform rect = buttonObject.GetComponent<RectTransform>();
         rect.SetParent(parent, false);

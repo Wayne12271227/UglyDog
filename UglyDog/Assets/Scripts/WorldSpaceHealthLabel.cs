@@ -3,8 +3,6 @@ using UnityEngine.UI;
 
 public class WorldSpaceHealthLabel : MonoBehaviour
 {
-    private const string BuiltInFontName = "LegacyRuntime.ttf";
-
     [SerializeField] private Vector3 offset = Vector3.up;
     [SerializeField] private Text text;
 
@@ -102,28 +100,7 @@ public class WorldSpaceHealthLabel : MonoBehaviour
 
     private static Font LoadReadableFont()
     {
-        Font font = Font.CreateDynamicFontFromOSFont(
-            new[] { "Microsoft JhengHei", "Microsoft YaHei", "Arial Unicode MS", "Noto Sans CJK TC" },
-            18);
-
-        if (font != null)
-        {
-            return font;
-        }
-
-        return LoadBuiltInFont();
-    }
-
-    private static Font LoadBuiltInFont()
-    {
-        try
-        {
-            return Resources.GetBuiltinResource<Font>(BuiltInFontName);
-        }
-        catch (System.ArgumentException)
-        {
-            return null;
-        }
+        return UglyDogUIFont.Load();
     }
 
     public void SetText(string value)

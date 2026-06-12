@@ -396,7 +396,7 @@ MonoBehaviour:
     m_PersistentCalls:
       m_Calls: []
   m_FontData:
-    m_Font: {fileID: 10102, guid: 0000000000000000e000000000000000, type: 0}
+    m_Font: {fileID: 12800000, guid: 835a3a3a29d2442db5d6417ef19a93d0, type: 3}
     m_FontSize: 30
     m_FontStyle: 1
     m_BestFit: 0
@@ -863,7 +863,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 7978394019825862942, guid: bca9caf136578df439ff764a6cdca938, type: 3}
       propertyPath: outlineWidth
-      value: 0.0698
+      value: 0.08
       objectReference: {fileID: 0}
     - target: {fileID: 7978394019825862942, guid: bca9caf136578df439ff764a6cdca938, type: 3}
       propertyPath: shadowColor.b
@@ -1445,7 +1445,7 @@ MonoBehaviour:
     m_PersistentCalls:
       m_Calls: []
   m_FontData:
-    m_Font: {fileID: 10102, guid: 0000000000000000e000000000000000, type: 0}
+    m_Font: {fileID: 12800000, guid: 835a3a3a29d2442db5d6417ef19a93d0, type: 3}
     m_FontSize: 30
     m_FontStyle: 1
     m_BestFit: 0
@@ -1887,7 +1887,7 @@ Light:
   m_GameObject: {fileID: 819721519}
   m_Enabled: 1
   serializedVersion: 10
-  m_Type: 1
+  m_Type: 0
   m_Shape: 0
   m_Color: {r: 0.58, g: 0.72, b: 1, a: 1}
   m_Intensity: 0.35
@@ -2068,7 +2068,7 @@ Light:
   m_Type: 1
   m_Shape: 0
   m_Color: {r: 1, g: 0.93, b: 0.82, a: 1}
-  m_Intensity: 1.35
+  m_Intensity: 1.05
   m_Range: 10
   m_SpotAngle: 30
   m_InnerSpotAngle: 21.80208
@@ -2191,7 +2191,7 @@ MonoBehaviour:
     m_PersistentCalls:
       m_Calls: []
   m_FontData:
-    m_Font: {fileID: 10102, guid: 0000000000000000e000000000000000, type: 0}
+    m_Font: {fileID: 12800000, guid: 835a3a3a29d2442db5d6417ef19a93d0, type: 3}
     m_FontSize: 30
     m_FontStyle: 1
     m_BestFit: 0
@@ -2270,7 +2270,7 @@ MonoBehaviour:
     m_PersistentCalls:
       m_Calls: []
   m_FontData:
-    m_Font: {fileID: 10102, guid: 0000000000000000e000000000000000, type: 0}
+    m_Font: {fileID: 12800000, guid: 835a3a3a29d2442db5d6417ef19a93d0, type: 3}
     m_FontSize: 30
     m_FontStyle: 1
     m_BestFit: 0

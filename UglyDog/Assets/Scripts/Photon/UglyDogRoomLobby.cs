@@ -64,7 +64,9 @@ public class UglyDogRoomLobby : MonoBehaviour, INetworkRunnerCallbacks
         sceneManager = gameObject.AddComponent<NetworkSceneManagerDefault>();
         objectProvider = gameObject.AddComponent<NetworkObjectProviderDefault>();
 
-        StartGameResult result = await runner.JoinSessionLobby(SessionLobby.ClientServer);
+        StartGameResult result = await runner.JoinSessionLobby(
+            SessionLobby.ClientServer,
+            customAppSettings: UglyDogPhotonSettings.GetPhotonAppSettingsForCurrentPlatform());
         if (isLeaving || this == null)
         {
             return;
@@ -284,7 +286,8 @@ public class UglyDogRoomLobby : MonoBehaviour, INetworkRunnerCallbacks
             SessionName = roomName,
             PlayerCount = MaxPlayersPerRoom,
             SceneManager = sceneManager,
-            ObjectProvider = objectProvider
+            ObjectProvider = objectProvider,
+            CustomPhotonAppSettings = UglyDogPhotonSettings.GetPhotonAppSettingsForCurrentPlatform()
         });
 
         if (isLeaving || this == null)
@@ -899,7 +902,7 @@ public class UglyDogRoomLobby : MonoBehaviour, INetworkRunnerCallbacks
         textObject.transform.SetParent(parent, false);
         Text label = textObject.AddComponent<Text>();
         label.text = text;
-        label.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+        label.font = UglyDogUIFont.Load();
         label.fontSize = fontSize;
         label.alignment = anchor;
         label.color = Color.white;

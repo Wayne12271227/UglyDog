@@ -343,7 +343,7 @@ public static class MainMenuSceneBuilder
 
         Text text = textObject.AddComponent<Text>();
         text.text = label;
-        text.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+        text.font = UglyDogUIFont.Load();
         text.fontSize = 30;
         text.fontStyle = FontStyle.Bold;
         text.alignment = TextAnchor.MiddleCenter;

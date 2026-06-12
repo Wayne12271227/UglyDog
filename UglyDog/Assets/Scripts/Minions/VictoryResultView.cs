@@ -1,5 +1,6 @@
 using UnityEngine;
 using UnityEngine.SceneManagement;
+using UnityEngine.Events;
 using UnityEngine.UI;
 
 public class VictoryResultView : MonoBehaviour
@@ -10,6 +11,10 @@ public class VictoryResultView : MonoBehaviour
     [SerializeField] private RawImage characterImage;
     [SerializeField] private Button mainMenuButton;
     [SerializeField] private string mainMenuSceneName = "MainMenu";
+
+    private Text confirmButtonText;
+    private UnityAction confirmAction;
+    private string confirmButtonLabel = ConfirmButtonLabel;
 
     public Text ResultText
     {
@@ -32,11 +37,7 @@ public class VictoryResultView : MonoBehaviour
     private void Awake()
     {
         BindIfNeeded();
-        if (mainMenuButton != null)
-        {
-            mainMenuButton.onClick.RemoveListener(ReturnToMainMenu);
-            mainMenuButton.onClick.AddListener(ReturnToMainMenu);
-        }
+        SetConfirmAction(confirmAction ?? ReturnToMainMenu);
     }
 
     public void ShowResult(string result, Texture characterTexture)
@@ -63,6 +64,27 @@ public class VictoryResultView : MonoBehaviour
 
         characterImage.texture = characterTexture;
         characterImage.enabled = characterTexture != null;
+    }
+
+    public void SetConfirmAction(UnityAction action)
+    {
+        BindIfNeeded();
+
+        confirmAction = action ?? ReturnToMainMenu;
+        if (mainMenuButton == null)
+        {
+            return;
+        }
+
+        mainMenuButton.onClick.RemoveListener(ReturnToMainMenu);
+        mainMenuButton.onClick.RemoveListener(InvokeConfirmAction);
+        mainMenuButton.onClick.AddListener(InvokeConfirmAction);
+    }
+
+    public void SetConfirmButtonLabel(string label)
+    {
+        confirmButtonLabel = string.IsNullOrWhiteSpace(label) ? ConfirmButtonLabel : label;
+        EnsureMainMenuButtonLabel();
     }
 
     public void ReturnToMainMenu()
@@ -94,11 +116,27 @@ public class VictoryResultView : MonoBehaviour
         }
     }
 
+    private void InvokeConfirmAction()
+    {
+        if (confirmAction != null)
+        {
+            confirmAction.Invoke();
+            return;
+        }
+
+        ReturnToMainMenu();
+    }
+
     private void EnsureMainMenuButtonLabel()
     {
-        Text buttonText = mainMenuButton.GetComponentInChildren<Text>(true);
-        bool createdLabel = buttonText == null;
-        if (buttonText == null)
+        if (mainMenuButton == null)
+        {
+            return;
+        }
+
+        confirmButtonText = mainMenuButton.GetComponentInChildren<Text>(true);
+        bool createdLabel = confirmButtonText == null;
+        if (confirmButtonText == null)
         {
             GameObject textObject = new GameObject("Text", typeof(RectTransform), typeof(CanvasRenderer), typeof(Text));
             textObject.transform.SetParent(mainMenuButton.transform, false);
@@ -109,49 +147,33 @@ public class VictoryResultView : MonoBehaviour
             textRect.offsetMin = Vector2.zero;
             textRect.offsetMax = Vector2.zero;
 
-            buttonText = textObject.GetComponent<Text>();
+            confirmButtonText = textObject.GetComponent<Text>();
         }
 
-        if (createdLabel)
+        if (createdLabel || confirmButtonText.font == null)
         {
             Font readableFont = LoadReadableFont();
             if (readableFont != null)
             {
-                buttonText.font = readableFont;
+                confirmButtonText.font = readableFont;
             }
         }
 
-        buttonText.text = ConfirmButtonLabel;
-        buttonText.alignment = TextAnchor.MiddleCenter;
+        confirmButtonText.text = confirmButtonLabel;
+        confirmButtonText.alignment = TextAnchor.MiddleCenter;
         if (createdLabel)
         {
-            buttonText.fontSize = 34;
-            buttonText.fontStyle = FontStyle.Bold;
-            buttonText.color = Color.white;
+            confirmButtonText.fontSize = 34;
+            confirmButtonText.fontStyle = FontStyle.Bold;
+            confirmButtonText.color = Color.white;
         }
 
-        buttonText.raycastTarget = false;
+        confirmButtonText.raycastTarget = false;
     }
 
     private static Font LoadReadableFont()
     {
-        Font font = Font.CreateDynamicFontFromOSFont(
-            new[] { "Microsoft JhengHei", "Microsoft YaHei", "Arial Unicode MS", "Noto Sans CJK TC" },
-            18);
-
-        if (font != null)
-        {
-            return font;
-        }
-
-        try
-        {
-            return Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
-        }
-        catch (System.ArgumentException)
-        {
-            return null;
-        }
+        return UglyDogUIFont.Load();
     }
 
     private T FindChildComponent<T>(string childName) where T : Component

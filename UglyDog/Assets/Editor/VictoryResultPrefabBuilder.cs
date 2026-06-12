@@ -115,22 +115,6 @@ public static class VictoryResultPrefabBuilder
 
     private static Font LoadReadableFont()
     {
-        Font font = Font.CreateDynamicFontFromOSFont(
-            new[] { "Microsoft JhengHei", "Microsoft YaHei", "Arial Unicode MS", "Noto Sans CJK TC" },
-            18);
-
-        if (font != null)
-        {
-            return font;
-        }
-
-        try
-        {
-            return Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
-        }
-        catch (System.ArgumentException)
-        {
-            return null;
-        }
+        return UglyDogUIFont.Load();
     }
 }

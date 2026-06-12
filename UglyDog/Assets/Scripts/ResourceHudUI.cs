@@ -343,7 +343,7 @@ public class ResourceHudUI : MonoBehaviour
         Text nameText = nameObject.GetComponent<Text>();
         nameText.alignment = TextAnchor.MiddleLeft;
         nameText.color = new Color(1f, 1f, 1f, 0.75f);
-        nameText.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+        nameText.font = UglyDogUIFont.Load();
         nameText.fontSize = 15;
         nameText.fontStyle = FontStyle.Bold;
         nameText.raycastTarget = false;
@@ -362,7 +362,7 @@ public class ResourceHudUI : MonoBehaviour
         Text text = label.GetComponent<Text>();
         text.alignment = TextAnchor.MiddleRight;
         text.color = Color.white;
-        text.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+        text.font = UglyDogUIFont.Load();
         text.fontSize = 30;
         text.fontStyle = FontStyle.Bold;
         text.raycastTarget = false;

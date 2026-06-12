@@ -1,5 +1,6 @@
 using UnityEngine;
 using UnityEngine.EventSystems;
+using UnityEngine.Events;
 using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 #if UNITY_EDITOR
@@ -78,6 +79,10 @@ public class MinionManager : MonoBehaviour
     private RenderTexture resultCharacterTexture;
     private GameObject resultCharacterStage;
     private GameObject resultCharacterInstance;
+    private Button resultConfirmButton;
+    private Text resultConfirmButtonText;
+    private MinionTeam pendingWinningTeam;
+    private float matchStartUnscaledTime;
 
     private const string CatMeleeVisualPath = "Assets/prefab/cat_melee.prefab";
     private const string CatRangedVisualPath = "Assets/prefab/cat_ranged.prefab";
@@ -87,6 +92,7 @@ public class MinionManager : MonoBehaviour
     private const string CatVictoryPrefabPath = "Assets/prefab/character/CAT2 1.prefab";
     private const string VictoryResultPrefabPath = "Assets/prefab/VictoryResultCanvas.prefab";
     private const string MainMenuSceneName = "MainMenu";
+    private const string SettlementSceneName = "settlement";
     private const int VictoryPreviewLayer = 31;
     private const int VictoryPreviewMask = 1 << VictoryPreviewLayer;
 
@@ -127,6 +133,7 @@ public class MinionManager : MonoBehaviour
         Instance = this;
         Time.timeScale = 1f;
         gameEnded = false;
+        matchStartUnscaledTime = Time.unscaledTime;
         EnsureSharedMaterials();
         ResolveLanePoints();
     }
@@ -847,15 +854,23 @@ public class MinionManager : MonoBehaviour
     private void EndGame(MinionTeam winningTeam, MinionTeam losingTeam)
     {
         gameEnded = true;
+        SettlementResultData.SetResult(
+            winningTeam,
+            losingTeam,
+            Time.unscaledTime - matchStartUnscaledTime,
+            GetVictoryPrefab(winningTeam));
         ShowResult(winningTeam, losingTeam);
         Time.timeScale = 0f;
     }
 
     private void ShowResult(MinionTeam winningTeam, MinionTeam losingTeam)
     {
+        pendingWinningTeam = winningTeam;
         EnsureResultUi();
+        ConfigureResultConfirmButton(LoadSettlementScene, "\u78ba\u8a8d");
+        HideVictoryCharacter();
 
-        string result = "\u52dd\u5229\u8005\uff1a" + GetTeamName(winningTeam);
+        string result = "\u6230\u9b25\u7d50\u675f\n\u52dd\u5229\u8005\uff1a" + GetTeamName(winningTeam) + "\n\u6309\u4e0b\u78ba\u8a8d\u9032\u5165\u7d50\u7b97\u756b\u9762";
         if (resultView != null)
         {
             resultView.ShowResult(result, null);
@@ -865,7 +880,27 @@ public class MinionManager : MonoBehaviour
             resultText.text = result;
         }
 
-        ShowVictoryCharacter(winningTeam);
+        if (resultCanvas != null)
+        {
+            resultCanvas.gameObject.SetActive(true);
+        }
+    }
+
+    private void ShowWinnerShowcase()
+    {
+        ConfigureResultConfirmButton(ReturnToMainMenu, "\u8fd4\u56de\u4e3b\u9078\u55ae");
+        string result = "\u52dd\u5229\u8005\uff1a" + GetTeamName(pendingWinningTeam);
+
+        if (resultView != null)
+        {
+            resultView.ShowResult(result, null);
+        }
+        else if (resultText != null)
+        {
+            resultText.text = result;
+        }
+
+        ShowVictoryCharacter(pendingWinningTeam);
 
         if (resultView != null)
         {
@@ -895,6 +930,8 @@ public class MinionManager : MonoBehaviour
             resultCanvas = resultView.GetComponent<Canvas>();
             resultText = resultView.ResultText;
             resultCharacterImage = resultView.CharacterImage;
+            resultConfirmButton = null;
+            resultConfirmButtonText = null;
             resultView.gameObject.SetActive(false);
             return;
         }
@@ -979,7 +1016,7 @@ public class MinionManager : MonoBehaviour
         layout.childForceExpandHeight = true;
         layout.spacing = 28f;
 
-        CreateResultButton(buttonsObject.transform, "\u78ba\u8a8d", ReturnToMainMenu);
+        resultConfirmButton = CreateResultButton(buttonsObject.transform, "\u78ba\u8a8d", ReturnToMainMenu);
     }
 
     private static void EnsureEventSystem()
@@ -992,7 +1029,7 @@ public class MinionManager : MonoBehaviour
         new GameObject("EventSystem", typeof(EventSystem), typeof(StandaloneInputModule));
     }
 
-    private void CreateResultButton(Transform parent, string label, UnityEngine.Events.UnityAction action)
+    private Button CreateResultButton(Transform parent, string label, UnityAction action)
     {
         GameObject buttonObject = new GameObject(label + " Button", typeof(RectTransform), typeof(CanvasRenderer), typeof(Image), typeof(Button), typeof(LayoutElement));
         buttonObject.transform.SetParent(parent, false);
@@ -1023,12 +1060,40 @@ public class MinionManager : MonoBehaviour
         text.fontStyle = FontStyle.Bold;
         text.color = Color.white;
         text.raycastTarget = false;
+        resultConfirmButtonText = text;
+        return button;
+    }
+
+    private void ConfigureResultConfirmButton(UnityAction action, string label)
+    {
+        if (resultView != null)
+        {
+            resultView.SetConfirmAction(action);
+            resultView.SetConfirmButtonLabel(label);
+        }
+
+        if (resultConfirmButton != null)
+        {
+            resultConfirmButton.onClick.RemoveAllListeners();
+            resultConfirmButton.onClick.AddListener(action);
+        }
+
+        if (resultConfirmButtonText != null)
+        {
+            resultConfirmButtonText.text = label;
+        }
     }
 
     private void ReturnToMainMenu()
     {
         Time.timeScale = 1f;
         SceneManager.LoadScene(MainMenuSceneName);
+    }
+
+    private void LoadSettlementScene()
+    {
+        Time.timeScale = 1f;
+        SceneManager.LoadScene(SettlementSceneName);
     }
 
     private void ShowVictoryCharacter(MinionTeam winningTeam)
@@ -1061,9 +1126,31 @@ public class MinionManager : MonoBehaviour
         ApplyLayerRecursively(resultCharacterInstance, VictoryPreviewLayer);
         PrepareVictoryCharacter(resultCharacterInstance);
         FitVictoryCharacter(resultCharacterInstance.transform);
+        VictoryCharacterPreviewMotion motion = resultCharacterInstance.AddComponent<VictoryCharacterPreviewMotion>();
+        motion.Configure(GetVictoryActionState(winningTeam));
 
         resultCharacterImage.texture = resultCharacterTexture;
         resultCharacterImage.enabled = true;
+    }
+
+    private void HideVictoryCharacter()
+    {
+        if (resultCharacterInstance != null)
+        {
+            Destroy(resultCharacterInstance);
+            resultCharacterInstance = null;
+        }
+
+        if (resultCharacterImage != null)
+        {
+            resultCharacterImage.texture = null;
+            resultCharacterImage.enabled = false;
+        }
+
+        if (resultView != null)
+        {
+            resultView.SetCharacterTexture(null);
+        }
     }
 
     private void EnsureResultCharacterStage()
@@ -1218,25 +1305,14 @@ public class MinionManager : MonoBehaviour
         return team == MinionTeam.Dog ? "\u919c\u72d7" : "\u919c\u8c93";
     }
 
+    private static string GetVictoryActionState(MinionTeam team)
+    {
+        return "Attack";
+    }
+
     private static Font LoadReadableFont()
     {
-        Font font = Font.CreateDynamicFontFromOSFont(
-            new[] { "Microsoft JhengHei", "Microsoft YaHei", "Arial Unicode MS", "Noto Sans CJK TC" },
-            18);
-
-        if (font != null)
-        {
-            return font;
-        }
-
-        try
-        {
-            return Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
-        }
-        catch (System.ArgumentException)
-        {
-            return null;
-        }
+        return UglyDogUIFont.Load();
     }
 
     private Transform CreatePrototypeCatTarget()

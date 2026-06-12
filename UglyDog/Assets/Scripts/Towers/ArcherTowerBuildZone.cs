@@ -1708,7 +1708,7 @@ public class ArcherTowerBuildZone : MonoBehaviour
             gameObject.AddComponent<CanvasScaler>().uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
             gameObject.AddComponent<GraphicRaycaster>();
 
-            Font font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+            Font font = UglyDogUIFont.Load();
             GameObject panel = CreatePanel(transform, new Vector2(680f, 520f));
             CreateText(panel.transform, font, "\u5efa\u7bc9\u9078\u55ae", 32, FontStyle.Bold, new Vector2(0f, 210f), new Vector2(520f, 44f));
             resourceText = CreateText(panel.transform, font, string.Empty, 18, FontStyle.Bold, new Vector2(0f, 170f), new Vector2(560f, 30f));

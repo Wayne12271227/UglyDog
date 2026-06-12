@@ -48,7 +48,8 @@ public class UglyDogFusionLauncher : MonoBehaviour, INetworkRunnerCallbacks
             GameMode = GameMode.AutoHostOrClient,
             SessionName = sessionName,
             SceneManager = sceneManager,
-            ObjectProvider = objectProvider
+            ObjectProvider = objectProvider,
+            CustomPhotonAppSettings = UglyDogPhotonSettings.GetPhotonAppSettingsForCurrentPlatform()
         });
 
         if (!result.Ok)

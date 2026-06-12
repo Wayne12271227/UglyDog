@@ -97,7 +97,7 @@ public class GameplayPingDisplay : MonoBehaviour
         textObject.transform.SetParent(parent, false);
 
         pingText = textObject.AddComponent<Text>();
-        pingText.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+        pingText.font = UglyDogUIFont.Load();
         pingText.fontSize = 22;
         pingText.fontStyle = FontStyle.Bold;
         pingText.alignment = TextAnchor.MiddleCenter;

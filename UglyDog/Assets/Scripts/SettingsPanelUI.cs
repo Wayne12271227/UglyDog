@@ -10,6 +10,7 @@ using UnityEngine.UI;
 public class SettingsPanelUI : MonoBehaviour
 {
     private const string MainMenuSceneName = "MainMenu";
+    private const float ValueTextVerticalOffset = -50f;
 
     public static bool BlocksPlayerInput { get; private set; }
 
@@ -167,7 +168,7 @@ public class SettingsPanelUI : MonoBehaviour
 
     private void BuildPanel()
     {
-        Font font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+        Font font = UglyDogUIFont.Load();
 
         RectTransform panel = CreateRect("Vertical Settings Panel", root, panelSize, Vector2.zero);
         Image panelImage = panel.gameObject.AddComponent<Image>();
@@ -217,6 +218,7 @@ public class SettingsPanelUI : MonoBehaviour
         }
 
         isRefreshing = true;
+        EnsureValueTextsVisible();
         musicSlider.value = GameAudioSettings.MusicVolume;
         sfxSlider.value = GameAudioSettings.SfxVolume;
         SetValueText(musicValueText, musicSlider.value);
@@ -278,6 +280,7 @@ public class SettingsPanelUI : MonoBehaviour
         }
 
         BindValueTexts();
+        EnsureValueTextsVisible();
     }
 
     private void DisableNonUiCloseIcons()
@@ -327,6 +330,86 @@ public class SettingsPanelUI : MonoBehaviour
         {
             sfxValueText = valueTexts[1];
         }
+    }
+
+    private void EnsureValueTextsVisible()
+    {
+        musicValueText = EnsureValueTextVisible(musicValueText, musicSlider, "Music Value Text");
+        sfxValueText = EnsureValueTextVisible(sfxValueText, sfxSlider, "Sfx Value Text");
+    }
+
+    private Text EnsureValueTextVisible(Text valueText, Slider slider, string objectName)
+    {
+        if (slider == null)
+        {
+            return valueText;
+        }
+
+        RectTransform sliderRect = slider.transform as RectTransform;
+        Transform parent = sliderRect != null && sliderRect.parent != null ? sliderRect.parent : root;
+        if (parent == null)
+        {
+            return valueText;
+        }
+
+        if (valueText == null)
+        {
+            Vector2 position = sliderRect != null
+                ? sliderRect.anchoredPosition + new Vector2(0f, ValueTextVerticalOffset)
+                : Vector2.zero;
+
+            valueText = CreateText(parent, UglyDogUIFont.Load(), "100%", 26, FontStyle.Bold, position, new Vector2(190f, 40f), TextAnchor.MiddleCenter);
+            valueText.gameObject.name = objectName;
+        }
+
+        RectTransform textRect = valueText.transform as RectTransform;
+        if (textRect != null)
+        {
+            if (textRect.parent != parent)
+            {
+                textRect.SetParent(parent, false);
+            }
+
+            if (sliderRect != null)
+            {
+                textRect.anchorMin = sliderRect.anchorMin;
+                textRect.anchorMax = sliderRect.anchorMax;
+                textRect.pivot = new Vector2(0.5f, 0.5f);
+                textRect.anchoredPosition = sliderRect.anchoredPosition + new Vector2(0f, ValueTextVerticalOffset);
+            }
+
+            textRect.sizeDelta = new Vector2(190f, 40f);
+            textRect.localScale = Vector3.one;
+            textRect.SetAsLastSibling();
+        }
+
+        valueText.gameObject.SetActive(true);
+        valueText.enabled = true;
+        valueText.font = UglyDogUIFont.Load();
+        valueText.text = string.IsNullOrEmpty(valueText.text) ? "100%" : valueText.text;
+        valueText.fontSize = Mathf.Max(valueText.fontSize, 26);
+        valueText.fontStyle = FontStyle.Bold;
+        valueText.alignment = TextAnchor.MiddleCenter;
+        valueText.horizontalOverflow = HorizontalWrapMode.Overflow;
+        valueText.verticalOverflow = VerticalWrapMode.Overflow;
+        valueText.color = Color.white;
+        valueText.raycastTarget = false;
+        valueText.canvasRenderer.SetAlpha(1f);
+        EnsureValueTextOutline(valueText);
+        return valueText;
+    }
+
+    private static void EnsureValueTextOutline(Text valueText)
+    {
+        Outline outline = valueText.GetComponent<Outline>();
+        if (outline == null)
+        {
+            outline = valueText.gameObject.AddComponent<Outline>();
+        }
+
+        outline.effectColor = new Color(0f, 0f, 0f, 0.75f);
+        outline.effectDistance = new Vector2(2f, -2f);
+        outline.useGraphicAlpha = true;
     }
 
     private void WireControls()
@@ -633,7 +716,7 @@ public class SettingsPanelUI : MonoBehaviour
             panel = root;
         }
 
-        Font font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+        Font font = UglyDogUIFont.Load();
         unstuckButton = CreateButton(panel, font, unstuckButtonDefaultText, new Vector2(0f, -236f), new Vector2(260f, 48f), null);
         unstuckButton.name = "Unstuck Button";
         unstuckButtonText = unstuckButton.GetComponentInChildren<Text>(true);

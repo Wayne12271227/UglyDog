@@ -25,7 +25,7 @@ Material:
     m_TexEnvs: []
     m_Ints: []
     m_Floats:
-    - _OutlineWidth: 0.011
+    - _OutlineWidth: 0.0748
     m_Colors:
     - _OutlineColor: {r: 0.14, g: 0.08, b: 0.06, a: 1}
   m_BuildTextureStacks: []
