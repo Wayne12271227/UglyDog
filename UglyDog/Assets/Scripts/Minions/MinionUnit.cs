@@ -30,6 +30,10 @@ public class MinionUnit : MonoBehaviour
     [SerializeField] private float obstacleAvoidanceDistance = 1.4f;
     [SerializeField] private float obstacleAvoidanceAngle = 55f;
     [SerializeField, Range(0f, 1f)] private float obstacleAvoidanceBlend = 0.75f;
+    [SerializeField] private float stuckRecoveryDelay = 0.28f;
+    [SerializeField] private float stuckRecoveryMinProgress = 0.035f;
+    [SerializeField] private float stuckRecoveryStepDistance = 0.9f;
+    [SerializeField, Range(0f, 1f)] private float stuckRecoveryForwardBlend = 0.55f;
     [SerializeField] private LayerMask searchLayers = ~0;
     [SerializeField] private Animator animator;
     [SerializeField] private string attackTrigger = "Attack";
@@ -57,6 +61,8 @@ public class MinionUnit : MonoBehaviour
     private bool attackAnimationPlaying;
     private CapsuleCollider capsuleCollider;
     private Collider selfCollider;
+    private float blockedMoveTime;
+    private int stuckRecoverySide = 1;
 
     public MinionKind Kind => kind;
     public MinionTeam Team => combatant != null ? combatant.Team : MinionTeam.Dog;
@@ -360,8 +366,11 @@ public class MinionUnit : MonoBehaviour
             return;
         }
 
-        Vector3 moveDirection = GetObstacleAvoidedDirection(direction.normalized);
+        Vector3 desiredDirection = direction.normalized;
+        Vector3 moveDirection = GetObstacleAvoidedDirection(desiredDirection);
+        Vector3 beforeMovePosition = transform.position;
         MoveWithCollision(moveDirection * moveSpeed * Time.deltaTime);
+        UpdateStuckRecovery(desiredDirection, moveDirection, beforeMovePosition);
         attackAnimationPlaying = false;
         FaceDirection(moveDirection);
         SnapToGround();
@@ -481,6 +490,85 @@ public class MinionUnit : MonoBehaviour
         ResolveCollisionPenetration();
     }
 
+    private void UpdateStuckRecovery(Vector3 desiredDirection, Vector3 moveDirection, Vector3 beforeMovePosition)
+    {
+        Vector3 actualMove = transform.position - beforeMovePosition;
+        actualMove.y = 0f;
+        float expectedDistance = moveSpeed * Time.deltaTime;
+        float minProgress = Mathf.Min(stuckRecoveryMinProgress, expectedDistance * 0.45f);
+        if (actualMove.magnitude >= minProgress || !HasAvoidanceObstacle(moveDirection))
+        {
+            blockedMoveTime = 0f;
+            return;
+        }
+
+        blockedMoveTime += Time.deltaTime;
+        if (blockedMoveTime < stuckRecoveryDelay)
+        {
+            return;
+        }
+
+        if (TryRecoverFromStuck(desiredDirection))
+        {
+            blockedMoveTime = 0f;
+            stuckRecoverySide *= -1;
+        }
+    }
+
+    private bool TryRecoverFromStuck(Vector3 desiredDirection)
+    {
+        desiredDirection.y = 0f;
+        if (desiredDirection.sqrMagnitude <= 0.001f)
+        {
+            return false;
+        }
+
+        desiredDirection.Normalize();
+        Vector3 right = Vector3.Cross(Vector3.up, desiredDirection).normalized;
+        int side = stuckRecoverySide >= 0 ? 1 : -1;
+        Vector3[] candidates =
+        {
+            (desiredDirection * stuckRecoveryForwardBlend + right * side).normalized,
+            (desiredDirection * stuckRecoveryForwardBlend - right * side).normalized,
+            right * side,
+            -right * side,
+            (-desiredDirection * 0.45f + right * side).normalized,
+            (-desiredDirection * 0.45f - right * side).normalized
+        };
+
+        for (int i = 0; i < candidates.Length; i++)
+        {
+            if (TryApplyRecoveryStep(candidates[i]))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private bool TryApplyRecoveryStep(Vector3 direction)
+    {
+        direction.y = 0f;
+        if (direction.sqrMagnitude <= 0.001f)
+        {
+            return false;
+        }
+
+        Vector3 offset = direction.normalized * stuckRecoveryStepDistance;
+        Vector3 allowedOffset = GetBlockedHorizontalOffset(offset);
+        allowedOffset.y = 0f;
+        if (allowedOffset.magnitude < stuckRecoveryMinProgress)
+        {
+            return false;
+        }
+
+        transform.position += allowedOffset;
+        ResolveCollisionPenetration();
+        SnapToGround();
+        return true;
+    }
+
     private Vector3 GetBlockedHorizontalOffset(Vector3 horizontalOffset)
     {
         if (capsuleCollider == null)
@@ -493,6 +581,7 @@ public class MinionUnit : MonoBehaviour
         GetCapsuleWorldPoints(out Vector3 point1, out Vector3 point2, out float radius);
         int hitCount = Physics.CapsuleCastNonAlloc(point1, point2, radius, direction, HitQueryBuffer, distance + collisionSkin, collisionLayers, QueryTriggerInteraction.Ignore);
         float nearestDistance = float.PositiveInfinity;
+        Vector3 nearestNormal = Vector3.zero;
 
         for (int i = 0; i < hitCount; i++)
         {
@@ -513,7 +602,11 @@ public class MinionUnit : MonoBehaviour
                 continue;
             }
 
-            nearestDistance = Mathf.Min(nearestDistance, hit.distance);
+            if (hit.distance < nearestDistance)
+            {
+                nearestDistance = hit.distance;
+                nearestNormal = hit.normal;
+            }
         }
 
         if (float.IsPositiveInfinity(nearestDistance))
@@ -522,7 +615,58 @@ public class MinionUnit : MonoBehaviour
         }
 
         float allowedDistance = Mathf.Max(0f, nearestDistance - collisionSkin);
-        return direction * Mathf.Min(distance, allowedDistance);
+        Vector3 allowedForward = direction * Mathf.Min(distance, allowedDistance);
+        Vector3 slideOffset = GetSlideOffsetAlongObstacle(horizontalOffset - allowedForward, nearestNormal);
+        return allowedForward + slideOffset;
+    }
+
+    private Vector3 GetSlideOffsetAlongObstacle(Vector3 remainingOffset, Vector3 hitNormal)
+    {
+        remainingOffset.y = 0f;
+        hitNormal.y = 0f;
+        if (remainingOffset.sqrMagnitude <= 0.000001f || hitNormal.sqrMagnitude <= 0.000001f)
+        {
+            return Vector3.zero;
+        }
+
+        hitNormal.Normalize();
+        Vector3 slideOffset = remainingOffset - hitNormal * Vector3.Dot(remainingOffset, hitNormal);
+        slideOffset.y = 0f;
+        if (slideOffset.sqrMagnitude <= 0.000001f)
+        {
+            return Vector3.zero;
+        }
+
+        Vector3 slideDirection = slideOffset.normalized;
+        float slideDistance = slideOffset.magnitude;
+        GetCapsuleWorldPoints(out Vector3 point1, out Vector3 point2, out float radius);
+        int hitCount = Physics.CapsuleCastNonAlloc(point1, point2, radius, slideDirection, HitQueryBuffer, slideDistance + collisionSkin, collisionLayers, QueryTriggerInteraction.Ignore);
+        float nearestDistance = float.PositiveInfinity;
+
+        for (int i = 0; i < hitCount; i++)
+        {
+            RaycastHit hit = HitQueryBuffer[i];
+            Collider hitCollider = hit.collider;
+            if (hitCollider == null || hitCollider.transform.IsChildOf(transform))
+            {
+                continue;
+            }
+
+            if (IsEscapingBuildingCollider(hitCollider, slideOffset) || ShouldIgnoreHorizontalCollision(hitCollider, hit.normal))
+            {
+                continue;
+            }
+
+            nearestDistance = Mathf.Min(nearestDistance, hit.distance);
+        }
+
+        if (float.IsPositiveInfinity(nearestDistance))
+        {
+            return slideOffset;
+        }
+
+        float allowedDistance = Mathf.Max(0f, nearestDistance - collisionSkin);
+        return slideDirection * Mathf.Min(slideDistance, allowedDistance);
     }
 
     private void ResolveCollisionPenetration()
@@ -1533,5 +1677,9 @@ public class MinionUnit : MonoBehaviour
         obstacleAvoidanceDistance = Mathf.Max(0.2f, obstacleAvoidanceDistance);
         obstacleAvoidanceAngle = Mathf.Clamp(obstacleAvoidanceAngle, 15f, 85f);
         obstacleAvoidanceBlend = Mathf.Clamp01(obstacleAvoidanceBlend);
+        stuckRecoveryDelay = Mathf.Clamp(stuckRecoveryDelay, 0.1f, 2f);
+        stuckRecoveryMinProgress = Mathf.Clamp(stuckRecoveryMinProgress, 0.005f, 0.2f);
+        stuckRecoveryStepDistance = Mathf.Clamp(stuckRecoveryStepDistance, 0.1f, 2f);
+        stuckRecoveryForwardBlend = Mathf.Clamp01(stuckRecoveryForwardBlend);
     }
 }
