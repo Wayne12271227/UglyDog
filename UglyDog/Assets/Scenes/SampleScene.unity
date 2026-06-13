@@ -47716,6 +47716,9 @@ MonoBehaviour:
   useSimpleGameplayCollider: 1
   buildAnchor: {fileID: 0}
   buildLocalOffset: {x: 0, y: 0, z: 0}
+  createStartingBuilding: 1
+  startingBuildingType: 1
+  startingBuildingTeam: 1
   buildingVisualPrefabs:
   - type: 0
     prefab: {fileID: 1308738613946660864, guid: afdb68c55d5bdc2478ac81690ce65e77, type: 3}
@@ -147479,12 +147482,12 @@ MonoBehaviour:
   meleeDamage: 5
   meleeAttackRange: 1.15
   meleeAttackCooldown: 0.9
-  meleeMoveSpeed: 2.6
+  meleeMoveSpeed: 3
   rangedHealth: 20
   rangedDamage: 4
   rangedAttackRange: 8
   rangedAttackCooldown: 1.25
-  rangedMoveSpeed: 2.2
+  rangedMoveSpeed: 3
   targetSearchRadius: 7
   buildingSearchRadius: 24
   buildingPriorityRadius: 18
@@ -168612,6 +168615,9 @@ MonoBehaviour:
   useSimpleGameplayCollider: 1
   buildAnchor: {fileID: 0}
   buildLocalOffset: {x: 0, y: 0, z: 0}
+  createStartingBuilding: 1
+  startingBuildingType: 1
+  startingBuildingTeam: 0
   buildingVisualPrefabs:
   - type: 0
     prefab: {fileID: 1308738613946660864, guid: afdb68c55d5bdc2478ac81690ce65e77, type: 3}

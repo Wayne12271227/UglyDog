@@ -33,6 +33,11 @@ public class ArcherTowerBuildZone : MonoBehaviour
     [SerializeField] private Transform buildAnchor;
     [SerializeField] private Vector3 buildLocalOffset = Vector3.zero;
 
+    [Header("Starting Building")]
+    [SerializeField] private bool createStartingBuilding;
+    [SerializeField] private BuildSiteBuildingType startingBuildingType = BuildSiteBuildingType.AutoLumber;
+    [SerializeField] private MinionTeam startingBuildingTeam = MinionTeam.Dog;
+
     [Header("Building Visual Prefabs")]
     [SerializeField] private BuildingVisualPrefab[] buildingVisualPrefabs =
     {
@@ -99,6 +104,11 @@ public class ArcherTowerBuildZone : MonoBehaviour
         ApplyOwnershipColor();
     }
 
+    private void Start()
+    {
+        CreateStartingBuildingIfNeeded();
+    }
+
     private void OnValidate()
     {
         buildDuration = Mathf.Max(0.1f, buildDuration);
@@ -110,6 +120,16 @@ public class ArcherTowerBuildZone : MonoBehaviour
 #if UNITY_EDITOR
         AutoAssignBuildShopPrefabIfMissing();
 #endif
+    }
+
+    private void CreateStartingBuildingIfNeeded()
+    {
+        if (!createStartingBuilding || currentBuilding != null || isBuilding)
+        {
+            return;
+        }
+
+        CreateBuilding(startingBuildingType, startingBuildingTeam);
     }
 
     public bool HasCurrentBuilding => currentBuilding != null || isBuilding;

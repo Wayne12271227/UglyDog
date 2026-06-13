@@ -215,7 +215,7 @@ public class UglyDogRoomLobby : MonoBehaviour, INetworkRunnerCallbacks
         if (oldRunner != null)
         {
             oldRunner.RemoveCallbacks(this);
-            await oldRunner.Shutdown();
+            await oldRunner.Shutdown(false);
         }
 
         if (isLeaving || this == null)

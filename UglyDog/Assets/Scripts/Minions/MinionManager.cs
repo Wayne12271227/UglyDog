@@ -26,14 +26,14 @@ public class MinionManager : MonoBehaviour
     [SerializeField] private int meleeDamage = 5;
     [SerializeField] private float meleeAttackRange = 1.15f;
     [SerializeField] private float meleeAttackCooldown = 0.9f;
-    [SerializeField] private float meleeMoveSpeed = 2.6f;
+    [SerializeField] private float meleeMoveSpeed = 3f;
 
     [Header("Ranged")]
     [SerializeField] private int rangedHealth = 20;
     [SerializeField] private int rangedDamage = 4;
     [SerializeField] private float rangedAttackRange = 8f;
     [SerializeField] private float rangedAttackCooldown = 1.25f;
-    [SerializeField] private float rangedMoveSpeed = 2.2f;
+    [SerializeField] private float rangedMoveSpeed = 3f;
 
     [Header("Search")]
     [SerializeField] private float targetSearchRadius = 7f;

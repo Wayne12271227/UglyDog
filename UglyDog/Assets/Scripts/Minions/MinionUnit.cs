@@ -894,6 +894,7 @@ public class MinionUnit : MonoBehaviour
     {
         int hitCount = Physics.OverlapSphereNonAlloc(transform.position, playerSeparationRadius, ColliderQueryBuffer, ~0, QueryTriggerInteraction.Collide);
         Vector3 push = Vector3.zero;
+        Vector3 travelAxis = GetCurrentTravelAxis();
 
         for (int i = 0; i < hitCount; i++)
         {
@@ -913,7 +914,8 @@ public class MinionUnit : MonoBehaviour
 
             float distance = Mathf.Max(0.01f, away.magnitude);
             float strength = Mathf.Clamp01((playerSeparationRadius - distance) / playerSeparationRadius);
-            push += away.normalized * strength;
+            Vector3 lateralAway = ProjectPlayerSeparationAwayFromTravel(away, travelAxis);
+            push += lateralAway * strength;
         }
 
         if (push.sqrMagnitude <= 0.001f)
@@ -923,6 +925,58 @@ public class MinionUnit : MonoBehaviour
 
         MoveWithCollision(push.normalized * playerSeparationStrength * Time.deltaTime);
         SnapToGround();
+    }
+
+    private Vector3 GetCurrentTravelAxis()
+    {
+        Vector3 axis = Vector3.zero;
+        if (currentTarget != null)
+        {
+            axis = currentTarget.transform.position - transform.position;
+        }
+        else if (currentBuildingTarget != null)
+        {
+            axis = GetDirectionTowardBuildingTarget(currentBuildingTarget);
+        }
+        else if (goal != null)
+        {
+            axis = goal.position - transform.position;
+        }
+
+        axis.y = 0f;
+        if (axis.sqrMagnitude <= 0.001f)
+        {
+            axis = transform.forward;
+            axis.y = 0f;
+        }
+
+        return axis.sqrMagnitude > 0.001f ? axis.normalized : Vector3.zero;
+    }
+
+    private Vector3 ProjectPlayerSeparationAwayFromTravel(Vector3 away, Vector3 travelAxis)
+    {
+        away.y = 0f;
+        if (away.sqrMagnitude <= 0.001f)
+        {
+            return Vector3.zero;
+        }
+
+        if (travelAxis.sqrMagnitude <= 0.001f)
+        {
+            return away.normalized;
+        }
+
+        Vector3 lateralAway = away - travelAxis * Vector3.Dot(away, travelAxis);
+        if (lateralAway.sqrMagnitude <= 0.001f)
+        {
+            lateralAway = Vector3.Cross(Vector3.up, travelAxis);
+            if (Vector3.Dot(lateralAway, transform.right) < 0f)
+            {
+                lateralAway = -lateralAway;
+            }
+        }
+
+        return lateralAway.normalized;
     }
 
     private void GetCapsuleWorldPoints(out Vector3 point1, out Vector3 point2, out float radius)

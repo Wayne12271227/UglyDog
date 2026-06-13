@@ -161,6 +161,11 @@ public class UglyDogNetworkPlayer : NetworkBehaviour
             return false;
         }
 
+        if (!TrySpendMinionCost(kind))
+        {
+            return false;
+        }
+
         RPC_RequestBuyMinion((byte)kind, (byte)team, spawnPosition, useExplicitPosition);
         return true;
     }
@@ -317,7 +322,8 @@ public class UglyDogNetworkPlayer : NetworkBehaviour
             return false;
         }
 
-        if (!ArcherTowerBuildZone.TrySpendBuildCost((BuildSiteBuildingType)buildingType))
+        if (Object.HasInputAuthority
+            && !ArcherTowerBuildZone.TrySpendBuildCost((BuildSiteBuildingType)buildingType))
         {
             RPC_RejectBuild(zoneAnchorPosition, buildingType);
             return false;
@@ -345,8 +351,8 @@ public class UglyDogNetworkPlayer : NetworkBehaviour
         MinionManager manager = MinionManager.EnsureInstance();
         ResourceManager resources = ResourceManager.Instance;
         MinionKind minionKind = (MinionKind)kind;
-        int cost = manager.GetCost(minionKind);
-        if (resources == null || !resources.Spend(ResourceType.Coin, cost))
+        if (Object.HasInputAuthority
+            && (resources == null || !resources.Spend(ResourceType.Coin, manager.GetCost(minionKind))))
         {
             return false;
         }
@@ -354,6 +360,14 @@ public class UglyDogNetworkPlayer : NetworkBehaviour
         ApplyMinionSummon(kind, team, spawnPosition, useExplicitPosition);
         RPC_ApplyMinionSummon(kind, team, spawnPosition, useExplicitPosition);
         return true;
+    }
+
+    private static bool TrySpendMinionCost(MinionKind kind)
+    {
+        ResourceManager resources = ResourceManager.Instance;
+        MinionManager manager = MinionManager.EnsureInstance();
+        int cost = manager.GetCost(kind);
+        return resources != null && resources.Spend(ResourceType.Coin, cost);
     }
 
     private void ApplyMinionSummon(byte kind, byte team, Vector3 spawnPosition, bool useExplicitPosition)

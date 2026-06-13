@@ -6256,7 +6256,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 95dec492f15491e4c8e00d7b7855e3db, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  moveSpeed: 4
+  moveSpeed: 5
   turnSpeed: 12
   moveRelativeToCamera: 1
   modelForwardOffsetY: 90

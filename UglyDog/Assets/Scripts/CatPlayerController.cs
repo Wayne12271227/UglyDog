@@ -5,7 +5,7 @@ using UnityEngine;
 public class CatPlayerController : MonoBehaviour
 {
     [Header("Movement")]
-    [SerializeField] private float moveSpeed = 4f;
+    [SerializeField] private float moveSpeed = 5f;
     [SerializeField] private float turnSpeed = 12f;
     [SerializeField] private bool moveRelativeToCamera = true;
     [SerializeField] private float modelForwardOffsetY = -90f;
@@ -538,14 +538,18 @@ public class CatPlayerController : MonoBehaviour
 
     private bool IsPredictionUnstableCollider(Collider other)
     {
-        if (!networkControlled || other == null || IsBuildingCollider(other))
+        if (other == null || IsBuildingCollider(other))
         {
             return false;
         }
 
-        return other.GetComponentInParent<CatPlayerController>() != null
-            || other.GetComponentInParent<MinionUnit>() != null
-            || other.GetComponentInParent<MinionCombatant>() != null;
+        if (other.GetComponentInParent<MinionUnit>() != null
+            || other.GetComponentInParent<MinionCombatant>() != null)
+        {
+            return true;
+        }
+
+        return networkControlled && other.GetComponentInParent<CatPlayerController>() != null;
     }
 
     private bool IsEscapingBuildingCollider(Collider other, Vector3 horizontalOffset)
@@ -1280,7 +1284,7 @@ public class CatPlayerController : MonoBehaviour
 
         Vector3 center = capsuleCollider.center;
         float expectedCenterY = capsuleCollider.height * 0.5f;
-        if (center.y < expectedCenterY * 0.5f)
+        if (center.y < expectedCenterY - 0.001f)
         {
             center.y = expectedCenterY;
             capsuleCollider.center = center;
