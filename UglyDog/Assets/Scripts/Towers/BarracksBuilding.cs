@@ -69,6 +69,12 @@ public class BarracksBuilding : MonoBehaviour
 
     private void TryBuyAndSummon(MinionKind kind)
     {
+        if (!MinionManager.IsPlayerManualSummonReady())
+        {
+            FlashPrompt(MinionManager.GetPlayerManualSummonCooldownText());
+            return;
+        }
+
         MinionManager manager = MinionManager.EnsureInstance();
         Vector3 spawnPosition = GetSpawnPosition();
         UglyDogNetworkPlayer networkPlayer = activePlayer != null ? activePlayer.GetComponent<UglyDogNetworkPlayer>() : null;
@@ -76,6 +82,7 @@ public class BarracksBuilding : MonoBehaviour
         {
             if (networkPlayer.RequestBuyMinion(kind, team, spawnPosition, true))
             {
+                MinionManager.StartPlayerManualSummonCooldown();
                 FlashPrompt("\u5df2\u53ec\u559a " + manager.GetDisplayName(kind));
             }
             else
@@ -95,6 +102,7 @@ public class BarracksBuilding : MonoBehaviour
         }
 
         Summon(kind);
+        MinionManager.StartPlayerManualSummonCooldown();
         FlashPrompt("\u5df2\u53ec\u559a " + manager.GetDisplayName(kind));
     }
 

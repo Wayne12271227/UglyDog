@@ -2,12 +2,15 @@ using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.SceneManagement;
 using UnityEngine.UI;
+using System.Collections;
 
 public class SettlementSceneController : MonoBehaviour
 {
     private const string SettlementSceneName = "settlement";
     private const string MainMenuSceneName = "MainMenu";
     private const string SettlementPanelObjectName = "settlement panel";
+    private const string SettlementBackgroundPlaneObjectName = "Settlement Background Plane";
+    private const float SettlementBackgroundOverscanMargin = 0.35f;
 
     private static readonly Vector3 WinnerViewportPosition = new Vector3(0.62f, 0.42f, 8f);
     private const float WinnerTargetHeight = 2.65f;
@@ -15,8 +18,18 @@ public class SettlementSceneController : MonoBehaviour
     private static readonly string[] DogWinnerObjectNames = { "Menu DOG", "DOG", "Dog", "dog" };
     private static readonly string[] CatWinnerObjectNames = { "CAT2 1", "CAT2", "CAT", "Menu CAT", "Cat", "cat" };
 
+    [Header("Intro Camera")]
+    [SerializeField] private float introZoomDuration = 2.35f;
+    [SerializeField] private float introCameraPullback = 9f;
+    [SerializeField] private float introCameraLift = 1.4f;
+    [SerializeField] private float introFieldOfViewBonus = 18f;
+    [SerializeField] private float introUiFadeDelay = 1.15f;
+    [SerializeField] private float introUiFadeDuration = 0.85f;
+
     private GameObject previewInstance;
     private bool previewInstanceIsRuntimeClone;
+    private CanvasGroup settlementCanvasGroup;
+    private Coroutine introRoutine;
 
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
     private static void InstallForCurrentScene()
@@ -54,6 +67,8 @@ public class SettlementSceneController : MonoBehaviour
         BindExistingReturnButton();
         ShowWinnerModel();
         EnsureSettlementMusic();
+        EnsureSettlementBackgroundCoverage();
+        PlayIntroCameraZoom();
     }
 
     private void OnDestroy()
@@ -82,6 +97,16 @@ public class SettlementSceneController : MonoBehaviour
         scaler.matchWidthOrHeight = 0.5f;
 
         Transform root = canvas.transform;
+        settlementCanvasGroup = canvas.GetComponent<CanvasGroup>();
+        if (settlementCanvasGroup == null)
+        {
+            settlementCanvasGroup = canvas.gameObject.AddComponent<CanvasGroup>();
+        }
+
+        settlementCanvasGroup.alpha = 0f;
+        settlementCanvasGroup.interactable = false;
+        settlementCanvasGroup.blocksRaycasts = false;
+
         ClearGeneratedChildren(root);
         SendSettlementPanelBehindText(root);
 
@@ -93,21 +118,24 @@ public class SettlementSceneController : MonoBehaviour
     {
         RectTransform group = CreateRect("Settlement Info", root, new Vector2(660f, 540f), new Vector2(120f, 18f), new Vector2(0f, 0.5f), new Vector2(0f, 0.5f));
 
-        Text title = CreateText(group, "Title", "\u6230\u9b25\u7d50\u7b97", 64, FontStyle.Bold, TextAnchor.MiddleLeft, new Vector2(0f, 178f), new Vector2(660f, 96f));
-        title.color = Color.white;
-
         string winner = GetTeamName(SettlementResultData.WinningTeam);
         string loser = GetTeamName(SettlementResultData.LosingTeam);
         string duration = FormatDuration(SettlementResultData.BattleDurationSeconds);
+
+        Text title = CreateText(group, "Title", "\u52dd\u5229\u8005\uff1a" + winner, 64, FontStyle.Bold, TextAnchor.MiddleLeft, new Vector2(0f, 178f), new Vector2(660f, 96f));
+        title.color = Color.white;
+
         string resultText = SettlementResultData.HasResult
-            ? "\u52dd\u5229\u8005\uff1a" + winner + "\n\u5931\u6557\u65b9\uff1a" + loser + "\n\u672c\u5834\u6230\u9b25\u7528\u6642\uff1a" + duration
+            ? winner + "\u64ca\u6557\u4e86" + loser
+                + "\n\u4f60\u6210\u529f\u6210\u70ba\u4e16\u754c\u6700\u919c\u7684\u50b3\u8aaa"
+                + "\n\u6230\u9b25\u7528\u6642\uff1a" + duration
             : "\u5c1a\u672a\u53d6\u5f97\u6230\u9b25\u8cc7\u6599\n\u8acb\u5f9e\u904a\u6232\u52dd\u5229\u5f8c\u9032\u5165\u6b64\u9801";
 
-        Text body = CreateText(group, "Result Details", resultText, 36, FontStyle.Bold, TextAnchor.MiddleLeft, new Vector2(0f, -12f), new Vector2(660f, 250f));
+        Text body = CreateText(group, "Result Details", resultText, 34, FontStyle.Bold, TextAnchor.MiddleLeft, new Vector2(0f, -10f), new Vector2(700f, 280f));
         body.lineSpacing = 1.18f;
         body.color = new Color(1f, 0.95f, 0.82f, 1f);
 
-        Text hint = CreateText(group, "Hint", "\u6aa2\u8996\u7d50\u7b97\u5f8c\u53ef\u8fd4\u56de\u4e3b\u9078\u55ae", 24, FontStyle.Normal, TextAnchor.MiddleLeft, new Vector2(0f, -214f), new Vector2(660f, 54f));
+        Text hint = CreateText(group, "Hint", "\u919c\u540d\u5df2\u7d93\u50b3\u904d\u5168\u5834\uff0c\u6aa2\u8996\u5f8c\u53ef\u8fd4\u56de\u4e3b\u9078\u55ae", 24, FontStyle.Normal, TextAnchor.MiddleLeft, new Vector2(0f, -226f), new Vector2(700f, 54f));
         hint.color = new Color(1f, 1f, 1f, 0.78f);
     }
 
@@ -115,7 +143,7 @@ public class SettlementSceneController : MonoBehaviour
     {
         string winner = GetTeamName(SettlementResultData.WinningTeam);
         RectTransform labelRect = CreateRect("Settlement Winner Label", root, new Vector2(700f, 118f), new Vector2(-125f, 326f), new Vector2(1f, 0.5f), new Vector2(1f, 0.5f));
-        Text label = CreateText(labelRect, "Text", "\u52dd\u5229\u8005\uff1a" + winner, 58, FontStyle.Bold, TextAnchor.MiddleCenter, Vector2.zero, labelRect.sizeDelta);
+        Text label = CreateText(labelRect, "Text", "\u4e16\u754c\u6700\u919c\uff1a" + winner, 58, FontStyle.Bold, TextAnchor.MiddleCenter, Vector2.zero, labelRect.sizeDelta);
         label.color = new Color(1f, 0.97f, 0.38f, 1f);
 
         Outline outline = label.GetComponent<Outline>();
@@ -480,6 +508,138 @@ public class SettlementSceneController : MonoBehaviour
         }
 
         runMotion.enabled = true;
+    }
+
+    private void PlayIntroCameraZoom()
+    {
+        Camera settlementCamera = ResolveSettlementCamera();
+        if (settlementCamera == null)
+        {
+            RevealSettlementUi();
+            return;
+        }
+
+        if (introRoutine != null)
+        {
+            StopCoroutine(introRoutine);
+        }
+
+        introRoutine = StartCoroutine(PlayIntroCameraZoomRoutine(settlementCamera));
+    }
+
+    private void EnsureSettlementBackgroundCoverage()
+    {
+        GameObject backgroundObject = FindSceneObjectByNames(new[] { SettlementBackgroundPlaneObjectName });
+        Transform background = backgroundObject != null ? backgroundObject.transform : null;
+        Camera settlementCamera = ResolveSettlementCamera();
+        if (settlementCamera == null || !settlementCamera.orthographic)
+        {
+            settlementCamera = ResolveSettlementOrthographicCamera();
+        }
+
+        if (background == null || settlementCamera == null)
+        {
+            return;
+        }
+
+        float aspect = Mathf.Max(0.1f, settlementCamera.aspect);
+        float verticalSize = (settlementCamera.orthographicSize + Mathf.Abs(introCameraLift) + SettlementBackgroundOverscanMargin) * 2f;
+        float horizontalSize = verticalSize * aspect;
+        Vector3 currentScale = background.localScale;
+        background.localScale = new Vector3(
+            Mathf.Max(currentScale.x, horizontalSize),
+            Mathf.Max(currentScale.y, verticalSize),
+            currentScale.z);
+    }
+
+    private static Camera ResolveSettlementOrthographicCamera()
+    {
+        Camera[] cameras = FindObjectsOfType<Camera>();
+        Camera bestCamera = null;
+        for (int i = 0; i < cameras.Length; i++)
+        {
+            Camera candidate = cameras[i];
+            if (candidate == null || !candidate.isActiveAndEnabled || !candidate.orthographic)
+            {
+                continue;
+            }
+
+            if (!string.Equals(candidate.gameObject.scene.name, SettlementSceneName, System.StringComparison.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+
+            if (bestCamera == null || candidate.depth > bestCamera.depth)
+            {
+                bestCamera = candidate;
+            }
+        }
+
+        return bestCamera;
+    }
+
+    private IEnumerator PlayIntroCameraZoomRoutine(Camera settlementCamera)
+    {
+        Vector3 finalPosition = settlementCamera.transform.position;
+        Quaternion finalRotation = settlementCamera.transform.rotation;
+        float finalFieldOfView = settlementCamera.fieldOfView;
+
+        Vector3 startPosition = finalPosition
+            - settlementCamera.transform.forward * Mathf.Max(0.1f, introCameraPullback)
+            + Vector3.up * introCameraLift;
+        float startFieldOfView = Mathf.Min(95f, finalFieldOfView + introFieldOfViewBonus);
+
+        settlementCamera.transform.position = startPosition;
+        settlementCamera.transform.rotation = finalRotation;
+        settlementCamera.fieldOfView = startFieldOfView;
+
+        if (settlementCanvasGroup != null)
+        {
+            settlementCanvasGroup.alpha = 0f;
+            settlementCanvasGroup.interactable = false;
+            settlementCanvasGroup.blocksRaycasts = false;
+        }
+
+        float duration = Mathf.Max(0.01f, introZoomDuration);
+        float fadeDelay = Mathf.Clamp(introUiFadeDelay, 0f, duration);
+        float fadeDuration = Mathf.Max(0.01f, introUiFadeDuration);
+        float elapsed = 0f;
+
+        while (elapsed < duration)
+        {
+            elapsed += Time.unscaledDeltaTime;
+            float t = Mathf.Clamp01(elapsed / duration);
+            float eased = Mathf.SmoothStep(0f, 1f, t);
+
+            settlementCamera.transform.position = Vector3.Lerp(startPosition, finalPosition, eased);
+            settlementCamera.transform.rotation = finalRotation;
+            settlementCamera.fieldOfView = Mathf.Lerp(startFieldOfView, finalFieldOfView, eased);
+
+            if (settlementCanvasGroup != null && elapsed >= fadeDelay)
+            {
+                settlementCanvasGroup.alpha = Mathf.Clamp01((elapsed - fadeDelay) / fadeDuration);
+            }
+
+            yield return null;
+        }
+
+        settlementCamera.transform.position = finalPosition;
+        settlementCamera.transform.rotation = finalRotation;
+        settlementCamera.fieldOfView = finalFieldOfView;
+        RevealSettlementUi();
+        introRoutine = null;
+    }
+
+    private void RevealSettlementUi()
+    {
+        if (settlementCanvasGroup == null)
+        {
+            return;
+        }
+
+        settlementCanvasGroup.alpha = 1f;
+        settlementCanvasGroup.interactable = true;
+        settlementCanvasGroup.blocksRaycasts = true;
     }
 
     private static void StabilizeSettlementHighlights(GameObject character)

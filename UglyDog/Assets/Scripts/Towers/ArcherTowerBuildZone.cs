@@ -13,6 +13,8 @@ public enum BuildSiteBuildingType
 [RequireComponent(typeof(Collider))]
 public class ArcherTowerBuildZone : MonoBehaviour
 {
+    private const int BarracksCoinCost = 120;
+
     [System.Serializable]
     private class BuildingVisualPrefab
     {
@@ -1095,7 +1097,7 @@ public class ArcherTowerBuildZone : MonoBehaviour
     {
         if (type == BuildSiteBuildingType.Barracks)
         {
-            return 150;
+            return BarracksCoinCost;
         }
 
         return type == BuildSiteBuildingType.ArcherTower ? 100 : 50;

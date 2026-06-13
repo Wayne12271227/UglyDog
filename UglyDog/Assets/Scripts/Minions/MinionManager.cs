@@ -10,6 +10,7 @@ using UnityEditor;
 public class MinionManager : MonoBehaviour
 {
     public static MinionManager Instance { get; private set; }
+    public const float PlayerManualSummonCooldownSeconds = 1.5f;
 
     [Header("Lane Points")]
     [SerializeField] private Transform dogSpawnPoint;
@@ -97,6 +98,7 @@ public class MinionManager : MonoBehaviour
     private const string SettlementSceneName = "settlement";
     private const int VictoryPreviewLayer = 31;
     private const int VictoryPreviewMask = 1 << VictoryPreviewLayer;
+    private static float nextPlayerManualSummonTime;
 
     public static MinionManager EnsureInstance()
     {
@@ -122,6 +124,26 @@ public class MinionManager : MonoBehaviour
         return team == MinionTeam.Dog ? dogTeamMaterial : catTeamMaterial;
     }
 
+    public static bool IsPlayerManualSummonReady()
+    {
+        return Time.time >= nextPlayerManualSummonTime;
+    }
+
+    public static float GetPlayerManualSummonCooldownRemaining()
+    {
+        return Mathf.Max(0f, nextPlayerManualSummonTime - Time.time);
+    }
+
+    public static void StartPlayerManualSummonCooldown()
+    {
+        nextPlayerManualSummonTime = Time.time + PlayerManualSummonCooldownSeconds;
+    }
+
+    public static string GetPlayerManualSummonCooldownText()
+    {
+        return "\u53ec\u559a\u51b7\u537b\u4e2d " + GetPlayerManualSummonCooldownRemaining().ToString("0.0") + "\u79d2";
+    }
+
     public bool IsGameEnded => gameEnded;
 
     private void Awake()
@@ -136,6 +158,7 @@ public class MinionManager : MonoBehaviour
         Time.timeScale = 1f;
         gameEnded = false;
         matchStartUnscaledTime = Time.unscaledTime;
+        nextPlayerManualSummonTime = 0f;
         EnsureSharedMaterials();
         ResolveLanePoints();
     }
@@ -946,7 +969,7 @@ public class MinionManager : MonoBehaviour
         ConfigureResultConfirmButton(LoadSettlementScene, "\u78ba\u8a8d");
         HideVictoryCharacter();
 
-        string result = "\u6230\u9b25\u7d50\u675f\n\u52dd\u5229\u8005\uff1a" + GetTeamName(winningTeam) + "\n\u6309\u4e0b\u78ba\u8a8d\u9032\u5165\u7d50\u7b97\u756b\u9762";
+        string result = "\u6230\u9b25\u7d50\u675f\n\u919c\u540d\u5df2\u5b9a\uff0c\u6309\u4e0b\u78ba\u8a8d\u9032\u5165\u52a0\u5195\u7d50\u7b97";
         if (resultView != null)
         {
             resultView.ShowResult(result, null);
@@ -965,7 +988,7 @@ public class MinionManager : MonoBehaviour
     private void ShowWinnerShowcase()
     {
         ConfigureResultConfirmButton(ReturnToMainMenu, "\u8fd4\u56de\u4e3b\u9078\u55ae");
-        string result = "\u52dd\u5229\u8005\uff1a" + GetTeamName(pendingWinningTeam);
+        string result = GetTeamName(pendingWinningTeam);
 
         if (resultView != null)
         {

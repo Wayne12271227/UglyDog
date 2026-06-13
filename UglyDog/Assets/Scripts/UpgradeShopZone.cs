@@ -518,6 +518,12 @@ public class UpgradeShopZone : MonoBehaviour
 
     private void TryBuyMinion(MinionKind kind)
     {
+        if (!MinionManager.IsPlayerManualSummonReady())
+        {
+            FlashMinionPrompt(MinionManager.GetPlayerManualSummonCooldownText());
+            return;
+        }
+
         MinionManager manager = MinionManager.EnsureInstance();
         MinionTeam team = GetShopTeam();
         CatPlayerController buyer = GetPreferredPlayerInsideZone();
@@ -527,6 +533,7 @@ public class UpgradeShopZone : MonoBehaviour
             : manager.TryBuyAndSummon(kind, team);
         if (bought)
         {
+            MinionManager.StartPlayerManualSummonCooldown();
             FlashMinionPrompt("\u5df2\u53ec\u559a " + manager.GetDisplayName(kind));
         }
         else

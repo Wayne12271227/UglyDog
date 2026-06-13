@@ -330,6 +330,7 @@ public class MainMenuController : MonoBehaviour
         }
 
         panel.SetExitGameButtonVisible(false);
+        panel.SetUnstuckButtonVisible(false);
         panelObject.transform.SetAsLastSibling();
         return panel;
     }

@@ -79,6 +79,17 @@ public class SettingsPanelUI : MonoBehaviour
         }
     }
 
+    public void SetUnstuckButtonVisible(bool visible)
+    {
+        showUnstuckButton = visible;
+        ResetUnstuckButtonText();
+
+        if (unstuckButton != null)
+        {
+            unstuckButton.gameObject.SetActive(ShouldShowUnstuckButton());
+        }
+    }
+
     private void Awake()
     {
         EnsureBuilt();
@@ -192,9 +203,12 @@ public class SettingsPanelUI : MonoBehaviour
         sfxSlider = CreateSlider(panel, new Vector2(0f, -144f));
         sfxValueText = CreateText(panel, font, "100%", 24, FontStyle.Bold, new Vector2(0f, -194f), new Vector2(160f, 34f), TextAnchor.MiddleCenter);
 
-        unstuckButton = CreateButton(panel, font, unstuckButtonDefaultText, new Vector2(0f, -236f), new Vector2(260f, 48f), null);
-        unstuckButton.name = "Unstuck Button";
-        unstuckButtonText = unstuckButton.GetComponentInChildren<Text>(true);
+        if (showUnstuckButton)
+        {
+            unstuckButton = CreateButton(panel, font, unstuckButtonDefaultText, new Vector2(0f, -236f), new Vector2(260f, 48f), null);
+            unstuckButton.name = "Unstuck Button";
+            unstuckButtonText = unstuckButton.GetComponentInChildren<Text>(true);
+        }
 
         exitGameButton = CreateButton(panel, font, "\u9000\u51fa\u904a\u6232", new Vector2(0f, -292f), new Vector2(260f, 48f), null);
         exitGameButton.name = "Exit Game Button";
