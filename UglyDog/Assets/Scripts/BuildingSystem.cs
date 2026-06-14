@@ -57,9 +57,9 @@ public static class BuildingSystem
         switch (type)
         {
             case BuildingType.AutoLumberCamp:
-                return "\u6bcf 2 \u79d2 +1 \u6728\u982d";
+                return "\u6bcf\u79d2 +1 \u6728\u982d";
             case BuildingType.AutoQuarry:
-                return "\u6bcf 2 \u79d2 +1 \u77f3\u982d";
+                return "\u6bcf\u79d2 +1 \u77f3\u982d";
             default:
                 return string.Empty;
         }
@@ -103,7 +103,7 @@ public static class BuildingSystem
         teamBuilding.Configure(MinionTeam.Dog);
 
         AutoResourceBuilding producer = root.AddComponent<AutoResourceBuilding>();
-        producer.Configure(GetProducedResource(type), 1, 2f);
+        producer.Configure(GetProducedResource(type), 1, 1f);
 
         BoxCollider collider = root.AddComponent<BoxCollider>();
         Vector3 footprint = GetFootprintSize(type);

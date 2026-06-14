@@ -8,7 +8,7 @@ public class ArcherTower : MonoBehaviour
     [Header("Combat")]
     [SerializeField] private float attackRange = 10.4f;
     [SerializeField] private float shotsPerSecond = 1.1f;
-    [SerializeField] private int damage = 6;
+    [SerializeField] private int damage = 8;
     [SerializeField] private float projectileSpeed = 13f;
     [SerializeField] private LayerMask targetLayers = ~0;
     [SerializeField] private Vector3 muzzleLocalPosition = new Vector3(0f, 2.2f, 0.35f);

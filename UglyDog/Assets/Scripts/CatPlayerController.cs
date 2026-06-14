@@ -59,7 +59,7 @@ public class CatPlayerController : MonoBehaviour
     [SerializeField] private float attackRadius = 0.75f;
     [SerializeField] private float attackForwardOffset = 0.75f;
     [SerializeField] private float attackKnockbackDistance = 4.2f;
-    [SerializeField] private float attackCooldown = 5f;
+    [SerializeField] private float attackCooldown = 2.5f;
     [SerializeField] private float attackAnimationSpeed = 2.5f;
     [SerializeField] private float attackAnimationSpeedDuration = 0.4f;
 

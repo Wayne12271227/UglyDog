@@ -5656,7 +5656,7 @@ MonoBehaviour:
     usePrefabColliders: 1
   towerAttackRange: 10.4
   towerShotsPerSecond: 1.1
-  towerDamage: 6
+  towerDamage: 8
   towerProjectileSpeed: 13
   barracksSummonInterval: 12
   autoFindDashedRangeRenderers: 1
@@ -21237,7 +21237,7 @@ MonoBehaviour:
     usePrefabColliders: 1
   towerAttackRange: 10.4
   towerShotsPerSecond: 1.1
-  towerDamage: 6
+  towerDamage: 8
   towerProjectileSpeed: 13
   barracksSummonInterval: 12
   autoFindDashedRangeRenderers: 1
@@ -31728,7 +31728,7 @@ MonoBehaviour:
     usePrefabColliders: 1
   towerAttackRange: 10.4
   towerShotsPerSecond: 1.1
-  towerDamage: 6
+  towerDamage: 8
   towerProjectileSpeed: 13
   barracksSummonInterval: 12
   autoFindDashedRangeRenderers: 1
@@ -36954,7 +36954,7 @@ MonoBehaviour:
     usePrefabColliders: 1
   towerAttackRange: 10.4
   towerShotsPerSecond: 1.1
-  towerDamage: 6
+  towerDamage: 8
   towerProjectileSpeed: 13
   barracksSummonInterval: 12
   autoFindDashedRangeRenderers: 1
@@ -41991,7 +41991,7 @@ MonoBehaviour:
     usePrefabColliders: 1
   towerAttackRange: 10.4
   towerShotsPerSecond: 1.1
-  towerDamage: 6
+  towerDamage: 8
   towerProjectileSpeed: 13
   barracksSummonInterval: 12
   autoFindDashedRangeRenderers: 1
@@ -47746,7 +47746,7 @@ MonoBehaviour:
     usePrefabColliders: 1
   towerAttackRange: 10.4
   towerShotsPerSecond: 1.1
-  towerDamage: 6
+  towerDamage: 8
   towerProjectileSpeed: 13
   barracksSummonInterval: 12
   autoFindDashedRangeRenderers: 1
@@ -75495,7 +75495,7 @@ MonoBehaviour:
     usePrefabColliders: 1
   towerAttackRange: 10.4
   towerShotsPerSecond: 1.1
-  towerDamage: 6
+  towerDamage: 8
   towerProjectileSpeed: 13
   barracksSummonInterval: 12
   autoFindDashedRangeRenderers: 1
@@ -76087,7 +76087,7 @@ MonoBehaviour:
     usePrefabColliders: 1
   towerAttackRange: 10.4
   towerShotsPerSecond: 1.1
-  towerDamage: 6
+  towerDamage: 8
   towerProjectileSpeed: 13
   barracksSummonInterval: 12
   autoFindDashedRangeRenderers: 1
@@ -76827,7 +76827,7 @@ MonoBehaviour:
     usePrefabColliders: 1
   towerAttackRange: 10.4
   towerShotsPerSecond: 1.1
-  towerDamage: 6
+  towerDamage: 8
   towerProjectileSpeed: 13
   barracksSummonInterval: 12
   autoFindDashedRangeRenderers: 1
@@ -112653,7 +112653,7 @@ MonoBehaviour:
     usePrefabColliders: 1
   towerAttackRange: 10.4
   towerShotsPerSecond: 1.1
-  towerDamage: 6
+  towerDamage: 8
   towerProjectileSpeed: 13
   barracksSummonInterval: 12
   autoFindDashedRangeRenderers: 1
@@ -146444,7 +146444,7 @@ MonoBehaviour:
     usePrefabColliders: 1
   towerAttackRange: 10.4
   towerShotsPerSecond: 1.1
-  towerDamage: 6
+  towerDamage: 8
   towerProjectileSpeed: 13
   barracksSummonInterval: 12
   autoFindDashedRangeRenderers: 1
@@ -147319,7 +147319,7 @@ MonoBehaviour:
     usePrefabColliders: 1
   towerAttackRange: 10.4
   towerShotsPerSecond: 1.1
-  towerDamage: 6
+  towerDamage: 8
   towerProjectileSpeed: 13
   barracksSummonInterval: 12
   autoFindDashedRangeRenderers: 1
@@ -168093,7 +168093,7 @@ MonoBehaviour:
     usePrefabColliders: 1
   towerAttackRange: 10.4
   towerShotsPerSecond: 1.1
-  towerDamage: 6
+  towerDamage: 8
   towerProjectileSpeed: 13
   barracksSummonInterval: 12
   autoFindDashedRangeRenderers: 1
@@ -168645,7 +168645,7 @@ MonoBehaviour:
     usePrefabColliders: 1
   towerAttackRange: 10.4
   towerShotsPerSecond: 1.1
-  towerDamage: 6
+  towerDamage: 8
   towerProjectileSpeed: 13
   barracksSummonInterval: 12
   autoFindDashedRangeRenderers: 1
@@ -200396,7 +200396,7 @@ MonoBehaviour:
     usePrefabColliders: 1
   towerAttackRange: 10.4
   towerShotsPerSecond: 1.1
-  towerDamage: 6
+  towerDamage: 8
   towerProjectileSpeed: 13
   barracksSummonInterval: 12
   autoFindDashedRangeRenderers: 1
@@ -205968,7 +205968,7 @@ MonoBehaviour:
     usePrefabColliders: 1
   towerAttackRange: 10.4
   towerShotsPerSecond: 1.1
-  towerDamage: 6
+  towerDamage: 8
   towerProjectileSpeed: 13
   barracksSummonInterval: 12
   autoFindDashedRangeRenderers: 1
@@ -257580,7 +257580,7 @@ MonoBehaviour:
     usePrefabColliders: 1
   towerAttackRange: 10.4
   towerShotsPerSecond: 1.1
-  towerDamage: 6
+  towerDamage: 8
   towerProjectileSpeed: 13
   barracksSummonInterval: 12
   autoFindDashedRangeRenderers: 1
@@ -258042,7 +258042,7 @@ MonoBehaviour:
     usePrefabColliders: 1
   towerAttackRange: 10.4
   towerShotsPerSecond: 1.1
-  towerDamage: 6
+  towerDamage: 8
   towerProjectileSpeed: 13
   barracksSummonInterval: 12
   autoFindDashedRangeRenderers: 1

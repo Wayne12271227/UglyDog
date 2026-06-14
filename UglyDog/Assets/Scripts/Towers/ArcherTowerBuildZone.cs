@@ -29,11 +29,16 @@ public class ArcherTowerBuildZone : MonoBehaviour
     [Header("Build Site")]
     [SerializeField] private KeyCode openKey = KeyCode.E;
     [SerializeField] private float buildDuration = 4f;
-    [SerializeField] private int buildingHealth = 60;
+    [SerializeField, HideInInspector] private int buildingHealth = 60;
     [SerializeField] private float builderCompletionClearance = 0.7f;
     [SerializeField] private bool useSimpleGameplayCollider = true;
     [SerializeField] private Transform buildAnchor;
     [SerializeField] private Vector3 buildLocalOffset = Vector3.zero;
+
+    [Header("Building Health")]
+    [SerializeField] private int towerBuildingHealth = 100;
+    [SerializeField] private int barracksBuildingHealth = 100;
+    [SerializeField] private int resourceBuildingHealth = 80;
 
     [Header("Starting Building")]
     [SerializeField] private bool createStartingBuilding;
@@ -52,7 +57,7 @@ public class ArcherTowerBuildZone : MonoBehaviour
     [Header("Archer Tower")]
     [SerializeField] private float towerAttackRange = 10.4f;
     [SerializeField] private float towerShotsPerSecond = 1.1f;
-    [SerializeField] private int towerDamage = 6;
+    [SerializeField] private int towerDamage = 8;
     [SerializeField] private float towerProjectileSpeed = 13f;
 
     [Header("Barracks")]
@@ -115,6 +120,9 @@ public class ArcherTowerBuildZone : MonoBehaviour
     {
         buildDuration = Mathf.Max(0.1f, buildDuration);
         buildingHealth = Mathf.Max(1, buildingHealth);
+        towerBuildingHealth = Mathf.Max(1, towerBuildingHealth);
+        barracksBuildingHealth = Mathf.Max(1, barracksBuildingHealth);
+        resourceBuildingHealth = Mathf.Max(1, resourceBuildingHealth);
         builderCompletionClearance = Mathf.Clamp(builderCompletionClearance, 0.1f, 1f);
         horizontalZoneEdgePadding = Mathf.Max(0f, horizontalZoneEdgePadding);
         barracksSummonInterval = Mathf.Max(1f, barracksSummonInterval);
@@ -615,7 +623,7 @@ public class ArcherTowerBuildZone : MonoBehaviour
         buildingObject.transform.rotation = Quaternion.Euler(0f, transform.eulerAngles.y, 0f);
 
         BuildingHealth health = buildingObject.AddComponent<BuildingHealth>();
-        health.Configure(buildingHealth);
+        health.Configure(GetBuildingHealth(type));
         health.Destroyed += OnBuildingDestroyed;
 
         currentBuilding = buildingObject;
@@ -644,7 +652,7 @@ public class ArcherTowerBuildZone : MonoBehaviour
         else
         {
             AutoResourceBuilding producer = buildingObject.AddComponent<AutoResourceBuilding>();
-            producer.Configure(type == BuildSiteBuildingType.AutoQuarry ? ResourceType.Stone : ResourceType.Wood, 1, 2f);
+            producer.Configure(type == BuildSiteBuildingType.AutoQuarry ? ResourceType.Stone : ResourceType.Wood, 1, 1f);
             CreateBuildingVisual(buildingObject.transform, type, fallbackCollider);
         }
 
@@ -1083,9 +1091,9 @@ public class ArcherTowerBuildZone : MonoBehaviour
             case BuildSiteBuildingType.ArcherTower:
                 return "\u653b\u64ca\u8def\u5f91\u4e0a\u7684\u6575\u65b9\u58eb\u5175";
             case BuildSiteBuildingType.AutoLumber:
-                return "\u6bcf 2 \u79d2 +1 \u6728\u982d";
+                return "\u6bcf\u79d2 +1 \u6728\u982d";
             case BuildSiteBuildingType.AutoQuarry:
-                return "\u6bcf 2 \u79d2 +1 \u77f3\u982d";
+                return "\u6bcf\u79d2 +1 \u77f3\u982d";
             case BuildSiteBuildingType.Barracks:
                 return "\u6bcf 12 \u79d2\u53ec\u559a 1 \u96bb\u8fd1\u6230\u5c0f\u5175";
             default:
@@ -1158,6 +1166,22 @@ public class ArcherTowerBuildZone : MonoBehaviour
         }
 
         return new Vector3(2.2f, 1.8f, 2.2f);
+    }
+
+    private int GetBuildingHealth(BuildSiteBuildingType type)
+    {
+        switch (type)
+        {
+            case BuildSiteBuildingType.ArcherTower:
+                return towerBuildingHealth;
+            case BuildSiteBuildingType.Barracks:
+                return barracksBuildingHealth;
+            case BuildSiteBuildingType.AutoLumber:
+            case BuildSiteBuildingType.AutoQuarry:
+                return resourceBuildingHealth;
+            default:
+                return buildingHealth;
+        }
     }
 
     private CatPlayerController GetPlayer(Collider other)
